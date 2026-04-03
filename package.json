@@ -1,0 +1,31 @@
+{
+  "name": "notes_app",
+  "version": "1.0.0",
+  "description": "An app for taking notes",
+  "homepage": "https://github.com/banerjee2080/Notes_app#readme",
+  "bugs": {
+    "url": "https://github.com/banerjee2080/Notes_app/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/banerjee2080/Notes_app.git"
+  },
+  "license": "ISC",
+  "author": "Amitabha Banerjee",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "bcrypt": "^6.0.0",
+    "body-parser": "^2.2.2",
+    "dotenv": "^17.4.0",
+    "express": "^5.2.1",
+    "express-session": "^1.19.0",
+    "passport": "^0.7.0",
+    "passport-google-oauth3": "^2.0.4",
+    "passport-local": "^1.0.0",
+    "pg": "^8.20.0"
+  }
+}
