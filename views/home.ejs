@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Home</title>
+        <link rel="stylesheet" href="../public/css/styles_home.css">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <h1><span id="typed-text"></span></h1>
+        <button id="login-btn" onclick="window.location.href='/login'">login</button>
+        <button id="register-btn" onclick="window.location.href='/register'">register</button>
+
+        <script src="https://unpkg.com/typed.js@3.0.0/dist/typed.umd.js"></script>
+        <script>
+            var type = new Typed("#typed-text", {
+                strings: ["WELCOME TO NOTE.JS","YOUR OWN NOTE-TAKING APP"],
+                typeSpeed: 100,
+                backSpeed: 100,
+                loop: true
+            });
+</script>
+    </body>
+</html>
