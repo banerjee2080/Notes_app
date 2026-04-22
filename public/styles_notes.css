@@ -1,0 +1,146 @@
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
+
+body {
+    background-color: #F8F7F2; 
+    font-family: 'Roboto', sans-serif;
+    color: #333;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    min-height: 100vh;
+    padding: 40px 20px;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    font-family: 'JetBrains Mono', monospace;
+    color: #222;
+}
+
+/* --- Layout --- */
+main {
+    width: 100%;
+    max-width: 600px;
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+/* --- Search Bar & Button --- */
+form {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+}
+
+input[type="text"] {
+    flex: 1;
+    padding: 12px 16px;
+    border: 1px solid #888;
+    border-radius: 4px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 1rem;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+input[type="text"]:focus {
+    border-color: #333;
+}
+
+button[type="submit"] {
+    padding: 0 20px;
+    /* Light grey background to match your secondary buttons */
+    background-color: #F2F2F2; 
+    border: 1px solid #333;
+    border-radius: 4px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 1rem;
+    color: #333;
+    cursor: pointer;
+    transition: background-color 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+button[type="submit"]:hover {
+    background-color: #E6E6E6;
+}
+
+/* --- Notes List & Cards --- */
+.notes-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.note button {
+    width: 100%;
+    background-color: #FFFFFF;
+    /* Same border and radius as your Login/Register forms */
+    border: 1px solid #333;
+    border-radius: 8px; 
+    padding: 24px;
+    text-align: left;
+    cursor: pointer;
+    transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.1s ease;
+}
+
+.note button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+    background-color: #FAFAFA;
+}
+
+.note h2 {
+    font-size: 1.5rem;
+    margin-bottom: 8px;
+    font-weight: 600;
+}
+
+.note p {
+    font-size: 1rem;
+    color: #555;
+    line-height: 1.5;
+    font-family: 'Roboto', sans-serif;
+}
+
+/* --- Floating Add Button --- */
+.add-note-btn {
+    position: fixed;
+    bottom: 40px;
+    right: 40px;
+    width: 64px;
+    height: 64px;
+    /* Using the dark grey from your mockups' primary buttons */
+    background-color: #333; 
+    color: #F8F7F2;
+    border: none;
+    border-radius: 8px; /* Keeps the square shape but softens the harsh corners */
+    
+    /* Center the plus icon perfectly */
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    
+    /* Typography for the plus sign */
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2.5rem;
+    font-weight: 300;
+    
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.add-note-btn:hover {
+    background-color: #555;
+    transform: translateY(-4px);
+    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+}

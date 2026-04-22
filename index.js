@@ -9,13 +9,13 @@ import session from "express-session";
 import env from "dotenv";
 import { url } from "node:inspector";
 
-env.config();
+//env.config();
 
 const app = express();
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static("public"));
 
-app.use(session({
+/*app.use(session({
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
@@ -27,7 +27,6 @@ app.use(session({
 app.use(passport.initialize());
 app.use(passport.session());
 
-const PORT = process.env.PORT || 3000;
 
 const db = new pg.Client({
   user: process.env.PG_USER,
@@ -36,22 +35,29 @@ const db = new pg.Client({
   password: process.env.PG_PASSWORD,
   port: process.env.PG_PORT,
 });
-db.connect();
+db.connect();*/
+
+const PORT = process.env.PORT || 3000;
 
 app.get("/",(req,res)=>{
-    if(req.isAuthenticated()){
-
-    }
-    else{
-        res.render("home.ejs");
-    }
+    res.render("home.ejs");
 });
 
-passport.use("local",
+app.get("/login",(req,res)=>{
+    res.render("login.ejs");
+});
+
+app.get("/register",(req,res)=>{
+    res.render("register.ejs");
+});
+
+
+
+/*passport.use("local",
     new Strategy(
         async function(username,password,cb){
             try{
-                const result = db.queryy("SELECT * FROM users WHERE email = $1",[username]);
+                const result = db.query("SELECT * FROM users WHERE email = $1",[username]);
                 if(result.rows.length>0){
                     const user = result.rows[0];
                     const storedPassword = user.password;
@@ -114,7 +120,7 @@ passport.serializeUser((user, cb) => {
 
 passport.deserializeUser((user, cb) => {
   cb(null, user);
-});
+});*/
 
 app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
