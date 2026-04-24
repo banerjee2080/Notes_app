@@ -4,13 +4,15 @@
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Notes</title>
-        <link rel="stylesheet" href="../public/styles_notes.css">
+        <link rel="stylesheet" href="/styles_notes.css">
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     </head>
     <body>
         <nav>
+            <h1>My Notes</h1>
+            <button id="logout-btn" onclick="window.location.href='/logout'">Logout</button>
         </nav>
         <main>
             <form action="/notes/search" method="GET">
@@ -18,12 +20,17 @@
                 <button type="submit">🔍Search</button>
             </form>
             <ul class="notes-list">
+                <% for(let i=0; i<notes.length; i++){ %>
                 <li class="note">
                     <button onclick="window.location.href='/notes/<%= notes[i].id %>'">
-                        <h2>Title</h2>
-                        <p>Content</p>
+                        <h2><%= notes[i].title %></h2>
+                        <p><%= notes[i].content.slice(0, 20) %></p>
                     </button>
                 </li>
+                <% } %>
+                <% if(notes.length === 0){ %>
+                    <p>No notes found. Click the + button to create a new note.</p>
+                <% } %>
             </ul>
         </main>
 

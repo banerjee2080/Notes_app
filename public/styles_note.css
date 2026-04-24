@@ -1,0 +1,106 @@
+body {
+    background-color: #f7f6ec;
+    color: #333;
+    font-family: 'Roboto', sans-serif;
+    display: flex;
+    justify-content: center;
+    padding: 3rem 1rem;
+    margin: 0;
+}
+
+.note-container {
+    width: 100%;
+    max-width: 800px;
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.note-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+}
+
+.note-title, .note-content {
+    width: 100%;
+    box-sizing: border-box;
+    background-color: #f7f6ec;
+    outline: none;
+}
+
+.note-title {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 2.5rem;
+    font-weight: 700;
+    border: none;
+    border-bottom: 2px solid #333;
+    padding: 0.5rem 0;
+}
+
+.note-title::placeholder {
+    color: #aaa;
+}
+
+.note-content {
+    font-family: 'Roboto', sans-serif;
+    font-size: 1.1rem;
+    min-height: 400px;
+    padding: 1rem;
+    border: 1px solid #333;
+    border-radius: 6px;
+    resize: vertical;
+    line-height: 1.5;
+}
+
+.form-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 1rem;
+    flex-wrap: wrap;
+}
+
+.danger-zone {
+    display: flex;
+    justify-content: flex-end;
+    border-top: 1px solid #ddd;
+    padding-top: 1.5rem;
+    margin-top: 1rem;
+}
+
+.btn {
+    font-family: 'Roboto', sans-serif;
+    font-size: 1rem;
+    padding: 0.6rem 1.2rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.2s, opacity 0.2s;
+}
+
+.btn:hover {
+    opacity: 0.85;
+}
+
+.btn-dark {
+    background-color: #2e2e2e;
+    color: #fff;
+    border: 1px solid #2e2e2e;
+}
+
+.btn-blue {
+    background-color: #0056b3;
+    border: 1px solid #0056b3;
+}
+
+.btn-outline {
+    background-color: transparent;
+    color: #333;
+    border: 1px solid #333;
+}
+
+.btn-red {
+    background-color: #d9534f;
+    color: #fff;
+    border: 1px solid #d9534f;
+}
