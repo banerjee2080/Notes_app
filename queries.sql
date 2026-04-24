@@ -1,12 +1,19 @@
---creating the users table--
-create table users(
-    id serial primary key,
-    email text,
-    password text
+DROP TABLE IF EXISTS notes;
+DROP TABLE IF EXISTS users;
+
+-- 1. Create the Users table first (since Notes depends on it)
+CREATE TABLE users (
+    id SERIAL PRIMARY KEY,
+    email TEXT UNIQUE NOT NULL,
+    password TEXT,
+    name TEXT,           
+    picture TEXT
 );
---Creating the notes table--
-create table notes(
-    id serial primary key,
-    note text,
-    user_id integer references users(id)
+
+-- 2. Create the Notes table
+CREATE TABLE notes (
+    id SERIAL PRIMARY KEY,
+    title TEXT NOT NULL,
+    note TEXT NOT NULL,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE
 );

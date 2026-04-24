@@ -171,3 +171,9 @@ input, button{
   background-color: #001d35;
   opacity: 8%;
 }
+
+.error-message {
+    color: red;
+    font-size: 0.9rem;
+    text-align: center;
+}

@@ -144,3 +144,113 @@ button[type="submit"]:hover {
     transform: translateY(-4px);
     box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
 }
+
+/* --- Navbar Profile Menu Styles --- */
+nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    border-bottom: 2px solid #2c2c2c;
+    background-color: #f6f5ef;
+}
+
+.profile-menu-container {
+    position: relative;
+    display: inline-block;
+}
+
+.profile-trigger {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    padding: 5px 10px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    transition: all 0.2s;
+    user-select: none;
+}
+
+.profile-trigger:hover {
+    background-color: #e0e0e0;
+    border: 1px solid #2c2c2c;
+}
+
+.profile-pic {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid #2c2c2c;
+    object-fit: cover;
+}
+
+/* Fallback for local users without a photo */
+.profile-placeholder {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background-color: #2c2c2c;
+    color: #f6f5ef;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: 'JetBrains Mono', monospace;
+    font-weight: bold;
+    font-size: 1.2rem;
+    border: 2px solid #2c2c2c;
+}
+
+.user-name {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 1.1rem;
+    color: #2c2c2c;
+    font-weight: bold;
+}
+
+.dropdown-arrow {
+    font-size: 0.8rem;
+    color: #2c2c2c;
+}
+
+/* Dropdown Menu Box */
+.dropdown-content {
+    position: absolute;
+    top: 110%; /* Positions it right below the profile trigger */
+    left: 0;
+    background-color: #ffffff;
+    border: 2px solid #2c2c2c;
+    border-radius: 0px; /* Sharp corners for brutalist feel */
+    min-width: 150px;
+    box-shadow: 4px 4px 0px #2c2c2c; /* Harsh shadow */
+    display: flex;
+    flex-direction: column;
+    z-index: 100;
+}
+
+.dropdown-content.hidden {
+    display: none;
+}
+
+/* Dropdown Buttons */
+.dropdown-content button {
+    width: 100%;
+    text-align: left;
+    padding: 12px 15px;
+    border: none;
+    background: none;
+    cursor: pointer;
+    font-family: 'Roboto', sans-serif;
+    font-size: 1rem;
+    color: #2c2c2c;
+    border-bottom: 1px solid #2c2c2c;
+    transition: background-color 0.2s;
+}
+
+.dropdown-content button:last-child {
+    border-bottom: none;
+}
+
+.dropdown-content button:hover {
+    background-color: #e0e0e0;
+}

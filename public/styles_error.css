@@ -1,0 +1,62 @@
+body {
+    /* Exact cream background color matching your theme */
+    background-color: #f6f5ef; 
+    font-family: 'Roboto', sans-serif;
+    color: #2c2c2c;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    height: 100vh;
+    margin: 0;
+}
+
+h1 {
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 3rem;
+    margin-bottom: 20px;
+    text-align: center;
+    color: #333;
+}
+
+.container {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 100%;
+}
+
+.error-box {
+    background-color: #ffffff;
+    border: 1px solid #2c2c2c;
+    border-radius: 8px;
+    padding: 40px;
+    text-align: center;
+    width: 90%;
+    max-width: 400px;
+    box-sizing: border-box;
+}
+
+.error-message {
+    font-family: 'Roboto', sans-serif;
+    font-size: 1.1rem;
+    margin-bottom: 30px;
+    line-height: 1.5;
+    color: #555;
+}
+
+.btn {
+    background-color: #f4f4f4; /* Light gray to match your login button */
+    border: 1px solid #2c2c2c;
+    border-radius: 4px;
+    padding: 12px 20px;
+    font-family: 'Roboto', sans-serif;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: background-color 0.2s;
+    width: 100%;
+}
+
+.btn:hover {
+    background-color: #e0e0e0;
+}

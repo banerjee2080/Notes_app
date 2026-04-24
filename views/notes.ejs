@@ -11,8 +11,22 @@
     </head>
     <body>
         <nav>
-            <h1>My Notes</h1>
-            <button id="logout-btn" onclick="window.location.href='/logout'">Logout</button>
+            <div class="profile-menu-container">
+                <div class="profile-trigger" onclick="toggleMenu()">
+                    <% if (user.picture) { %>
+                        <img src="<%= user.picture %>" alt="Profile Picture" class="profile-pic">
+                    <% } else { %>
+                        <div class="profile-placeholder"><%= user.email.charAt(0).toUpperCase() %></div>
+                    <% } %>
+                    
+                    <span class="user-name"><%= user.name || user.email.split('@')[0] %></span>
+                    <span class="dropdown-arrow">▼</span>
+                </div>
+                
+                <div id="dropdown-menu" class="dropdown-content hidden">
+                    <button id="logout-btn" onclick="window.location.href='/logout'">Logout</button>
+                </div>
+            </div>
         </nav>
         <main>
             <form action="/notes/search" method="GET">
@@ -24,7 +38,7 @@
                 <li class="note">
                     <button onclick="window.location.href='/notes/<%= notes[i].id %>'">
                         <h2><%= notes[i].title %></h2>
-                        <p><%= notes[i].content.slice(0, 20) %></p>
+                        <p><%= notes[i].note.slice(0, 20) %></p>
                     </button>
                 </li>
                 <% } %>
@@ -37,5 +51,20 @@
         <button class="add-note-btn" onclick="window.location.href='/notes/new'" aria-label="Create new note">
             +
         </button>
+        <script>
+            function toggleMenu() {
+                const menu = document.getElementById('dropdown-menu');
+                menu.classList.toggle('hidden');
+            }
+
+            window.onclick = function(event) {
+                if (!event.target.closest('.profile-menu-container')) {
+                    const menu = document.getElementById('dropdown-menu');
+                    if (!menu.classList.contains('hidden')) {
+                        menu.classList.add('hidden');
+                    }
+                }
+            }
+        </script>
     </body>
 </html>

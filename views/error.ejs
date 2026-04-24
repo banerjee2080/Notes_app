@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Error - <%= status %></title>
+        <link rel="stylesheet" href="/styles_error.css">
+        <link rel="preconnect" href="https://fonts.googleapis.com">
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+    </head>
+    <body>
+        <div class="container">
+            <h1>Error <%= status %></h1>
+            
+            <div class="error-box">
+                <p class="error-message"><%= message %></p>
+                <button class="btn" onclick="window.location.href='/'">Go Back Home</button>
+            </div>
+        </div>
+    </body>
+</html>
