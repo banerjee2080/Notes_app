@@ -270,7 +270,7 @@ app.get("/logout", (req, res, next) => {
 });
 
 app.get(
-  "/auth/google/callback",
+  "/callback",
   passport.authenticate("google", {
     successRedirect: "/notes",
     failureRedirect: "/login",
