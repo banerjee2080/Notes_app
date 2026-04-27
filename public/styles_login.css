@@ -1,4 +1,4 @@
-*{
+* {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
@@ -7,64 +7,109 @@
 :root {
   --bg-color: #FDFCF0;
   --text-color: #2C302E;
+  --glass-bg: rgba(255, 255, 255, 0.75);
+  --glass-border: rgba(255, 255, 255, 0.6);
+  --accent-color: #4A90E2;
 }
 
 body {
-    width: 100vw;
-    height: 100vh;
-    gap: 20px;
-    background-color: var(--bg-color);
+    width: 100%;
+    min-height: 100vh;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.4)), url('https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed;
+    background-size: cover;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    padding: 20px;
 }
 
-.container{
+.container {
     gap: 50px;
-    background-color: var(--bg-color);
+    background: transparent;
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
+    width: 100%;
 }
 
-h1{
+h1 {
     font-family: 'JetBrains Mono', monospace;
     color: var(--text-color);
-    font-size: 3rem;
+    font-size: clamp(2rem, 5vw, 3rem);
+    text-align: center;
+    text-shadow: 0 2px 4px rgba(255, 255, 255, 0.5);
 }
 
-form{
+form {
     display: flex;
     flex-direction: column;
     gap: 20px;
     width: 100%;
+    max-width: 400px;
     padding: 50px;
-    border-radius: 10px;
-    border: 2px solid var(--text-color);
+    border-radius: 20px;
+    background: var(--glass-bg);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--glass-border);
+    box-shadow: 0 16px 40px rgba(0, 0, 0, 0.1);
 }
 
-input, button{
+input, button {
     font-family: 'Roboto', sans-serif;
-    padding: 10px;
-    border-radius: 5px;
-    border: 1px solid var(--text-color);
+    padding: 14px;
+    border-radius: 12px;
+    border: 1px solid rgba(0,0,0,0.1);
     font-size: 1rem;
+    transition: all 0.3s ease;
 }
 
+input {
+    background: rgba(255, 255, 255, 0.9);
+    outline: none;
+}
+
+input:focus {
+    border-color: var(--accent-color);
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+}
+
+button[type="submit"], form > button {
+    background: linear-gradient(135deg, var(--accent-color), #357ABD);
+    color: #FFFFFF;
+    border: none;
+    cursor: pointer;
+    font-weight: 500;
+    box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);
+}
+
+button[type="submit"]:hover, form > button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 6px 16px rgba(74, 144, 226, 0.4);
+}
+
+/* Fix applied here: Changed max-width from 100% to 400px */
 #google-signin-btn {
     width: 100%; 
-    max-width: 100%;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    border: 2px solid var(--text-color);
+    max-width: 400px; 
+    background-color: rgba(255, 255, 255, 0.9);
+    color: #333333;
+    border: 1px solid rgba(0, 0, 0, 0.1);
     transition: all 0.2s ease;
     cursor: pointer; 
-    
-    border-radius: 5px; 
-    height: 43px; 
+    border-radius: 12px; 
+    height: 48px; 
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
 }
+
+#google-signin-btn:hover {
+    background-color: #FFFFFF;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
 .gsi-material-button {
   -moz-user-select: none;
   -webkit-user-select: none;
@@ -73,15 +118,15 @@ input, button{
   background-color: #f2f2f2;
   background-image: none;
   border: none;
-  -webkit-border-radius: 20px;
-  border-radius: 20px;
+  -webkit-border-radius: 12px;
+  border-radius: 12px;
   -webkit-box-sizing: border-box;
   box-sizing: border-box;
   color: #1f1f1f;
   cursor: pointer;
   font-family: 'Roboto', arial, sans-serif;
   font-size: 14px;
-  height: 40px;
+  height: 46px;
   letter-spacing: 0.25px;
   outline: none;
   overflow: hidden;
@@ -92,9 +137,7 @@ input, button{
   transition: background-color .218s, border-color .218s, box-shadow .218s;
   vertical-align: middle;
   white-space: nowrap;
-  width: auto;
-  max-width: 400px;
-  min-width: min-content;
+  width: 100%;
 }
 
 .gsi-material-button .gsi-material-button-icon {
@@ -113,7 +156,7 @@ input, button{
   -webkit-flex-wrap: nowrap;
   flex-wrap: nowrap;
   height: 100%;
-  justify-content: center; /* CHANGED: This groups the logo and text together in the middle */
+  justify-content: center;
   position: relative;
   width: 100%;
 }
@@ -176,4 +219,40 @@ input, button{
     color: red;
     font-size: 0.9rem;
     text-align: center;
+}
+
+/* --- Media Queries --- */
+
+/* Phones (Up to 480px) */
+@media (max-width: 480px) {
+    .container {
+        gap: 25px;
+    }
+    form {
+        padding: 30px 20px;
+    }
+    h1 {
+        font-size: clamp(1.8rem, 8vw, 2.2rem);
+    }
+    input, button {
+        padding: 12px;
+        font-size: 0.95rem;
+    }
+}
+
+/* Tablets (11" - Approx 481px to 834px) */
+@media (min-width: 481px) and (max-width: 834px) {
+    .container {
+        gap: 35px;
+    }
+    form {
+        padding: 40px 30px;
+    }
+}
+
+/* Large Tablets / Small Laptops (13" - Approx 835px to 1366px) */
+@media (min-width: 835px) and (max-width: 1366px) {
+    .container {
+        gap: 45px;
+    }
 }

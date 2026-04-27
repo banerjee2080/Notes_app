@@ -281,16 +281,24 @@ app.post("/register", async (req, res) => {
                 );
                 const user = result.rows[0];
                 const htmlContent = `
-                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-                        <h2 style="color: #333; text-align: center;">Welcome to Notes App!</h2>
-                        <p style="font-size: 16px; color: #555;">Hello,</p>
-                        <p style="font-size: 16px; color: #555;">Your registration was successful. We are thrilled to have you on board!</p>
-                        <div style="text-align: center; margin: 30px 0;">
-                            <a href="https://www.notejs.in/login" style="background-color: #333; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 4px; font-size: 16px;">Login to Your Account</a>
+                    <div style="background-color: #e0e5ec; background-image: url('https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=800&auto=format&fit=crop'); background-size: cover; background-position: center; padding: 60px 20px; font-family: 'Roboto', Arial, sans-serif;">
+                        
+                        <div style="max-width: 500px; margin: 0 auto; background-color: rgba(255, 255, 255, 0.9); border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 20px; box-shadow: 0 16px 40px rgba(0,0,0,0.1); padding: 40px; text-align: center;">
+                            
+                            <h2 style="color: #2C302E; font-family: 'JetBrains Mono', Courier, monospace; font-size: 24px; margin-top: 0; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);">Welcome to Note.js!</h2>
+                            
+                            <p style="font-size: 16px; color: #2C302E; line-height: 1.6; margin-bottom: 10px;">Hello,</p>
+                            <p style="font-size: 16px; color: #2C302E; line-height: 1.6; margin-bottom: 35px;">Your registration was successful. We are thrilled to have you on board!</p>
+                            
+                            <div style="margin: 35px 0;">
+                                <a href="https://www.notejs.in/login" style="background-color: #4A90E2; background-image: linear-gradient(135deg, #4A90E2, #357ABD); color: #FFFFFF; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 500; font-family: 'Roboto', Arial, sans-serif; display: inline-block; box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);">Login to Your Account</a>
+                            </div>
+                            
+                            <p style="font-size: 14px; color: #666666; margin-bottom: 0; margin-top: 30px;">Start capturing your thoughts beautifully.</p>
+                            
                         </div>
-                        <p style="font-size: 14px; color: #999;">Start capturing your thoughts beautifully.</p>
                     </div>
-                `;
+                    `;
                 sendmail(user.email, "Welcome to Notes App!", htmlContent);
                 delete req.session.otp;
                 delete req.session.registrationEmail;
@@ -328,16 +336,22 @@ app.post("/email", async (req, res) => {
         }
         else{
             const htmlContent = `
-                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-                    <h2 style="color: #333; text-align: center;">Notes App Verification</h2>
-                    <p style="font-size: 16px; color: #555;">Hello,</p>
-                    <p style="font-size: 16px; color: #555;">Your One-Time Password (OTP) for registering on Notes App is:</p>
-                    <div style="text-align: center; margin: 20px 0;">
-                        <span style="font-size: 24px; font-weight: bold; background-color: #f4f4f4; padding: 10px 20px; border-radius: 4px; letter-spacing: 2px;">${otp}</span>
-                    </div>
-                    <p style="font-size: 14px; color: #999;">If you didn't request this, please ignore this email.</p>
-                </div>
-            `;
+                <div style="background-color: #e0e5ec; background-image: url('https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=800&auto=format&fit=crop'); background-size: cover; background-position: center; padding: 60px 20px; font-family: 'Roboto', Arial, sans-serif;">
+                    
+                    <div style="max-width: 500px; margin: 0 auto; background-color: rgba(255, 255, 255, 0.9); border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 20px; box-shadow: 0 16px 40px rgba(0,0,0,0.1); padding: 40px; text-align: center;">
+                        
+                        <h2 style="color: #2C302E; font-family: 'JetBrains Mono', Courier, monospace; font-size: 24px; margin-top: 0; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);">Note.js Verification</h2>
+                        
+                        <p style="font-size: 16px; color: #2C302E; line-height: 1.6; margin-bottom: 10px;">Hello,</p>
+                        <p style="font-size: 16px; color: #2C302E; line-height: 1.6; margin-bottom: 30px;">Your One-Time Password (OTP) for registering on your note-taking app is:</p>
+                        
+                        <div style="margin: 35px 0;">
+                            <span style="font-size: 26px; font-weight: bold; background-color: #4A90E2; background-image: linear-gradient(135deg, #4A90E2, #357ABD); color: #FFFFFF; padding: 16px 32px; border-radius: 12px; letter-spacing: 8px; font-family: 'JetBrains Mono', Courier, monospace; display: inline-block; box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);">${otp}</span>
+                        </div>
+                        
+                        <p style="font-size: 14px; color: #666666; margin-bottom: 0; margin-top: 30px;">If you didn't request this, please ignore this email.</p>
+                        </div>
+                </div>`;
             try{
                 await sendmail(email, "Your Notes App OTP", htmlContent);
                 res.render("register.ejs",{email:email});
@@ -442,14 +456,14 @@ passport.use("google",
                         [profile.email, name, picture]
                     );
                     const message = `
-                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
-                            <h2 style="color: #333; text-align: center;">Welcome to Notes App!</h2>
-                            <p style="font-size: 16px; color: #555;">Hello ${name},</p>
-                            <p style="font-size: 16px; color: #555;">Your registration was successful. We are thrilled to have you on board!</p>
-                            <div style="text-align: center; margin: 30px 0;">
-                                <a href="https://www.notejs.in/login" style="background-color: #333; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 4px; font-size: 16px;">Login to Your Account</a>
+                        <div style="font-family: 'Roboto', Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 40px; background-color: #ffffff; border: 1px solid #E5E7EB; border-radius: 16px; box-shadow: 0 4px 12px rgba(0,0,0,0.05);">
+                            <h2 style="color: #1F2937; text-align: center; font-family: 'JetBrains Mono', monospace;">Welcome to Notes App!</h2>
+                            <p style="font-size: 16px; color: #4B5563; line-height: 1.6;">Hello ${name},</p>
+                            <p style="font-size: 16px; color: #4B5563; line-height: 1.6;">Your registration was successful. We are thrilled to have you on board!</p>
+                            <div style="text-align: center; margin: 40px 0;">
+                                <a href="https://www.notejs.in/login" style="background: linear-gradient(135deg, #4A90E2, #357ABD); color: #fff; text-decoration: none; padding: 14px 28px; border-radius: 12px; font-size: 16px; font-weight: 500; display: inline-block;">Login to Your Account</a>
                             </div>
-                            <p style="font-size: 14px; color: #999;">Start capturing your thoughts beautifully.</p>
+                            <p style="font-size: 14px; color: #9CA3AF; text-align: center;">Start capturing your thoughts beautifully.</p>
                         </div>
                     `;
                     sendmail(profile.email, "Welcome to Notes App!", message);

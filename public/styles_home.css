@@ -5,88 +5,164 @@
 }
 
 :root {
-  --bg-color: #FDFCF0;
   --text-color: #2C302E;
+  --accent-color: #4A90E2;
 }
 
 body {
-    width: 100vw;
-    height: 100vh;
-    background-color: var(--bg-color);
-    display: grid;
-    grid-template-rows: 1fr 1fr 1fr 1fr 1fr;
-    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr;
+    width: 100%;
+    min-height: 100vh;
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.4)), url('https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed;
+    background-size: cover;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+    overflow-x: hidden; /* Prevents horizontal scroll on small devices */
+}
+
+.content-wrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 40px;
+    text-align: center;
+    width: 100%;
+    max-width: 800px;
+    opacity: 0;
+    animation: fadeIn 0.8s ease-out forwards;
 }
 
 h1 {
     font-family: 'JetBrains Mono', monospace;
     color: var(--text-color);
-    font-size: 4rem;
-    grid-row-start: 3;
-    grid-row-end: 4;
-    grid-column-start: 2;
-    grid-column-end: 6;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    white-space: nowrap;
+    font-size: clamp(2rem, 6vw, 4.5rem); 
+    text-shadow: 0 2px 8px rgba(255, 255, 255, 0.6);
+    line-height: 1.2;
+    /* Prevents cutoff by breaking long words if necessary */
+    word-break: break-word; 
+    padding: 0 10px;
 }
 
 .typed-cursor {
     display: inline-block;
-    width: 5px;
-    height: 3.5rem;
     background-color: var(--text-color);
-    margin-left: 8px;
+    margin-left: clamp(4px, 1vw, 8px);
     color: transparent;
+    width: clamp(3px, 0.8vw, 5px);
+    height: clamp(1.8rem, 6vw, 4rem);
+    vertical-align: bottom;
+}
+
+/* --- Grouped Buttons --- */
+.button-group {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    max-width: 260px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+    border-radius: 12px;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+
+.button-group:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(0, 0, 0, 0.15);
 }
 
 button {
-    padding: 0.5rem;
-    border-radius: 0.5rem;
-    width: 100px;
-    font-size: 1.2rem;
-    height: 50px;
-    border: none;
+    font-family: 'Roboto', sans-serif;
+    padding: 16px 28px;
+    font-size: 1.1rem;
     font-weight: 500;
     cursor: pointer; 
+    border: none;
+    width: 100%;
+    transition: background-color 0.3s ease;
 }
 
 #login-btn {
-    font-family: 'Roboto', sans-serif;
-    background-color: var(--text-color);
-    color: var(--bg-color);
-    grid-row-start: 4;
-    grid-row-end: 5;
-    grid-column-start: 3;
-    grid-column-end: 4;
-    justify-self: end;
-    margin-right: 10px;
-    transition: all 0.2s ease;
+    background: linear-gradient(135deg, var(--accent-color), #357ABD);
+    color: #FFFFFF;
+    border-radius: 12px 12px 0 0; /* Rounds top only */
 }
 
 #login-btn:hover {
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    border: 2px solid var(--text-color);
+    background: linear-gradient(135deg, #357ABD, #285d94);
 }
 
 #register-btn { 
-    font-family: 'Roboto', sans-serif;
-    background-color: var(--bg-color);
-    color: var(--text-color);
-    border: 2px solid var(--text-color);
-    grid-row-start: 4;
-    grid-row-end: 5;
-    grid-column-start: 4;
-    grid-column-end: 5;
-    justify-self: start;
-    margin-left: 10px;
-    transition: all 0.2s ease;
+    background-color: rgba(255, 255, 255, 0.95);
+    color: #333333;
+    border-top: 1px solid rgba(0, 0, 0, 0.08); /* Subtle separator line */
+    border-radius: 0 0 12px 12px; /* Rounds bottom only */
 }
 
 #register-btn:hover {
-    background-color: var(--text-color);
-    color: var(--bg-color);
-    border: none;
+    background-color: #FFFFFF;
+}
+
+/* --- Animation --- */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* --- Media Queries --- */
+
+/* Phones (Up to 480px) */
+@media (max-width: 480px) {
+    .content-wrapper {
+        gap: 25px;
+    }
+    h1 {
+        font-size: clamp(1.6rem, 8vw, 2.2rem); 
+    }
+    .typed-cursor {
+        height: clamp(1.4rem, 8vw, 1.9rem);
+    }
+    .button-group {
+        max-width: 220px;
+    }
+    button {
+        padding: 14px 20px;
+        font-size: 1rem;
+    }
+}
+
+/* Tablets (11" - Approx 481px to 834px) */
+@media (min-width: 481px) and (max-width: 834px) {
+    h1 {
+        font-size: clamp(2.5rem, 6vw, 3.5rem);
+    }
+    .typed-cursor {
+        height: clamp(2.2rem, 6vw, 3.1rem);
+    }
+    .button-group {
+        max-width: 250px;
+    }
+}
+
+/* Large Tablets / Small Laptops (13" - Approx 835px to 1366px) */
+@media (min-width: 835px) and (max-width: 1366px) {
+    h1 {
+        font-size: clamp(3rem, 5vw, 4.5rem);
+    }
+    .typed-cursor {
+        height: clamp(2.6rem, 5vw, 4rem);
+    }
+    .button-group {
+        max-width: 280px;
+    }
+    button {
+        padding: 18px 32px;
+        font-size: 1.15rem;
+    }
 }

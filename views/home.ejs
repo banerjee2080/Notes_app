@@ -10,9 +10,14 @@
         <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
     </head>
     <body>
-        <h1><span id="typed-text"></span></h1>
-        <button id="login-btn" onclick="window.location.href='/login'">login</button>
-        <button id="register-btn" onclick="window.location.href='/register'">register</button>
+        <div class="content-wrapper">
+            <h1><span id="typed-text"></span></h1>
+            
+            <div class="button-group">
+                <button id="login-btn" onclick="window.location.href='/login'">login</button>
+                <button id="register-btn" onclick="window.location.href='/register'">register</button>
+            </div>
+        </div>
 
         <script src="https://unpkg.com/typed.js@3.0.0/dist/typed.umd.js"></script>
         <script>
@@ -22,6 +27,6 @@
                 backSpeed: 100,
                 loop: true
             });
-</script>
+        </script>
     </body>
 </html>

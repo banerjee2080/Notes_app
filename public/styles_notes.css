@@ -6,9 +6,10 @@
 }
 
 body {
-    background-color: #F8F7F2; 
+    background: linear-gradient(135deg, rgba(255, 255, 255, 0.75), rgba(255, 255, 255, 0.4)), url('https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=2000&auto=format&fit=crop') no-repeat center center fixed;
+    background-size: cover;
     font-family: 'Roboto', sans-serif;
-    color: #333;
+    color: #2C302E;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -18,7 +19,7 @@ body {
 
 h1, h2, h3, h4, h5, h6 {
     font-family: 'JetBrains Mono', monospace;
-    color: #222;
+    color: #1A1A1A;
 }
 
 /* --- Layout --- */
@@ -40,36 +41,43 @@ form {
 input[type="text"] {
     flex: 1;
     padding: 12px 16px;
-    border: 1px solid #888;
-    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.85);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(0, 0, 0, 0.05);
     font-family: 'Roboto', sans-serif;
     font-size: 1rem;
     outline: none;
-    transition: border-color 0.2s;
+    backdrop-filter: blur(10px);
+    transition: all 0.3s ease;
 }
 
 input[type="text"]:focus {
-    border-color: #333;
+    border-color: #4A90E2;
+    box-shadow: 0 0 0 3px rgba(74, 144, 226, 0.2);
+    background: rgba(255, 255, 255, 1);
 }
 
 button[type="submit"] {
     padding: 0 20px;
-    /* Light grey background to match your secondary buttons */
-    background-color: #F2F2F2; 
-    border: 1px solid #333;
-    border-radius: 4px;
+    background: linear-gradient(135deg, #4A90E2, #357ABD);
+    border: none;
+    border-radius: 12px;
+    box-shadow: 0 4px 16px rgba(74, 144, 226, 0.3);
     font-family: 'Roboto', sans-serif;
     font-size: 1rem;
-    color: #333;
+    color: #FFF;
     cursor: pointer;
-    transition: background-color 0.2s ease;
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
 }
 
 button[type="submit"]:hover {
-    background-color: #E6E6E6;
+    background: linear-gradient(135deg, #357ABD, #2A6296);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(74, 144, 226, 0.4);
 }
 
 /* --- Notes List & Cards --- */
@@ -82,20 +90,23 @@ button[type="submit"]:hover {
 
 .note button {
     width: 100%;
-    background-color: #FFFFFF;
-    /* Same border and radius as your Login/Register forms */
-    border: 1px solid #333;
-    border-radius: 8px; 
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 16px; 
     padding: 24px;
     text-align: left;
     cursor: pointer;
-    transition: transform 0.1s ease, box-shadow 0.1s ease, background-color 0.1s ease;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
+    transition: all 0.3s ease;
 }
 
 .note button:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
-    background-color: #FAFAFA;
+    transform: translateY(-4px) scale(1.01);
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
+    background: rgba(255, 255, 255, 0.9);
+    border-color: rgba(255, 255, 255, 0.9);
 }
 
 .note h2 {
@@ -106,7 +117,7 @@ button[type="submit"]:hover {
 
 .note p {
     font-size: 1rem;
-    color: #555;
+    color: #4A4A4A;
     line-height: 1.5;
     font-family: 'Roboto', sans-serif;
 }
@@ -118,11 +129,10 @@ button[type="submit"]:hover {
     right: 40px;
     width: 64px;
     height: 64px;
-    /* Using the dark grey from your mockups' primary buttons */
-    background-color: #333; 
-    color: #F8F7F2;
+    background: linear-gradient(135deg, #4A90E2, #9013FE);
+    color: #FFF;
     border: none;
-    border-radius: 8px; /* Keeps the square shape but softens the harsh corners */
+    border-radius: 50%;
     
     /* Center the plus icon perfectly */
     display: flex;
@@ -135,14 +145,13 @@ button[type="submit"]:hover {
     font-weight: 300;
     
     cursor: pointer;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-    transition: transform 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+    box-shadow: 0 8px 24px rgba(74, 144, 226, 0.4);
+    transition: all 0.3s ease;
 }
 
 .add-note-btn:hover {
-    background-color: #555;
-    transform: translateY(-4px);
-    box-shadow: 0 6px 16px rgba(0, 0, 0, 0.2);
+    transform: translateY(-4px) scale(1.05);
+    box-shadow: 0 12px 32px rgba(144, 19, 254, 0.5);
 }
 
 /* --- Navbar Profile Menu Styles --- */
@@ -150,9 +159,16 @@ nav {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 10px 20px;
-    border-bottom: 2px solid #2c2c2c;
-    background-color: #f6f5ef;
+    width: 100%;
+    max-width: 600px;
+    padding: 12px 24px;
+    margin-bottom: 30px;
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 16px;
+    background: rgba(255, 255, 255, 0.75);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.05);
 }
 
 .profile-menu-container {
@@ -167,21 +183,21 @@ nav {
     cursor: pointer;
     padding: 5px 10px;
     border: 1px solid transparent;
-    border-radius: 4px;
+    border-radius: 8px;
     transition: all 0.2s;
     user-select: none;
 }
 
 .profile-trigger:hover {
-    background-color: #e0e0e0;
-    border: 1px solid #2c2c2c;
+    background-color: rgba(255, 255, 255, 0.5);
+    border: 1px solid rgba(255, 255, 255, 0.8);
 }
 
 .profile-pic {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    border: 2px solid #2c2c2c;
+    border: 2px solid rgba(255,255,255,0.8);
     object-fit: cover;
 }
 
@@ -190,27 +206,27 @@ nav {
     width: 40px;
     height: 40px;
     border-radius: 50%;
-    background-color: #2c2c2c;
-    color: #f6f5ef;
+    background: linear-gradient(135deg, #4A90E2, #9013FE);
+    color: #FFF;
     display: flex;
     align-items: center;
     justify-content: center;
     font-family: 'JetBrains Mono', monospace;
     font-weight: bold;
     font-size: 1.2rem;
-    border: 2px solid #2c2c2c;
+    border: 2px solid rgba(255,255,255,0.8);
 }
 
 .user-name {
     font-family: 'JetBrains Mono', monospace;
     font-size: 1.1rem;
-    color: #2c2c2c;
+    color: #2C302E;
     font-weight: bold;
 }
 
 .dropdown-arrow {
     font-size: 0.8rem;
-    color: #2c2c2c;
+    color: #2C302E;
 }
 
 /* Dropdown Menu Box */
@@ -218,14 +234,16 @@ nav {
     position: absolute;
     top: 110%; /* Positions it right below the profile trigger */
     left: 0;
-    background-color: #ffffff;
-    border: 2px solid #2c2c2c;
-    border-radius: 0px; /* Sharp corners for brutalist feel */
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.6);
+    border-radius: 12px;
     min-width: 150px;
-    box-shadow: 4px 4px 0px #2c2c2c; /* Harsh shadow */
+    box-shadow: 0 12px 40px rgba(0, 0, 0, 0.1);
     display: flex;
     flex-direction: column;
     z-index: 100;
+    overflow: hidden;
 }
 
 .dropdown-content.hidden {
@@ -242,8 +260,8 @@ nav {
     cursor: pointer;
     font-family: 'Roboto', sans-serif;
     font-size: 1rem;
-    color: #2c2c2c;
-    border-bottom: 1px solid #2c2c2c;
+    color: #2C302E;
+    border-bottom: 1px solid rgba(0,0,0,0.05);
     transition: background-color 0.2s;
 }
 
@@ -252,5 +270,39 @@ nav {
 }
 
 .dropdown-content button:hover {
-    background-color: #e0e0e0;
+    background-color: rgba(74, 144, 226, 0.1);
+    color: #4A90E2;
+}
+
+/* --- Media Queries --- */
+@media (max-width: 1024px) {
+    body {
+        padding: 30px 20px;
+    }
+}
+
+@media (max-width: 768px) {
+    body {
+        padding: 20px 15px;
+    }
+    main {
+        gap: 20px;
+    }
+    nav {
+        padding: 10px 16px;
+        margin-bottom: 20px;
+    }
+    .add-note-btn {
+        bottom: 20px;
+        right: 20px;
+        width: 56px;
+        height: 56px;
+        font-size: 2rem;
+    }
+    .note button {
+        padding: 16px;
+    }
+    .note h2 {
+        font-size: 1.25rem;
+    }
 }
