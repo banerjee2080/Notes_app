@@ -114,6 +114,9 @@ app.post(
                 if (info && info.message === "incorrect password") {
                     return res.render("login.ejs", { error: info.message });
                 }
+                if(info && info.message === "This email is associated with a Google account. Please log in with Google.") {
+                    return res.render("login.ejs", { error: info.message });
+                }
                 return res.redirect("/login");
             }
             req.logIn(user, (err) => {
@@ -386,6 +389,10 @@ passport.use("local",
                 if (result.rows.length > 0) {
                     const user = result.rows[0];
                     const storedPassword = user.password;
+
+                    if (!storedPassword) {
+                        return cb(null, false, { message: "This email is associated with a Google account. Please log in with Google." });
+                    }
 
                     bcrypt.compare(password, storedPassword, (err, valid) => {
                         if (err) {
