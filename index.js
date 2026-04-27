@@ -12,8 +12,10 @@ import path from "path";
 import { fileURLToPath } from "url";
 import validator from 'email-validator';
 import compression from "compression";
+import { inject } from '@vercel/analytics';
 
 env.config();
+inject();
 
 const app = express();
 app.use(compression());
