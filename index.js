@@ -11,10 +11,15 @@ import connectPgSimple from "connect-pg-simple";
 import path from "path";
 import { fileURLToPath } from "url";
 import validator from 'email-validator';
+import compression from "compression";
 
 env.config();
+if (process.env.NODE_ENV === "production") {
+    app.set('view cache', true);
+}
 
 const app = express();
+app.use(compression());
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -25,6 +30,9 @@ app.set("trust proxy", 1);
 
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
+app.use(express.static(path.join(__dirname, "public"), {
+    maxAge: '1d'
+}));
 
 const { Pool } = pg;
 
@@ -53,6 +61,7 @@ app.use(session({
 const saltRounds = 10;
 
 import { Resend } from 'resend';
+import { send } from "process";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -280,7 +289,7 @@ app.post("/register", async (req, res) => {
                         <p style="font-size: 14px; color: #999;">Start capturing your thoughts beautifully.</p>
                     </div>
                 `;
-                await sendmail(user.email, "Welcome to Notes App!", htmlContent);
+                sendmail(user.email, "Welcome to Notes App!", htmlContent);
                 delete req.session.otp;
                 delete req.session.registrationEmail;
                 req.login(user, (err) => {
@@ -426,6 +435,18 @@ passport.use("google",
                         "INSERT INTO users (email, name, picture) VALUES ($1, $2, $3) RETURNING *",
                         [profile.email, name, picture]
                     );
+                    const message = `
+                        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                            <h2 style="color: #333; text-align: center;">Welcome to Notes App!</h2>
+                            <p style="font-size: 16px; color: #555;">Hello ${name},</p>
+                            <p style="font-size: 16px; color: #555;">Your registration was successful. We are thrilled to have you on board!</p>
+                            <div style="text-align: center; margin: 30px 0;">
+                                <a href="https://www.notejs.in/login" style="background-color: #333; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 4px; font-size: 16px;">Login to Your Account</a>
+                            </div>
+                            <p style="font-size: 14px; color: #999;">Start capturing your thoughts beautifully.</p>
+                        </div>
+                    `;
+                    sendmail(profile.email, "Welcome to Notes App!", message);
                     return cb(null, newUser.rows[0]);
                 } else {
                     const result1 = await db.query("UPDATE users SET name = $1, picture = $2 WHERE email = $3 RETURNING *", [profile.displayName, profile.picture, profile.email]);
