@@ -14,12 +14,12 @@ import validator from 'email-validator';
 import compression from "compression";
 
 env.config();
-if (process.env.NODE_ENV === "production") {
-    app.set('view cache', true);
-}
 
 const app = express();
 app.use(compression());
+if (process.env.NODE_ENV === "production") {
+    app.set('view cache', true);
+}
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
