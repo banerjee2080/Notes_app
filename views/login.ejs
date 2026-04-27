@@ -33,6 +33,11 @@
                     <span style="display: none;">Sign in with Google</span>
                 </div>
             </button>
+            <% if(locals.error){ %>
+            <p class="error-message">
+                <%= error %>
+            </p>
+            <% } %>
         </div>
     </body>
 </html>

@@ -8,9 +8,9 @@ import GoogleStrategy from "passport-google-oauth2";
 import session from "express-session";
 import env from "dotenv";
 import connectPgSimple from "connect-pg-simple";
-
 import path from "path";
 import { fileURLToPath } from "url";
+import validator from 'email-validator';
 
 env.config();
 
@@ -29,283 +29,376 @@ app.use(express.static(path.join(__dirname, "public")));
 const { Pool } = pg;
 
 const db = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+    connectionString: process.env.DATABASE_URL,
+    ssl: {
+        rejectUnauthorized: false
+    }
 });
 
 const pgSession = connectPgSimple(session);
 
 app.use(session({
     store: new pgSession({
-      pool: db,
-      tableName: 'session'
+        pool: db,
+        tableName: 'session'
     }),
     secret: process.env.SESSION_SECRET,
     resave: false,
     saveUninitialized: false,
-    cookie:{
+    cookie: {
         maxAge: 1000 * 60 * 60 * 24 // 1 day
     },
 }));
 
 const saltRounds = 10;
 
+import { Resend } from 'resend';
+
+const resend = new Resend(process.env.RESEND_API_KEY);
+
+async function sendmail(semail, subject, htmlContent) {
+    const { data, error } = await resend.emails.send({
+        from: 'noreply@notejs.in', 
+        to: [semail],
+        subject: subject,
+        html: htmlContent,
+    });
+    
+    if (error) {
+        return console.error({ error });
+    }
+
+    console.log({ data });
+}
+
 app.use(passport.initialize());
 app.use(passport.session());
 
-app.get("/",(req,res)=>{
-    if(req.isAuthenticated()){
+app.get("/", (req, res) => {
+    if (req.isAuthenticated()) {
         res.redirect("/notes");
     }
-    else{
+    else {
         res.render("home.ejs");
     }
 });
 
-app.get("/login",(req,res)=>{
+app.get("/login", (req, res) => {
     res.render("login.ejs");
 });
 
 app.get(
-  "/auth/google",
-  passport.authenticate("google", {
-    scope: ["profile", "email"],
-  })
+    "/auth/google",
+    passport.authenticate("google", {
+        scope: ["profile", "email"],
+    })
 );
 
 app.post(
-  "/login",
-  passport.authenticate("local", {
-    successRedirect: "/notes",
-    failureRedirect: "/login",
-  })
+    "/login",
+    (req, res, next) => {
+        passport.authenticate("local", (err, user, info) => {
+            if (err) { return next(err); }
+            if (!user) {
+                if (info && info.message === "user not present please register") {
+                    return res.render("register.ejs", { register: true, error: info.message });
+                }
+                if (info && info.message === "incorrect password") {
+                    return res.render("login.ejs", { error: info.message });
+                }
+                return res.redirect("/login");
+            }
+            req.logIn(user, (err) => {
+                if (err) { return next(err); }
+                return res.redirect("/notes");
+            });
+        })(req, res, next);
+    }
 );
 
-app.get("/notes",async(req,res)=>{
-    if(req.isAuthenticated()){
-        try{
-            const result = await db.query("SELECT * FROM notes WHERE user_id = $1",[req.user.id]);
+app.get("/notes", async (req, res) => {
+    if (req.isAuthenticated()) {
+        try {
+            const result = await db.query("SELECT * FROM notes WHERE user_id = $1", [req.user.id]);
             res.render("notes.ejs", { notes: result.rows, user: req.user });
         }
-        catch(err){
+        catch (err) {
             console.error("Error fetching notes:", err);
             res.status(500).render("error.ejs", { status: 500, message: "We encountered a problem fetching your notes. Please try again." });
         }
     }
-    else{
+    else {
         res.redirect("/login");
     }
 });
 
-app.get("/notes/new", (req,res)=>{
-    if(req.isAuthenticated()){
+app.get("/notes/new", (req, res) => {
+    if (req.isAuthenticated()) {
         res.render("note.ejs", { note: null });
     }
-    else{
+    else {
         res.redirect("/login");
     }
 });
 
-app.get("/notes/search", async(req,res)=>{
-    if(req.isAuthenticated()){
+app.get("/notes/search", async (req, res) => {
+    if (req.isAuthenticated()) {
         const key = req.query.q;
-        try{
-            const result = await db.query("SELECT * FROM notes WHERE user_id = $1 AND (title ILIKE $2 OR note ILIKE $2)",[req.user.id, `%${key}%`]);
+        try {
+            const result = await db.query("SELECT * FROM notes WHERE user_id = $1 AND (title ILIKE $2 OR note ILIKE $2)", [req.user.id, `%${key}%`]);
             res.render("notes.ejs", { notes: result.rows, user: req.user });
         }
-        catch(err){
+        catch (err) {
             console.error("Error searching notes:", err);
             res.status(500).render("error.ejs", { status: 500, message: "We encountered a problem searching your notes. Please try again." });
         }
     }
-    else{
+    else {
         res.redirect("/login");
     }
 });
 
-app.post("/notes", async(req,res)=>{
-    if(req.isAuthenticated()){
-        try{
+app.post("/notes", async (req, res) => {
+    if (req.isAuthenticated()) {
+        try {
             const title = req.body.title;
             const content = req.body.note;
-            const result = await db.query("INSERT INTO notes (title, note, user_id) VALUES ($1, $2, $3) RETURNING *",[title,content,req.user.id]);
-            
+            const result = await db.query("INSERT INTO notes (title, note, user_id) VALUES ($1, $2, $3) RETURNING *", [title, content, req.user.id]);
+
             const actionClicked = req.body.action;
-            if(actionClicked === "save"){
+            if (actionClicked === "save") {
                 res.redirect("/notes/" + result.rows[0].id);
             }
-            else{
+            else {
                 res.redirect("/notes");
             }
         }
-        catch(err){
+        catch (err) {
             console.error("Error saving note:", err);
             res.status(500).render("error.ejs", { status: 500, message: "We encountered a problem saving your new note. Please try again." });
         }
     }
-    else{
+    else {
         res.redirect("/login");
     }
 });
 
-app.get("/notes/:id", async(req,res)=>{
-    if(req.isAuthenticated()){
-        try{
+app.get("/notes/:id", async (req, res) => {
+    if (req.isAuthenticated()) {
+        try {
             const noteId = req.params.id;
-            const result = await db.query("SELECT * FROM notes WHERE id = $1 AND user_id = $2",[noteId, req.user.id]);
-            if(result.rows.length > 0){
+            const result = await db.query("SELECT * FROM notes WHERE id = $1 AND user_id = $2", [noteId, req.user.id]);
+            if (result.rows.length > 0) {
                 res.render("note.ejs", { note: result.rows[0] });
             }
-            else{
+            else {
                 res.redirect("/notes");
             }
         }
-        catch(err){
+        catch (err) {
             console.error("Error fetching specific note:", err);
             res.status(500).render("error.ejs", { status: 500, message: "We encountered a problem opening this note. It may have been deleted." });
         }
     }
-    else{
+    else {
         res.redirect("/login");
     }
 });
 
-app.post("/notes/:id", async(req,res)=>{
-    if(req.isAuthenticated()){
-        try{
+app.post("/notes/:id", async (req, res) => {
+    if (req.isAuthenticated()) {
+        try {
             const noteId = req.params.id;
             const title = req.body.title;
             const content = req.body.note;
-            const result = await db.query("UPDATE notes SET title = $1, note = $2 WHERE id = $3 AND user_id = $4 RETURNING *",[title, content, noteId, req.user.id]);
-            
+            const result = await db.query("UPDATE notes SET title = $1, note = $2 WHERE id = $3 AND user_id = $4 RETURNING *", [title, content, noteId, req.user.id]);
+
             const actionClicked = req.body.action;
-            if(actionClicked === "save"){
+            if (actionClicked === "save") {
                 res.redirect("/notes/" + noteId);
             }
-            else{
+            else {
                 res.redirect("/notes");
             }
         }
-        catch(err){
+        catch (err) {
             console.error("Error updating note:", err);
             res.status(500).render("error.ejs", { status: 500, message: "We encountered a problem updating your note. Please try again." });
         }
     }
-    else{
+    else {
         res.redirect("/login");
     }
 });
 
-app.get("/notes/:id/delete", async(req,res)=>{
-    if(req.isAuthenticated()){
-        try{
+app.get("/notes/:id/delete", async (req, res) => {
+    if (req.isAuthenticated()) {
+        try {
             const noteId = req.params.id;
-            const result = await db.query("DELETE FROM notes WHERE id = $1 AND user_id = $2 RETURNING *",[noteId, req.user.id]);
+            const result = await db.query("DELETE FROM notes WHERE id = $1 AND user_id = $2 RETURNING *", [noteId, req.user.id]);
             res.redirect("/notes");
         }
-        catch(err){
+        catch (err) {
             console.error("Error deleting note:", err);
             res.status(500).render("error.ejs", { status: 500, message: "We encountered a problem deleting your note. Please try again." });
         }
     }
-    else{
+    else {
         res.redirect("/login");
     }
 });
 
 app.post("/register", async (req, res) => {
-  const email = req.body.username;
-  const password = req.body.password;
-  const confirmPassword = req.body.confirm_password;
+    const password = req.body.password;
+    const confirmPassword = req.body.confirm_password;
 
-  if (password !== confirmPassword) {
-    const message = "Passwords do not match!";
-    return res.render("register.ejs", { error: message });
-  }
-
-  try {
-    const checkResult = await db.query("SELECT * FROM users WHERE email = $1", [
-      email,
-    ]);
-
-    if (checkResult.rows.length > 0) {
-      res.redirect("/login");
-    } else {
-      bcrypt.hash(password, saltRounds, async (err, hash) => {
-        if (err) {
-          console.error("Error hashing password:", err);
-          res.status(500).render("error.ejs", { status: 500, message: "Internal server error during registration." });
-        } else {
-          const result = await db.query(
-            "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING *",
-            [email, hash]
-          );
-          const user = result.rows[0];
-          req.login(user, (err) => {
-            console.log("success");
-            res.redirect("/notes");
-          });
-        }
-      });
+    if (password !== confirmPassword) {
+        const message = "Passwords do not match!";
+        return res.render("register.ejs", { password: true, error: message });
     }
-  } catch (err) {
-    console.error("Error during registration:", err);
-    res.status(500).render("error.ejs", { status: 500, message: "We encountered a database problem during registration. Please try again later." });
-  }
+    const email = req.session.registrationEmail;
+
+    try {
+        bcrypt.hash(password, saltRounds, async (err, hash) => {
+            if (err) {
+                console.error("Error hashing password:", err);
+                res.status(500).render("error.ejs", { status: 500, message: "Internal server error during registration." });
+            } else {
+                const result = await db.query(
+                    "INSERT INTO users (email, password) VALUES ($1, $2) RETURNING *",
+                    [email, hash]
+                );
+                const user = result.rows[0];
+                const htmlContent = `
+                    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                        <h2 style="color: #333; text-align: center;">Welcome to Notes App!</h2>
+                        <p style="font-size: 16px; color: #555;">Hello,</p>
+                        <p style="font-size: 16px; color: #555;">Your registration was successful. We are thrilled to have you on board!</p>
+                        <div style="text-align: center; margin: 30px 0;">
+                            <a href="https://www.notejs.in/login" style="background-color: #333; color: #fff; text-decoration: none; padding: 12px 24px; border-radius: 4px; font-size: 16px;">Login to Your Account</a>
+                        </div>
+                        <p style="font-size: 14px; color: #999;">Start capturing your thoughts beautifully.</p>
+                    </div>
+                `;
+                await sendmail(user.email, "Welcome to Notes App!", htmlContent);
+                delete req.session.otp;
+                delete req.session.registrationEmail;
+                req.login(user, (err) => {
+                    console.log("success");
+                    res.redirect("/notes");
+                });
+            }
+        });
+    } catch (err) {
+        console.error("Error during registration:", err);
+        res.status(500).render("error.ejs", { status: 500, message: "We encountered a database problem during registration. Please try again later." });
+    }
 });
 
-app.get("/register",(req,res)=>{
-    res.render("register.ejs");
+app.get("/register", (req, res) => {
+    res.render("register.ejs", { register: true });
+});
+
+app.post("/email", async (req, res) => {
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    const email = req.body.email;
+
+    if (!validator.validate(email)) {
+        return res.render("register.ejs", { register:true, error: "Please enter a valid email format." });
+    }
+
+    req.session.otp = otp;
+    req.session.registrationEmail = email;
+    try{
+        const checkResult = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+
+        if (checkResult.rows.length > 0) {
+            return res.render("login.ejs", { error: "An account with that email already exists." });
+        }
+        else{
+            const htmlContent = `
+                <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px; border: 1px solid #ddd; border-radius: 8px;">
+                    <h2 style="color: #333; text-align: center;">Notes App Verification</h2>
+                    <p style="font-size: 16px; color: #555;">Hello,</p>
+                    <p style="font-size: 16px; color: #555;">Your One-Time Password (OTP) for registering on Notes App is:</p>
+                    <div style="text-align: center; margin: 20px 0;">
+                        <span style="font-size: 24px; font-weight: bold; background-color: #f4f4f4; padding: 10px 20px; border-radius: 4px; letter-spacing: 2px;">${otp}</span>
+                    </div>
+                    <p style="font-size: 14px; color: #999;">If you didn't request this, please ignore this email.</p>
+                </div>
+            `;
+            try{
+                await sendmail(email, "Your Notes App OTP", htmlContent);
+                res.render("register.ejs",{email:email});
+            }
+            catch(err){
+                console.error("Error sending OTP email:", err);
+                res.status(500).render("error.ejs", { status: 500, message: "We encountered a problem sending the OTP email. Please try again later." });
+            }
+        }
+    }
+    catch(err){
+        console.error("Error during email verification:", err);
+        res.status(500).render("error.ejs", { status: 500, message: "We encountered a database problem during email verification. Please try again later." });
+    }
+});
+
+app.post("/verify-otp", (req, res) => {
+    const userOtp = req.body.otp;
+    if (parseInt(userOtp) === req.session.otp) {
+        res.render("register.ejs", { password: true });
+    }
+    else{
+        res.render("register.ejs", { email: req.session.registrationEmail, error: "Invalid OTP. Please try again." });
+    }
 });
 
 app.get("/logout", (req, res, next) => {
-  req.logout(function (err) {
-    if (err) {
-      return next(err);
-    }
-    res.redirect("/");
-  });
+    req.logout(function (err) {
+        if (err) {
+            return next(err);
+        }
+        res.redirect("/");
+    });
 });
 
 app.get(
-  "/auth/google/callback",
-  passport.authenticate("google", {
-    successRedirect: "/notes",
-    failureRedirect: "/login",
-  })
+    "/auth/google/callback",
+    passport.authenticate("google", {
+        successRedirect: "/notes",
+        failureRedirect: "/login",
+    })
 );
 
 passport.use("local",
     new Strategy(
-        async function(username,password,cb){
-            try{
-                const result = await db.query("SELECT * FROM users WHERE email = $1",[username]);
-                if(result.rows.length>0){
+        async function (username, password, cb) {
+            try {
+                const result = await db.query("SELECT * FROM users WHERE email = $1", [username]);
+                if (result.rows.length > 0) {
                     const user = result.rows[0];
                     const storedPassword = user.password;
 
-                    bcrypt.compare(password, storedPassword, (err,valid)=>{
-                        if(err){
+                    bcrypt.compare(password, storedPassword, (err, valid) => {
+                        if (err) {
                             console.log("Error Running query.")
                             return cb(err);
                         }
-                        else{
-                            if(valid){
-                                return cb(null,user);
+                        else {
+                            if (valid) {
+                                return cb(null, user);
                             }
-                            else{
-                                return cb(null,false);
+                            else {
+                            return cb(null, false, { message: "incorrect password" });
                             }
                         }
                     })
                 }
-                else{
-                    return cb("user not found!");
+                else {
+                    return cb(null, false, { message: "user not present please register" });
                 }
             }
-            catch(err){
+            catch (err) {
                 console.error("Local Strategy DB Error:", err);
                 return cb(err);
             }
@@ -324,11 +417,11 @@ passport.use("google",
         async (accessToken, refreshToken, profile, cb) => {
             try {
                 const result = await db.query("SELECT * FROM users WHERE email = $1", [profile.email]);
-                
+
                 if (result.rows.length === 0) {
                     const name = profile.displayName;
                     const picture = profile.picture;
-                    
+
                     const newUser = await db.query(
                         "INSERT INTO users (email, name, picture) VALUES ($1, $2, $3) RETURNING *",
                         [profile.email, name, picture]
@@ -338,7 +431,7 @@ passport.use("google",
                     const result1 = await db.query("UPDATE users SET name = $1, picture = $2 WHERE email = $3 RETURNING *", [profile.displayName, profile.picture, profile.email]);
                     return cb(null, result1.rows[0]);
                 }
-            } 
+            }
             catch (err) {
                 console.error("Google Strategy DB Error:", err);
                 return cb(err);
@@ -348,19 +441,19 @@ passport.use("google",
 );
 
 passport.serializeUser((user, cb) => {
-  cb(null, user);
+    cb(null, user);
 });
 
 passport.deserializeUser((user, cb) => {
-  cb(null, user);
+    cb(null, user);
 });
 
 const PORT = process.env.PORT || 3000;
 
 if (process.env.NODE_ENV !== "production") {
-  app.listen(PORT, () => {
-    console.log(`Server is running on port ${PORT}`);
-  });
+    app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+    });
 }
 
 export default app;

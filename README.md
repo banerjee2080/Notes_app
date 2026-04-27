@@ -2,11 +2,12 @@
 
 A full-stack, secure note-taking application built with Node.js, Express, PostgreSQL, and EJS. It features robust user authentication using Passport.js, supporting both local email/password login and Google OAuth2 integration.
 
-🚀 **Live Demo:** [https://notesjavascript.vercel.app/](https://notesjavascript.vercel.app/)
+🚀 **Live Demo:** [https://www.notejs.in/](https://www.notejs.in/)
 
 ## Features
 
 - **User Authentication:** 
+  - Email format validation and OTP-based email verification via Resend.
   - Local strategy (Email & Password) with `bcrypt` password hashing.
   - Google OAuth2 integration for seamless login.
 - **Session Management:** Secure, persistent sessions stored in PostgreSQL using `connect-pg-simple`.
@@ -25,7 +26,7 @@ A full-stack, secure note-taking application built with Node.js, Express, Postgr
 - **Authentication:** Passport.js (`passport-local`, `passport-google-oauth2`)
 - **Templating:** EJS
 - **Session Store:** `connect-pg-simple`
-- **Other Tools:** `bcrypt`, `dotenv`, `body-parser`
+- **Other Tools:** `bcrypt`, `dotenv`, `body-parser`, `resend`, `email-validator`
 
 ## Installation & Setup
 
@@ -78,6 +79,7 @@ A full-stack, secure note-taking application built with Node.js, Express, Postgr
    ```env
    DATABASE_URL=your_postgresql_connection_string
    SESSION_SECRET=your_secret_key_for_sessions
+   RESEND_API_KEY=your_resend_api_key
    GOOGLE_CLIENT_ID=your_google_client_id
    GOOGLE_CLIENT_SECRET=your_google_client_secret
    GOOGLE_CALLBACK_URL=http://localhost:3000/auth/google/callback
