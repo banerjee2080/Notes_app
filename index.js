@@ -61,7 +61,6 @@ app.use(session({
 const saltRounds = 10;
 
 import { Resend } from 'resend';
-import { send } from "process";
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
