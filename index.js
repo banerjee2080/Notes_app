@@ -113,13 +113,7 @@ app.post(
                 if (info && info.message === "user not present please register") {
                     return res.render("register.ejs", { register: true, error: info.message });
                 }
-                if (info && info.message === "incorrect password") {
-                    return res.render("login.ejs", { error: info.message });
-                }
-                if(info && info.message === "This email is associated with a Google account. Please log in with Google.") {
-                    return res.render("login.ejs", { error: info.message });
-                }
-                return res.redirect("/login");
+                return res.render("login.ejs", { error: info ? info.message : "Invalid credentials" });
             }
             req.logIn(user, (err) => {
                 if (err) { return next(err); }

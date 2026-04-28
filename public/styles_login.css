@@ -219,6 +219,10 @@ button[type="submit"]:hover, form > button:hover {
     color: red;
     font-size: 0.9rem;
     text-align: center;
+    background-color: rgba(255, 0, 0, 0.05);
+    padding: 10px;
+    border-radius: 8px;
+    border: 1px solid rgba(255, 0, 0, 0.2);
 }
 
 /* --- Media Queries --- */
