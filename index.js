@@ -261,6 +261,125 @@ app.get("/notes/:id/delete", async (req, res) => {
     }
 });
 
+app.get("/forget", (req, res)=>{
+    res.render("register.ejs", { register:true, forget: true });
+});
+
+app.post("/forget-email", async (req, res) => {
+    const otp = Math.floor(100000 + Math.random() * 900000);
+    const email = req.body.email;
+
+    if (!validator.validate(email)) {
+        return res.render("register.ejs", { register:true, forget: true, error: "Please enter a valid email format." });
+    }
+
+    req.session.otp = otp;
+    req.session.registrationEmail = email;
+    try{
+        const checkResult = await db.query("SELECT * FROM users WHERE email = $1", [email]);
+
+        if (checkResult.rows.length === 0) {
+            return res.render("register.ejs", {register:true, forget: true, error: "No account found with that email." });
+        }
+        else{
+            const htmlContent = `
+                <div style="background-color: #e0e5ec; background-image: url('https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=800&auto=format&fit=crop'); background-size: cover; background-position: center; padding: 60px 20px; font-family: 'Roboto', Arial, sans-serif;">
+                    
+                    <div style="max-width: 500px; margin: 0 auto; background-color: rgba(255, 255, 255, 0.9); border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 20px; box-shadow: 0 16px 40px rgba(0,0,0,0.1); padding: 40px; text-align: center;">
+                        
+                        <h2 style="color: #2C302E; font-family: 'JetBrains Mono', Courier, monospace; font-size: 24px; margin-top: 0; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);">Note.js Verification</h2>
+                        
+                        <p style="font-size: 16px; color: #2C302E; line-height: 1.6; margin-bottom: 10px;">Hello,</p>
+                        <p style="font-size: 16px; color: #2C302E; line-height: 1.6; margin-bottom: 30px;">Your One-Time Password (OTP) for changing your password is:</p>
+                        
+                        <div style="margin: 35px 0;">
+                            <span style="font-size: 26px; font-weight: bold; background-color: #4A90E2; background-image: linear-gradient(135deg, #4A90E2, #357ABD); color: #FFFFFF; padding: 16px 32px; border-radius: 12px; letter-spacing: 8px; font-family: 'JetBrains Mono', Courier, monospace; display: inline-block; box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);">${otp}</span>
+                        </div>
+                        
+                        <p style="font-size: 14px; color: #666666; margin-bottom: 0; margin-top: 30px;">If you didn't request this, please ignore this email.</p>
+                        </div>
+                </div>`;
+            try{
+                await sendmail(email, "Your Notes App OTP", htmlContent);
+                res.render("register.ejs",{email:email,forget:true});
+            }
+            catch(err){
+                console.error("Error sending OTP email:", err);
+                res.status(500).render("error.ejs", { status: 500, message: "We encountered a problem sending the OTP email. Please try again later." });
+            }
+        }
+    }
+    catch(err){
+        console.error("Error during email verification:", err);
+        res.status(500).render("error.ejs", { status: 500, message: "We encountered a database problem during email verification. Please try again later." });
+    }
+});
+
+app.post("/forget-verify-otp", (req, res) => {
+    const userOtp = req.body.otp;
+    if (parseInt(userOtp) === req.session.otp) {
+        res.render("register.ejs", { password: true, forget: true });
+    }
+    else{
+        res.render("register.ejs", { forget:true, email: req.session.registrationEmail, error: "Invalid OTP. Please try again." });
+    }
+});
+
+app.post("/forget-register", async (req, res) => {
+    const password = req.body.password;
+    const confirmPassword = req.body.confirm_password;
+
+    if (password !== confirmPassword) {
+        const message = "Passwords do not match!";
+        return res.render("register.ejs", { forget:true, password: true, error: message });
+    }
+    const email = req.session.registrationEmail;
+
+    try {
+        bcrypt.hash(password, saltRounds, async (err, hash) => {
+            if (err) {
+                console.error("Error hashing password:", err);
+                res.status(500).render("error.ejs", { status: 500, message: "Internal server error during registration." });
+            } else {
+                const result = await db.query(
+                    "UPDATE users SET password = $2 WHERE email = $1 RETURNING *",
+                    [email, hash]
+                );
+                const user = result.rows[0];
+                const htmlContent = `
+                    <div style="background-color: #e0e5ec; background-image: url('https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=800&auto=format&fit=crop'); background-size: cover; background-position: center; padding: 60px 20px; font-family: 'Roboto', Arial, sans-serif;">
+                        
+                        <div style="max-width: 500px; margin: 0 auto; background-color: rgba(255, 255, 255, 0.9); border: 1px solid rgba(255, 255, 255, 0.6); border-radius: 20px; box-shadow: 0 16px 40px rgba(0,0,0,0.1); padding: 40px; text-align: center;">
+                            
+                            <h2 style="color: #2C302E; font-family: 'JetBrains Mono', Courier, monospace; font-size: 24px; margin-top: 0; text-shadow: 0 1px 2px rgba(255, 255, 255, 0.8);">Welcome to Note.js!</h2>
+                            
+                            <p style="font-size: 16px; color: #2C302E; line-height: 1.6; margin-bottom: 10px;">Hello,</p>
+                            <p style="font-size: 16px; color: #2C302E; line-height: 1.6; margin-bottom: 35px;">Your password has been reset successfully.</p>
+                            
+                            <div style="margin: 35px 0;">
+                                <a href="https://www.notejs.in/login" style="background-color: #4A90E2; background-image: linear-gradient(135deg, #4A90E2, #357ABD); color: #FFFFFF; text-decoration: none; padding: 16px 32px; border-radius: 12px; font-size: 16px; font-weight: 500; font-family: 'Roboto', Arial, sans-serif; display: inline-block; box-shadow: 0 4px 12px rgba(74, 144, 226, 0.3);">Login to Your Account</a>
+                            </div>
+                            
+                            <p style="font-size: 14px; color: #666666; margin-bottom: 0; margin-top: 30px;">Start capturing your thoughts beautifully.</p>
+                            
+                        </div>
+                    </div>
+                    `;
+                sendmail(user.email, "Password Reset Successful", htmlContent);
+                delete req.session.otp;
+                delete req.session.registrationEmail;
+                req.login(user, (err) => {
+                    console.log("success");
+                    res.redirect("/notes");
+                });
+            }
+        });
+    } catch (err) {
+        console.error("Error during registration:", err);
+        res.status(500).render("error.ejs", { status: 500, message: "We encountered a database problem during registration. Please try again later." });
+    }
+});
+
 app.post("/register", async (req, res) => {
     const password = req.body.password;
     const confirmPassword = req.body.confirm_password;
@@ -407,7 +526,7 @@ passport.use("local",
                     const storedPassword = user.password;
 
                     if (!storedPassword) {
-                        return cb(null, false, { message: "This email is associated with a Google account. Please log in with Google." });
+                        return cb(null, false, { message: "This email is associated with a Google account. Please log in with Google or click forget password to reset it." });
                     }
 
                     bcrypt.compare(password, storedPassword, (err, valid) => {

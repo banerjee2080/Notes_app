@@ -18,7 +18,7 @@
     <div class="container">
         <% if(locals.register){ %>
             <h1>Enter Email ID</h1>
-            <form action="/email" method="POST">
+            <form action="<%= locals.forget ? '/forget-email' : '/email' %>" method="POST">
                 <input type="email" name="email" placeholder="Email" required>
                 <button type="submit">Send OTP</button>
             </form>
@@ -49,14 +49,14 @@
             </button>
         <% } else if(locals.email){ %>
             <h1>Enter OTP</h1>
-            <form action="/verify-otp" method="POST">
+            <form action="<%= locals.forget ? '/forget-verify-otp' : '/verify-otp' %>" method="POST">
                 <h2>OTP has been Sent to <%= email %></h2>
                 <input type="text" name="otp" placeholder="OTP" required>
                 <button type="submit">Verify OTP</button>
             </form>
         <% } else if(locals.password){ %>
             <h1>Password</h1>
-            <form action="/register" method="POST">
+            <form action="<%= locals.forget ? '/forget-register' : '/register' %>" method="POST">
                 <input type="password" name="password" placeholder="Password" required>
                 <input type="password" name="confirm_password" placeholder="Confirm Password" required>
                 <button type="submit">Set Password</button>
