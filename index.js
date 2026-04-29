@@ -13,6 +13,7 @@ import { fileURLToPath } from "url";
 import validator from 'email-validator';
 import compression from "compression";
 import { inject } from '@vercel/analytics';
+import sanitizeHtml from 'sanitize-html';
 
 env.config();
 inject();
@@ -169,7 +170,7 @@ app.post("/notes", async (req, res) => {
     if (req.isAuthenticated()) {
         try {
             const title = req.body.title;
-            const content = req.body.note;
+            const content = sanitizeHtml(req.body.note);
             const result = await db.query("INSERT INTO notes (title, note, user_id) VALUES ($1, $2, $3) RETURNING *", [title, content, req.user.id]);
 
             const actionClicked = req.body.action;

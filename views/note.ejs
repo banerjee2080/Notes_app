@@ -5,6 +5,7 @@
         <meta name="viewport" content="width=device-width, initial-scale=1.0">
         <title>Notes</title>
         <link rel="stylesheet" href="/styles_note.css">
+        <link href="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.snow.css" rel="stylesheet"/>
         <link rel="preconnect" href="https://fonts.googleapis.com">
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
         <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:ital,wght@0,100..800;1,100..800&family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
@@ -16,7 +17,8 @@
                 
                 <input type="text" name="title" class="note-title" placeholder="Title" value="<%= note ? note.title : '' %>" required>
                 
-                <textarea name="note" class="note-content" placeholder="Content" required><%= note ? note.note : '' %></textarea>
+                <input type="hidden" name="note" id="hidden-note">
+                <div id="editor" class="note-content" placeholder="Content"><%- note ? note.note : '' %></div>
                 
                 <div class="form-actions">
                     <button type="button" class="btn btn-outline" onclick="window.location.href='/notes'">Exit without Saving</button>
@@ -31,5 +33,24 @@
             </div>
             <% } %>
         </div>
+        <script src="https://cdn.jsdelivr.net/npm/quill@2/dist/quill.js"></script>
+        <script>
+            const quill = new Quill("#editor", {
+                    theme: "snow",
+                    modules: {
+                        toolbar: [
+                            [{ header: [1, 2, 3, false] }],
+                            ["bold", "italic", "underline"],
+                            ["link"],
+                            [{ list: "ordered" }, { list: "bullet" }],
+                            ["clean"]
+                        ]
+                    }
+                });
+                // On form submit, set the hidden input value to the Quill editor's HTML content
+                document.querySelector('.note-form').addEventListener('submit', function() {
+                    document.getElementById('hidden-note').value = quill.root.innerHTML;
+                });
+        </script>
     </body>
 </html>

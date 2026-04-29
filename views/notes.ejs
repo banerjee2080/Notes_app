@@ -39,7 +39,7 @@
                 <li class="note">
                     <button onclick="window.location.href='/notes/<%= notes[i].id %>'">
                         <h2><%= notes[i].title %></h2>
-                        <p><%= notes[i].note.slice(0, 20) %></p>
+                        <p><%= notes[i].note.replace(/<[^>]*>?/gm, '').slice(0, 20) %>...</p>
                     </button>
                 </li>
                 <% } %>
