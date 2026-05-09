@@ -47,7 +47,12 @@
                         ]
                     }
                 });
-                // On form submit, set the hidden input value to the Quill editor's HTML content
+                document.querySelector('.ql-container').addEventListener('click', function(e) {
+                    if (e.target === this) {
+                        quill.focus();
+                        quill.setSelection(quill.getLength(), 0);
+                    }
+                });
                 document.querySelector('.note-form').addEventListener('submit', function() {
                     document.getElementById('hidden-note').value = quill.root.innerHTML;
                 });
