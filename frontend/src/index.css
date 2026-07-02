@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', sans-serif;
+}
+
+body {
+  @apply bg-gradient-to-br from-slate-900 via-blue-950 to-black text-white min-h-screen bg-fixed antialiased;
+  font-family: 'Inter', sans-serif;
+}
+
+/* Custom scrollbar for better aesthetic */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  background: rgba(255, 255, 255, 0.05);
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* TinyMCE Glassmorphism Overrides */
+.tinymce-wrapper .tox-tinymce {
+  border: none !important;
+  background: transparent !important;
+}
+
+.tinymce-wrapper .tox .tox-toolbar,
+.tinymce-wrapper .tox .tox-toolbar__overflow,
+.tinymce-wrapper .tox .tox-toolbar__primary {
+  background: transparent !important;
+}
+
+.tinymce-wrapper .tox .tox-editor-header {
+  background: rgba(0, 0, 0, 0.2) !important;
+  box-shadow: none !important;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+}
+
+.tinymce-wrapper .tox .tox-statusbar {
+  background: transparent !important;
+  border-top: 1px solid rgba(255, 255, 255, 0.1) !important;
+  color: rgba(255, 255, 255, 0.5) !important;
+}
+
+.tinymce-wrapper .tox .tox-statusbar a,
+.tinymce-wrapper .tox .tox-statusbar__path-item,
+.tinymce-wrapper .tox .tox-statusbar__wordcount {
+  color: rgba(255, 255, 255, 0.6) !important;
+}
+
+.tinymce-wrapper .tox .tox-tbtn {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.tinymce-wrapper .tox .tox-tbtn:hover {
+  background: rgba(255, 255, 255, 0.1) !important;
+}
+
+.tinymce-wrapper .tox .tox-tbtn--enabled, .tinymce-wrapper .tox .tox-tbtn--enabled:hover {
+  background: rgba(255, 255, 255, 0.2) !important;
+}
+
+.tinymce-wrapper .tox .tox-edit-area__iframe {
+  background: transparent !important;
+}
