@@ -1,7 +1,7 @@
 import express from "express";
 import cookieParser from "cookie-parser";
 import notesRoutes from "./src/routes/notes.routes.js";
-import authRoutes from "./src/routes/auth.routes.js"
+import authRoutes from "./src/routes/auth.routes.js";
 import { connectdb } from "./src/config/db.js";
 import rateLimiter from "./src/middleware/ratelimiter.middleware.js";
 import dotenv from "dotenv";
@@ -12,8 +12,8 @@ import { fileURLToPath } from "url";
 dotenv.config();
 
 const app = express();
-app.use(express.json({ limit: "50mb" }));
-app.use(express.urlencoded({ limit: "50mb", extended: true }));
+app.use(express.json({ limit: "100mb" }));
+app.use(express.urlencoded({ limit: "100mb", extended: true }));
 app.use(cookieParser());
 
 const __filename = fileURLToPath(import.meta.url);
