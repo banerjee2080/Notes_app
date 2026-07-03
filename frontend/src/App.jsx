@@ -28,15 +28,62 @@ const App = () => {
     );
   }
 
+  const mainColor = authUser?.main_colour || '#3b82f6';
+  const accentColor = authUser?.accent_colour || '#6366f1';
+  const accentColor2 = authUser?.accent_colour2 || '#8b5cf6';
+
+  const themeStyles = {
+    '--theme-main': mainColor,
+    '--theme-accent': accentColor,
+    '--theme-accent2': accentColor2,
+  };
+
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen" style={themeStyles}>
+      <style>{`
+        .theme-text {
+          color: var(--theme-main);
+        }
+        .theme-gradient-text {
+          background-image: linear-gradient(to right, var(--theme-main), var(--theme-accent));
+          -webkit-background-clip: text;
+          color: transparent;
+        }
+        .theme-bg-glass {
+          background-color: color-mix(in srgb, var(--theme-main) 10%, rgba(255,255,255,0.03));
+          border-color: color-mix(in srgb, var(--theme-main) 20%, rgba(255,255,255,0.1));
+        }
+        .theme-bg-glass:hover {
+          background-color: color-mix(in srgb, var(--theme-main) 20%, rgba(255,255,255,0.08));
+          border-color: color-mix(in srgb, var(--theme-main) 40%, rgba(255,255,255,0.2));
+          box-shadow: 0 8px 30px color-mix(in srgb, var(--theme-main) 20%, transparent);
+        }
+        .theme-button {
+          background: linear-gradient(to right, var(--theme-main), var(--theme-accent));
+          box-shadow: 0 4px 15px color-mix(in srgb, var(--theme-main) 30%, transparent);
+          color: #fff;
+          border: none;
+        }
+        .theme-button:hover {
+          box-shadow: 0 6px 25px color-mix(in srgb, var(--theme-main) 50%, transparent);
+        }
+        .theme-button-outline {
+          background-color: color-mix(in srgb, var(--theme-main) 15%, transparent);
+          border: 1px solid color-mix(in srgb, var(--theme-main) 40%, transparent);
+          color: color-mix(in srgb, var(--theme-main) 90%, #fff);
+        }
+        .theme-button-outline:hover {
+          background-color: color-mix(in srgb, var(--theme-main) 25%, transparent);
+          border-color: color-mix(in srgb, var(--theme-main) 60%, transparent);
+        }
+      `}</style>
       {/* Landscape Background */}
       <div
-        className="fixed inset-0 z-[-1] pointer-events-none bg-cover bg-center bg-no-repeat"
-        style={{ backgroundImage: "url('/bg.png')" }}
+        className="fixed inset-0 z-[-1] pointer-events-none bg-cover bg-center bg-no-repeat transition-all duration-700 ease-in-out"
+        style={{ backgroundImage: `url('${authUser?.backgroundImg || '/bg.png'}')` }}
       >
         {/* Subtle dark overlay to ensure text and glassmorphism remain crisp and readable */}
-        <div className="absolute inset-0 bg-slate-900/40"></div>
+        <div className="absolute inset-0 bg-slate-900/60"></div>
       </div>
       <Routes location={backgroundLocation || location}>
         <Route path="/" element={authUser ? <HomePage /> : <Navigate to={"/login"} />}/>

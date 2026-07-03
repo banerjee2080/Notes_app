@@ -1,6 +1,11 @@
 import { Editor } from "@tinymce/tinymce-react";
+import { useAuthStore } from "../stores/useAuthStore.js";
 
 export default function Tiny({ value, onEditorChange, placeholder }) {
+  const { authUser } = useAuthStore();
+  const mainColor = authUser?.main_colour || '#3b82f6';
+  const accentColor = authUser?.accent_colour || '#6366f1';
+
   return (
     <div className="tinymce-wrapper rounded-xl overflow-hidden shadow-inner border border-white/10 bg-white/5">
       <Editor
@@ -79,6 +84,13 @@ export default function Tiny({ value, onEditorChange, placeholder }) {
               background: transparent !important; 
               color: rgba(255, 255, 255, 0.9) !important; 
               font-family: 'Inter', sans-serif !important;
+            }
+            body::selection {
+              background: ${mainColor} !important;
+              color: #fff !important;
+            }
+            a {
+              color: ${accentColor} !important;
             }
           `,
         }}

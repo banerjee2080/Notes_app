@@ -9,6 +9,7 @@ export const useAuthStore = create((set) => ({
   isLoggingIn: false,
   isUpdatingProfile: false,
   isCheckingAuth: true,
+  isThemeChanging: false,
 
   checkAuth: async () => {
     try {
@@ -91,6 +92,19 @@ export const useAuthStore = create((set) => ({
       toast.error(error.response?.data?.message || error.message);
     } finally {
       set({ isUpdatingProfile: false });
+    }
+  },
+
+  setTheme: async (image) => {
+    set({ isThemeChanging: true });
+    try {
+      const res = await axiosInstance.put("/auth/setBackgroundImg", image);
+      set({ authUser: res.data });
+      toast.success("Theme changed successfully");
+    } catch (error) {
+      toast.error(error.response?.data?.message || error.message);
+    } finally {
+      set({ isThemeChanging: false });
     }
   },
 }));

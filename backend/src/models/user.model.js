@@ -20,6 +20,22 @@ const userSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    backgroundImg: {
+      type: String,
+      default: "",
+    },
+    main_colour: {
+      type: String,
+      default: "",
+    },
+    accent_colour: {
+      type: String,
+      default: "",
+    },
+    accent_colour2: {
+      type: String,
+      default: "",
+    },
   },
   { timestamps: true },
 );

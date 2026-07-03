@@ -20,8 +20,15 @@ const NoteCard = ({note, setNote}) => {
     }
   }
   return (
-    <div className="relative group bg-white/5 hover:bg-white/10 backdrop-blur-lg border border-white/10 hover:border-white/20 rounded-2xl p-6 transition-all duration-300 shadow-[0_4px_30px_rgba(0,0,0,0.1)] hover:shadow-[0_8px_40px_rgba(30,58,138,0.2)] overflow-hidden h-full flex flex-col">
-      <div className="absolute top-0 left-0 w-full h-1 bg-linear-to-r from-blue-400 to-blue-600 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+    <div className="relative group theme-bg-glass backdrop-blur-lg border rounded-2xl p-6 transition-all duration-300 overflow-hidden h-full flex flex-col">
+      <div 
+        className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-300 -z-10 pointer-events-none"
+        style={{ background: 'radial-gradient(circle at top right, var(--theme-main), transparent 70%)' }}
+      ></div>
+      <div 
+        className="absolute top-0 left-0 w-full h-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+        style={{ background: 'linear-gradient(to right, var(--theme-main), var(--theme-accent))' }}
+      ></div>
       
       <Link to={`/note/${note._id}`} state={{ backgroundLocation: location }} className="flex flex-col flex-1 cursor-pointer">
         <h2 className="text-xl font-semibold mb-3 text-white tracking-wide line-clamp-1">

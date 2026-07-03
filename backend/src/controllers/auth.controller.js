@@ -2,6 +2,7 @@ import bcrypt from "bcrypt";
 import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import cloudinary from "../lib/cloudinary.js";
+import { Vibrant } from "node-vibrant/node";
 
 export const signup = async (req, res) => {
   try {
@@ -92,7 +93,7 @@ export const updateProfile = async (req, res) => {
     const updatedUser = await User.findByIdAndUpdate(
       userId,
       { profilePic: uploadedPic.secure_url },
-      { new: true },
+      { returnDocument: "after" },
     );
 
     res.status(200).json(updatedUser);
@@ -137,6 +138,41 @@ export const sendMail = async (req, res) => {
     res.status(200).json({ message: "Email sent successfully", data });
   } catch (error) {
     console.log("Error in sendMail controller: ", error);
+    res.status(500).json({ message: error.message });
+  }
+};
+
+export const setBackgroundImg = async (req, res) => {
+  try {
+    const { backgroundImg } = req.body;
+    const userId = req.user._id;
+    if (!backgroundImg)
+      return res.status(400).json({ message: "Background Image is required!" });
+    const uploadedImg = await cloudinary.uploader.upload(backgroundImg);
+    let main_colour = "";
+    let accent_colour = "";
+    let accent_colour2 = "";
+    try {
+      const palette = await Vibrant.from(uploadedImg.secure_url).getPalette();
+      main_colour = palette.Vibrant ? palette.Vibrant.hex : "";
+      accent_colour = palette.LightVibrant ? palette.LightVibrant.hex : "";
+      accent_colour2 = palette.DarkVibrant ? palette.DarkVibrant.hex : "";
+    } catch (err) {
+      console.log("Error extracting colors with Vibrant: ", err.message);
+    }
+    const updatedUser = await User.findByIdAndUpdate(
+      userId,
+      {
+        backgroundImg: uploadedImg.secure_url,
+        main_colour,
+        accent_colour,
+        accent_colour2,
+      },
+      { returnDocument: "after" },
+    );
+    res.status(200).json(updatedUser);
+  } catch (error) {
+    console.log("Error in setBackgroundImg controller", error.message);
     res.status(500).json({ message: error.message });
   }
 };

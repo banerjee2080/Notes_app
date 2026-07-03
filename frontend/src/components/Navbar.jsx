@@ -1,16 +1,34 @@
 import { Link, useLocation } from "react-router";
-import { PlusIcon, LogOut } from "lucide-react";
+import { PlusIcon, LogOut, Loader2 } from "lucide-react";
 import { useAuthStore } from "../stores/useAuthStore";
+import { useRef } from "react";
 
 const Navbar = () => {
   const location = useLocation();
-  const { authUser, logout } = useAuthStore();
+  const { authUser, logout, setTheme, isThemeChanging } = useAuthStore();
+  const fileInputRef = useRef(null);
+
+  const handleImageUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+
+    reader.onload = async () => {
+      const base64Img = reader.result;
+      await setTheme({ backgroundImg: base64Img });
+    };
+  };
 
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-black/20 border-b border-white/10 shadow-lg">
       <div className="mx-auto max-w-6xl p-4">
         <div className="flex items-center justify-between">
-          <Link to="/" className="text-3xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-blue-300 to-white tracking-tight">
+          <Link
+            to="/"
+            className="text-3xl font-bold theme-gradient-text tracking-tight"
+          >
             Note.js
           </Link>
           <div className="flex items-center gap-4">
@@ -44,6 +62,28 @@ const Navbar = () => {
                   title="Logout"
                 >
                   <LogOut className="size-5" />
+                </button>
+
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  className="hidden"
+                  onChange={handleImageUpload}
+                />
+                <button 
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isThemeChanging}
+                  className={`px-4 py-2 theme-button-outline text-sm font-medium rounded-lg transition-all duration-300 backdrop-blur-sm whitespace-nowrap shadow-[0_0_15px_rgba(0,0,0,0.2)] flex items-center justify-center gap-2 ${isThemeChanging ? 'opacity-70 cursor-not-allowed' : ''}`}
+                >
+                  {isThemeChanging ? (
+                    <>
+                      <Loader2 className="size-4 animate-spin" />
+                      Changing...
+                    </>
+                  ) : (
+                    "Change Theme"
+                  )}
                 </button>
               </>
             )}

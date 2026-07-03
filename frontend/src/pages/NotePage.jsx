@@ -81,8 +81,8 @@ const NotePage = ({ isModal }) => {
         className="w-full max-w-2xl bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 md:p-12 shadow-[0_0_40px_rgba(0,0,0,0.3)] relative overflow-hidden"
         onClick={e => e.stopPropagation()}
       >
-        <div className="absolute top-0 right-0 w-64 h-64 bg-blue-500/10 rounded-full blur-[80px] -z-10"></div>
-        <div className="absolute bottom-0 left-0 w-64 h-64 bg-indigo-500/10 rounded-full blur-[80px] -z-10"></div>
+        <div className="absolute top-0 right-0 w-64 h-64 rounded-full blur-[80px] -z-10 opacity-30" style={{ backgroundColor: 'var(--theme-main)' }}></div>
+        <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full blur-[80px] -z-10 opacity-30" style={{ backgroundColor: 'var(--theme-accent)' }}></div>
         
         <div className="flex justify-between items-center mb-8">
           <Link 
@@ -122,14 +122,17 @@ const NotePage = ({ isModal }) => {
           <button 
             onClick={handleSave}
             disabled={saving}
-            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-semibold py-4 rounded-xl transition-all shadow-[0_0_20px_rgba(59,130,246,0.3)] hover:shadow-[0_0_30px_rgba(59,130,246,0.5)] disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full theme-button font-semibold py-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
           >
+            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
+            <div className="relative z-10">
             {saving ? (
               <div className="flex items-center justify-center gap-2">
                 <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
                 Saving...
               </div>
             ) : "Save Changes"}
+            </div>
           </button>
         </div>
       </div>
