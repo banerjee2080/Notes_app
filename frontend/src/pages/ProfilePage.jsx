@@ -29,7 +29,7 @@ const ProfilePage = () => {
         <div className="relative z-10">
           <button
             onClick={() => navigate("/")}
-            className="mb-4 flex items-center gap-2 text-white/60 hover:text-white transition-colors py-2 px-3 rounded-lg hover:bg-white/10"
+            className="mb-4 flex items-center gap-2 text-white/60 hover:text-white transition-all duration-300 py-2 px-3 rounded-lg hover:bg-white/10 hover:shadow-[0_0_15px_var(--theme-main)]"
           >
             <ArrowLeft className="size-4" />
             Back to Home
@@ -47,7 +47,7 @@ const ProfilePage = () => {
           {/* Avatar Upload Section */}
           <div className="flex flex-col items-center mb-10">
             <div className="relative group">
-              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white/10 shadow-xl shadow-black/20 relative z-10 transition-transform duration-300 group-hover:scale-[1.02]">
+              <div className="w-32 h-32 rounded-full overflow-hidden border-4 border-white/10 shadow-xl shadow-black/20 relative z-10 transition-all duration-300 group-hover:scale-[1.02] group-hover:border-[var(--theme-main)] group-hover:shadow-[0_0_25px_var(--theme-main)]">
                 <img
                   src={authUser.profilePic || selectedImage || "/avatar.png"}
                   alt="Profile picture"
@@ -57,7 +57,7 @@ const ProfilePage = () => {
                 {/* Upload Overlay */}
                 <label
                   htmlFor="avatar-upload"
-                  className={`absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer backdrop-blur-sm ${isUpdatingProfile ? "pointer-events-none" : ""}`}
+                  className={`absolute inset-0 bg-black/40 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300 cursor-pointer backdrop-blur-sm rounded-full ${isUpdatingProfile ? "pointer-events-none" : ""}`}
                 >
                   {isUpdatingProfile ? (
                     <Loader2 className="size-8 text-white animate-spin" />
