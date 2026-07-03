@@ -35,6 +35,10 @@ export const signup = async (req, res) => {
         fullName: newUser.fullName,
         email: newUser.email,
         profilePic: newUser.profilePic,
+        backgroundImg: newUser.backgroundImg,
+        main_colour: newUser.main_colour,
+        accent_colour: newUser.accent_colour,
+        accent_colour2: newUser.accent_colour2,
       });
     } else {
       res.status(400).json({ message: "Invalid User Details" });
@@ -64,6 +68,10 @@ export const login = async (req, res) => {
       fullName: user.fullName,
       email: user.email,
       profilePic: user.profilePic,
+      backgroundImg: user.backgroundImg,
+      main_colour: user.main_colour,
+      accent_colour: user.accent_colour,
+      accent_colour2: user.accent_colour2,
     });
   } catch (error) {
     console.log("Error in login: ", error);
