@@ -2,24 +2,20 @@ import { useState } from "react";
 import { useAuthStore } from "../stores/useAuthStore.js";
 import { Camera, Mail, User, Loader2, Calendar, ArrowLeft } from "lucide-react";
 import { useNavigate } from "react-router";
+import { compressImage } from "../lib/utils";
 
 const ProfilePage = () => {
   const { authUser, updateProfile, isUpdatingProfile } = useAuthStore();
   const [selectedImage, setSelectedImage] = useState(null);
   const navigate = useNavigate();
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-
-    reader.onload = async () => {
-      const base64Img = reader.result;
-      setSelectedImage(base64Img);
-      await updateProfile({ profilePic: base64Img });
-    };
+    const base64Img = await compressImage(file, 800, 0.8);
+    setSelectedImage(base64Img);
+    await updateProfile({ profilePic: base64Img });
   };
 
   return (
@@ -113,7 +109,9 @@ const ProfilePage = () => {
                 <p className="text-xs text-white/50 uppercase font-semibold tracking-wider">
                   Email
                 </p>
-                <p className="text-sm font-medium mt-0.5 text-white">{authUser.email}</p>
+                <p className="text-sm font-medium mt-0.5 text-white">
+                  {authUser.email}
+                </p>
               </div>
             </div>
 

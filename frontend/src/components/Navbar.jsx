@@ -2,23 +2,19 @@ import { Link, useLocation } from "react-router";
 import { PlusIcon, LogOut, Loader2 } from "lucide-react";
 import { useAuthStore } from "../stores/useAuthStore";
 import { useRef } from "react";
+import { compressImage } from "../lib/utils";
 
 const Navbar = () => {
   const location = useLocation();
   const { authUser, logout, setTheme, isThemeChanging } = useAuthStore();
   const fileInputRef = useRef(null);
 
-  const handleImageUpload = (e) => {
+  const handleImageUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
 
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-
-    reader.onload = async () => {
-      const base64Img = reader.result;
-      await setTheme({ backgroundImg: base64Img });
-    };
+    const base64Img = await compressImage(file, 1920, 0.7);
+    await setTheme({ backgroundImg: base64Img });
   };
 
   return (
