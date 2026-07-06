@@ -1,72 +1,140 @@
-import { ArrowLeftIcon } from 'lucide-react';
-import { useState } from 'react'
-import toast from 'react-hot-toast';
-import { Link, useNavigate } from 'react-router';
-import api from '../lib/axios.js'
-import Tiny from '../components/Tiny.jsx';
+import { ArrowLeftIcon } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
+import toast from "react-hot-toast";
+import { Link, useNavigate } from "react-router";
+import api from "../lib/axios.js";
+import Tiny from "../components/Tiny.jsx";
+import { useDebounce } from "../hooks/useDebounce.js";
 
 const CreatePage = ({ isModal }) => {
-  const [title,setTitle] = useState("");
-  const [content,setContent] = useState("");
-  const [loading,setLoading] = useState(false);
+  const [title, setTitle] = useState("");
+  const [content, setContent] = useState("");
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [noteId, setNoteId] = useState(null);
 
   const navigate = useNavigate();
+  const debouncedTitle = useDebounce(title, 500);
+  const debouncedContent = useDebounce(content, 500);
+  const isInit = useRef(true);
 
-  const handleSubmit = async(e) => {
-    e.preventDefault();
-    if(!title.trim() || !content.trim()){
-      toast.error("Title or Content is Missing");
+  useEffect(() => {
+    if (isInit.current) {
+      isInit.current = false;
       return;
     }
-    try{
-      await api.post("/notes",{
-        title,
-        content
-      });
-      toast.success("Note Successfully Created");
-      navigate("/");
-    }
-    catch(error){
-      console.log("Error in Creating note ",error);
-      if(error.response?.status===429){
-        toast.error("Slow down! You're creating notes too fast", {
-          duration: 4000,
-          icon: "⏰",
-        });
-      }
-      else{
-        toast.error("Error in Creating Note.");
-      }
-    }
-    finally{
-      setLoading(false);
-    }
-  }
 
-  const containerClasses = isModal 
+    if (!debouncedContent || !debouncedTitle) return;
+
+    const autoSaveNote = async () => {
+      setSaving(true);
+      try {
+        if (!noteId) {
+          const res = await api.post("/notes", {
+            title: debouncedTitle,
+            content: debouncedContent,
+          });
+          setNoteId(res.data._id || res.data.id);
+        } else {
+          await api.put(`/notes/${noteId}`, {
+            title: debouncedTitle,
+            content: debouncedContent,
+          });
+        }
+        setSaving("saved");
+        setTimeout(() => setSaving(""), 2000);
+      } catch (error) {
+        setSaving("Saving failed..");
+        console.log("Error in Creating note ", error);
+
+        if (error.response?.status === 429) {
+          toast.error("Slow down! You're creating notes too fast", {
+            duration: 4000,
+            icon: "⏰",
+          });
+        }
+      }
+    };
+
+    autoSaveNote();
+  }, [debouncedTitle, debouncedContent, noteId]);
+
+  const containerClasses = isModal
     ? "fixed inset-0 z-50 flex justify-center items-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto"
     : "min-h-screen py-10 px-4 flex justify-center items-center";
 
   return (
     <div className={containerClasses} onClick={() => isModal && navigate("/")}>
-      <div 
+      <div
         className="w-full max-w-2xl bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 md:p-12 shadow-[0_0_40px_rgba(0,0,0,0.3)] relative overflow-hidden"
-        onClick={e => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
       >
-        <div className="absolute top-0 right-0 w-64 h-64 rounded-full blur-[80px] -z-10 opacity-30" style={{ backgroundColor: 'var(--theme-main)' }}></div>
-        <div className="absolute bottom-0 left-0 w-64 h-64 rounded-full blur-[80px] -z-10 opacity-30" style={{ backgroundColor: 'var(--theme-accent)' }}></div>
-        
-        <Link 
+        <div
+          className="absolute top-0 right-0 w-64 h-64 rounded-full blur-[80px] -z-10 opacity-30"
+          style={{ backgroundColor: "var(--theme-main)" }}
+        ></div>
+        <div
+          className="absolute bottom-0 left-0 w-64 h-64 rounded-full blur-[80px] -z-10 opacity-30"
+          style={{ backgroundColor: "var(--theme-accent)" }}
+        ></div>
+
+        <Link
           to={"/"}
           className="inline-flex items-center gap-2 text-white/60 hover:text-white mb-8 transition-colors group"
         >
           <ArrowLeftIcon className="size-5 group-hover:-translate-x-1 transition-transform" />
           <span className="font-medium">Go Home</span>
         </Link>
-        
-        <h1 className="text-3xl font-bold text-white mb-8">Create New Note</h1>
-        
-        <form onSubmit={handleSubmit} className="space-y-6">
+
+        <div className="flex justify-between items-center mb-8">
+          <h1 className="text-3xl font-bold text-white">Create New Note</h1>
+          <div className="h-6 flex items-center transition-all duration-300">
+            {saving === true && (
+              <span className="text-sm text-white/50 flex items-center gap-2 animate-pulse">
+                <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-white/50"></div>
+                Autosaving...
+              </span>
+            )}
+            {saving === "saved" && (
+              <span className="text-sm text-emerald-400/80 flex items-center gap-1 animate-in fade-in duration-300">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M5 13l4 4L19 7"
+                  ></path>
+                </svg>
+                Saved
+              </span>
+            )}
+            {saving === "Saving failed.." && (
+              <span className="text-sm text-red-400/80 flex items-center gap-1 animate-in fade-in duration-300">
+                <svg
+                  className="w-4 h-4"
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    strokeWidth="2"
+                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                  ></path>
+                </svg>
+                Save Failed
+              </span>
+            )}
+          </div>
+        </div>
+
+        <form className="space-y-6">
           <div>
             <input
               type="text"
@@ -83,25 +151,10 @@ const CreatePage = ({ isModal }) => {
               placeholder="What's on your mind?"
             />
           </div>
-          <button 
-            type="submit"
-            disabled={loading}
-            className="w-full theme-button font-semibold py-4 rounded-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed relative overflow-hidden group"
-          >
-            <div className="absolute inset-0 bg-white/20 opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-            <div className="relative z-10">
-            {loading ? (
-              <div className="flex items-center justify-center gap-2">
-                <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-white"></div>
-                Creating...
-              </div>
-            ) : "Create Note"}
-            </div>
-          </button>
         </form>
       </div>
     </div>
   );
-}
+};
 
-export default CreatePage
+export default CreatePage;
