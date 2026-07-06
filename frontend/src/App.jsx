@@ -28,13 +28,23 @@ const App = () => {
   }, [_hasHydrated, checkAuth]);
 
   useEffect(() => {
-    if (authUser) {
-      triggerSync(authUser.id);
+    if (authUser && authUser._id) {
+      triggerSync(authUser._id);
 
-      const handleOnline = () => triggerSync(authUser.id);
+      const handleOnline = () => triggerSync(authUser._id);
+      const handleVisibilityChange = () => {
+        if (document.visibilityState === 'visible') {
+          triggerSync(authUser._id);
+        }
+      };
+
       window.addEventListener("online", handleOnline);
+      document.addEventListener("visibilitychange", handleVisibilityChange);
 
-      return () => window.removeEventListener("online", handleOnline);
+      return () => {
+        window.removeEventListener("online", handleOnline);
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+      };
     }
   }, [authUser]);
 

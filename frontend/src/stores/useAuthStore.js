@@ -3,6 +3,7 @@ import { persist } from "zustand/middleware";
 import axiosInstance from "../lib/axios.js";
 import toast from "react-hot-toast";
 import sendMail from "../lib/sendMail.js";
+import { triggerSync } from "../lib/syncEngine.js";
 
 const SESSION_TTL_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
 
@@ -57,6 +58,7 @@ export const useAuthStore = create(
         try {
           const res = await axiosInstance.get("/auth/check");
           set({ authUser: res.data, _cachedAt: Date.now() });
+          triggerSync(res.data._id);
         } catch (error) {
           if (error.code === "ERR_NETWORK") {
             if (
@@ -94,6 +96,7 @@ export const useAuthStore = create(
         try {
           const res = await axiosInstance.post("/auth/login", formData);
           set({ authUser: res.data, _cachedAt: Date.now() });
+          triggerSync(res.data._id);
           toast.success("Logged in Successfully");
         } catch (error) {
           console.log("Error in login: ", error);
@@ -108,6 +111,7 @@ export const useAuthStore = create(
         try {
           const res = await axiosInstance.post("/auth/signup", formData);
           set({ authUser: res.data, _cachedAt: Date.now() });
+          triggerSync(res.data._id);
           toast.success("Signed up successfully.");
 
           const welcomeHtml = `

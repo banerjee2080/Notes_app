@@ -5,7 +5,9 @@ import { useSyncStore } from "../stores/useSyncStore.js";
 export const triggerSync = async (userId) => {
   if (!navigator.onLine || !userId) return;
 
-  const { setSyncing } = useSyncStore.getState();
+  const { isSyncing, setSyncing } = useSyncStore.getState();
+  if (isSyncing) return;
+  
   setSyncing(true);
 
   try {
