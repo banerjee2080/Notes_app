@@ -10,6 +10,13 @@ export const useAuthStore = create((set) => ({
   isUpdatingProfile: false,
   isCheckingAuth: true,
   isThemeChanging: false,
+  themeMode: localStorage.getItem("themeMode") || "dark",
+
+  toggleThemeMode: () => set((state) => {
+    const newMode = state.themeMode === "dark" ? "light" : "dark";
+    localStorage.setItem("themeMode", newMode);
+    return { themeMode: newMode };
+  }),
 
   checkAuth: async () => {
     try {

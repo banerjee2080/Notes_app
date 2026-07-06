@@ -22,7 +22,7 @@ const NotesNotFound = () => {
       </div>
       <Link 
         to="/createNote" 
-        className="px-6 py-3 theme-button-outline rounded-xl transition-all duration-300 backdrop-blur-sm font-medium"
+        className="px-6 py-3 theme-button-accent rounded-xl transition-all duration-300 backdrop-blur-sm font-medium"
       >
         Create Your First Note
       </Link>

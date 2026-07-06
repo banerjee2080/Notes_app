@@ -14,7 +14,7 @@ const App = () => {
   const location = useLocation();
   const backgroundLocation = location.state?.backgroundLocation;
 
-  const { authUser, checkAuth, isCheckingAuth } = useAuthStore();
+  const { authUser, checkAuth, isCheckingAuth, themeMode } = useAuthStore();
 
   useEffect(() => {
     checkAuth();
@@ -29,13 +29,16 @@ const App = () => {
   }
 
   const mainColor = authUser?.main_colour || '#3b82f6';
-  const accentColor = authUser?.accent_colour || '#6366f1';
-  const accentColor2 = authUser?.accent_colour2 || '#8b5cf6';
+  const lightAccent = authUser?.accent_colour || '#6366f1';
+  const darkAccent = authUser?.accent_colour2 || '#8b5cf6';
+
+  const isDark = themeMode === "dark";
+  const accentColor = isDark ? darkAccent : lightAccent;
 
   const themeStyles = {
     '--theme-main': mainColor,
     '--theme-accent': accentColor,
-    '--theme-accent2': accentColor2,
+    '--theme-accent2': isDark ? lightAccent : darkAccent,
   };
 
   return (
@@ -76,6 +79,15 @@ const App = () => {
           background-color: color-mix(in srgb, var(--theme-main) 25%, transparent);
           border-color: color-mix(in srgb, var(--theme-main) 60%, transparent);
         }
+        .theme-button-accent {
+          background-color: color-mix(in srgb, var(--theme-accent) 15%, transparent);
+          border: 1px solid color-mix(in srgb, var(--theme-accent) 40%, transparent);
+          color: color-mix(in srgb, var(--theme-accent) 90%, #fff);
+        }
+        .theme-button-accent:hover {
+          background-color: color-mix(in srgb, var(--theme-accent) 25%, transparent);
+          border-color: color-mix(in srgb, var(--theme-accent) 60%, transparent);
+        }
       `}</style>
       {/* Landscape Background */}
       <div
@@ -83,7 +95,7 @@ const App = () => {
         style={{ backgroundImage: `url('${authUser?.backgroundImg || '/bg.png'}')` }}
       >
         {/* Subtle dark overlay to ensure text and glassmorphism remain crisp and readable */}
-        <div className="absolute inset-0 bg-slate-900/60"></div>
+        <div className={`absolute inset-0 transition-colors duration-700 ${isDark ? 'bg-slate-900/75' : 'bg-slate-900/30'}`}></div>
       </div>
       <Routes location={backgroundLocation || location}>
         <Route path="/" element={authUser ? <HomePage /> : <Navigate to={"/login"} />}/>

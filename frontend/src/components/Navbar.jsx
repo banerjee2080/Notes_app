@@ -1,12 +1,12 @@
 import { Link, useLocation } from "react-router";
-import { PlusIcon, LogOut, Loader2, Menu, X } from "lucide-react";
+import { PlusIcon, LogOut, Loader2, Menu, X, Image as ImageIcon, Sun, Moon } from "lucide-react";
 import { useAuthStore } from "../stores/useAuthStore";
 import { useRef, useState } from "react";
 import { compressImage } from "../lib/utils";
 
 const Navbar = () => {
   const location = useLocation();
-  const { authUser, logout, setTheme, isThemeChanging } = useAuthStore();
+  const { authUser, logout, setTheme, isThemeChanging, themeMode, toggleThemeMode } = useAuthStore();
   const fileInputRef = useRef(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -74,6 +74,14 @@ const Navbar = () => {
                   <LogOut className="size-5" />
                 </button>
 
+                <button
+                  onClick={toggleThemeMode}
+                  className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/30 transition-all duration-300"
+                  title={themeMode === 'dark' ? "Switch to Vibrant Mode" : "Switch to Dark Mode"}
+                >
+                  {themeMode === 'dark' ? <Sun className="size-5" /> : <Moon className="size-5" />}
+                </button>
+
                 <input
                   type="file"
                   accept="image/*"
@@ -81,20 +89,22 @@ const Navbar = () => {
                   className="hidden"
                   onChange={handleImageUpload}
                 />
-                <button 
-                  onClick={() => fileInputRef.current?.click()}
-                  disabled={isThemeChanging}
-                  className={`px-4 py-2 theme-button-outline text-sm font-medium rounded-lg transition-all duration-300 backdrop-blur-sm whitespace-nowrap shadow-[0_0_15px_rgba(0,0,0,0.2)] flex items-center justify-center gap-2 ${isThemeChanging ? 'opacity-70 cursor-not-allowed' : ''}`}
-                >
-                  {isThemeChanging ? (
-                    <>
-                      <Loader2 className="size-4 animate-spin" />
-                      Changing...
-                    </>
-                  ) : (
-                    "Change Theme"
-                  )}
-                </button>
+                <div className="relative group flex items-center">
+                  <button 
+                    onClick={() => fileInputRef.current?.click()}
+                    disabled={isThemeChanging}
+                    className={`w-10 h-10 rounded-full theme-button-outline transition-all duration-300 backdrop-blur-sm shadow-[0_0_15px_rgba(0,0,0,0.2)] flex items-center justify-center ${isThemeChanging ? 'opacity-70 cursor-not-allowed' : ''}`}
+                  >
+                    {isThemeChanging ? (
+                      <Loader2 className="size-5 animate-spin" />
+                    ) : (
+                      <ImageIcon className="size-5" />
+                    )}
+                  </button>
+                  <div className="absolute right-0 top-full mt-2 w-48 p-3 bg-black/80 backdrop-blur-md rounded-xl text-xs text-white/90 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 border border-white/10 text-center pointer-events-none shadow-xl z-50">
+                    Upload an image to automatically extract its vibrant colors and set your theme.
+                  </div>
+                </div>
               </>
             )}
           </div>
@@ -129,6 +139,20 @@ const Navbar = () => {
                 <span className="text-white font-medium">Profile</span>
               </Link>
               
+              <button
+                onClick={() => {
+                   setIsMobileMenuOpen(false);
+                   toggleThemeMode();
+                }}
+                className="flex items-center justify-center gap-2 py-3 bg-white/5 hover:bg-white/10 border border-white/10 rounded-lg transition-all text-white font-medium"
+              >
+                {themeMode === 'dark' ? (
+                  <><Sun className="size-5" /> Switch to Vibrant Mode</>
+                ) : (
+                  <><Moon className="size-5" /> Switch to Dark Mode</>
+                )}
+              </button>
+              
               <button 
                 onClick={() => {
                    setIsMobileMenuOpen(false);
@@ -140,10 +164,13 @@ const Navbar = () => {
                  {isThemeChanging ? (
                    <>
                      <Loader2 className="size-4 animate-spin" />
-                     Changing...
+                     Changing Theme...
                    </>
                  ) : (
-                   "Change Theme"
+                   <>
+                     <ImageIcon className="size-4" />
+                     Change Background
+                   </>
                  )}
               </button>
 
