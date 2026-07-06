@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
+import { triggerSync } from "./lib/syncEngine";
 
 import HomePage from "./pages/HomePage";
 import CreatePage from "./pages/CreatePage";
@@ -9,18 +10,36 @@ import ProfilePage from "./pages/ProfilePage";
 import { useAuthStore } from "./stores/useAuthStore.js";
 import LoginPage from "./pages/LoginPage";
 import SignUpPage from "./pages/SignUpPage";
+import SyncLoader from "./components/SyncLoader";
+import { useOnlineStatus } from "./hooks/useOnlineStatus";
 
 const App = () => {
   const location = useLocation();
   const backgroundLocation = location.state?.backgroundLocation;
+  const isOnline = useOnlineStatus();
 
-  const { authUser, checkAuth, isCheckingAuth, themeMode } = useAuthStore();
+  const { authUser, checkAuth, isCheckingAuth, themeMode, _hasHydrated } = useAuthStore();
 
   useEffect(() => {
-    checkAuth();
-  }, [checkAuth]);
+    // Only call checkAuth after zustand has hydrated persisted data from localStorage
+    if (_hasHydrated) {
+      checkAuth();
+    }
+  }, [_hasHydrated, checkAuth]);
 
-  if (isCheckingAuth && !authUser) {
+  useEffect(() => {
+    if (authUser) {
+      triggerSync(authUser.id);
+
+      const handleOnline = () => triggerSync(authUser.id);
+      window.addEventListener("online", handleOnline);
+
+      return () => window.removeEventListener("online", handleOnline);
+    }
+  }, [authUser]);
+
+  // Show loading spinner only when we have no user data at all (not yet hydrated or still checking)
+  if (!_hasHydrated || (isCheckingAuth && !authUser)) {
     return (
       <div className="flex items-center justify-center h-screen bg-slate-900">
         <Loader2 className="size-10 animate-spin text-white" />
@@ -28,17 +47,17 @@ const App = () => {
     );
   }
 
-  const mainColor = authUser?.main_colour || '#3b82f6';
-  const lightAccent = authUser?.accent_colour || '#6366f1';
-  const darkAccent = authUser?.accent_colour2 || '#8b5cf6';
+  const mainColor = authUser?.main_colour || "#3b82f6";
+  const lightAccent = authUser?.accent_colour || "#6366f1";
+  const darkAccent = authUser?.accent_colour2 || "#8b5cf6";
 
   const isDark = themeMode === "dark";
   const accentColor = isDark ? darkAccent : lightAccent;
 
   const themeStyles = {
-    '--theme-main': mainColor,
-    '--theme-accent': accentColor,
-    '--theme-accent2': isDark ? lightAccent : darkAccent,
+    "--theme-main": mainColor,
+    "--theme-accent": accentColor,
+    "--theme-accent2": isDark ? lightAccent : darkAccent,
   };
 
   return (
@@ -92,18 +111,40 @@ const App = () => {
       {/* Landscape Background */}
       <div
         className="fixed inset-0 z-[-1] pointer-events-none bg-cover bg-center bg-no-repeat transition-all duration-700 ease-in-out"
-        style={{ backgroundImage: `url('${authUser?.backgroundImg || '/bg.png'}')` }}
+        style={{
+          backgroundImage: `url('${authUser?.backgroundImg || "/bg.png"}')`,
+        }}
       >
         {/* Subtle dark overlay to ensure text and glassmorphism remain crisp and readable */}
-        <div className={`absolute inset-0 transition-colors duration-700 ${isDark ? 'bg-slate-900/75' : 'bg-slate-900/30'}`}></div>
+        <div
+          className={`absolute inset-0 transition-colors duration-700 ${isDark ? "bg-slate-900/75" : "bg-slate-900/30"}`}
+        ></div>
       </div>
       <Routes location={backgroundLocation || location}>
-        <Route path="/" element={authUser ? <HomePage /> : <Navigate to={"/login"} />}/>
-        <Route path="/createNote" element={authUser ? <CreatePage /> : <Navigate to={"/login"} />}/>
-        <Route path="/note/:id" element={authUser ? <NotePage /> : <Navigate to={"/login"} />}/>
-        <Route path="/profile" element={authUser ? <ProfilePage /> : <Navigate to={"/login"} />}/>
-        <Route path="/login" element={!authUser ? <LoginPage /> : <Navigate to={"/"} />}/>
-        <Route path="/signup" element={!authUser ? <SignUpPage /> : <Navigate to={"/"} />}/>
+        <Route
+          path="/"
+          element={authUser ? <HomePage /> : <Navigate to={"/login"} />}
+        />
+        <Route
+          path="/createNote"
+          element={authUser ? <CreatePage /> : <Navigate to={"/login"} />}
+        />
+        <Route
+          path="/note/:id"
+          element={authUser ? <NotePage /> : <Navigate to={"/login"} />}
+        />
+        <Route
+          path="/profile"
+          element={authUser ? <ProfilePage /> : <Navigate to={"/login"} />}
+        />
+        <Route
+          path="/login"
+          element={!authUser ? <LoginPage /> : <Navigate to={"/"} />}
+        />
+        <Route
+          path="/signup"
+          element={!authUser ? <SignUpPage /> : <Navigate to={"/"} />}
+        />
       </Routes>
 
       {backgroundLocation && (
@@ -112,6 +153,14 @@ const App = () => {
           <Route path="/note/:id" element={<NotePage isModal />} />
         </Routes>
       )}
+
+      {/* Subtle Online/Offline Indicator */}
+      <div className={`fixed bottom-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium backdrop-blur-md transition-all duration-300 z-50 opacity-50 hover:opacity-100 ${isOnline ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
+        <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-red-400 animate-pulse'}`}></div>
+        {isOnline ? "System Online" : "Offline Mode"}
+      </div>
+
+      <SyncLoader />
     </div>
   );
 };

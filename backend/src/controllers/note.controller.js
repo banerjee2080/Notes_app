@@ -1,74 +1,79 @@
 import Note from "../models/note.model.js";
+import cloudinary from "../lib/cloudinary.js";
+import { processHtmlImages } from "../lib/cloudinary.js";
 
-export const getAllNotes = async (req, res) => {
+export const syncNotes = async (req, res) => {
+  const userId = req.user._id;
+  const { lastSyncedAt, localChanges } = req.body;
+
   try {
-    const creatorId = req.user._id;
-    const data = await Note.find({ creatorId }).sort({ createdAt: -1 });
-    res.status(200).json(data);
+    if (localChanges && localChanges.length > 0) {
+      for (const localNote of localChanges) {
+        const cleanContent = await processHtmlImages(localNote.content);
+        const serverNote = await Note.findById(localNote.id);
+
+        if (!serverNote) {
+          await Note.create({
+            _id: localNote.id,
+            user_id: userId,
+            title: localNote.title,
+            content: cleanContent,
+            updated_at: new Date(localNote.updated_at),
+            is_deleted: localNote.is_deleted,
+          });
+        } else {
+          const localTime = new Date(localNote.updated_at).getTime();
+          const serverTime = new Date(serverNote.updated_at).getTime();
+
+          if (localTime > serverTime) {
+            await Note.findByIdAndUpdate(localNote.id, {
+              title: localNote.title,
+              content: cleanContent,
+              updated_at: new Date(localNote.updated_at),
+              is_deleted: localNote.is_deleted,
+            });
+          }
+        }
+      }
+    }
+
+    const query = { user_id: userId };
+
+    if (lastSyncedAt) {
+      query.updated_at = { $gt: new Date(lastSyncedAt) };
+    }
+
+    const serverChangesRaw = await Note.find(query);
+
+    const serverChanges = serverChangesRaw.map((note) => ({
+      id: note._id,
+      user_id: note.user_id,
+      title: note.title,
+      content: note.content,
+      updated_at: note.updated_at.toISOString(),
+      is_deleted: note.is_deleted,
+    }));
+
+    res.status(200).json({
+      serverChanges,
+      timestamp: new Date().toISOString(),
+    });
   } catch (error) {
-    console.error("Error in getAllNotes controller", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Sync Error:", error);
+    res.status(500).json({ message: "Server sync failed" });
   }
 };
 
-export const getNotesById = async (req, res) => {
+export const uploadImage = async (req, res) => {
   try {
-    const creatorId = req.user._id;
-
-    // Find the note that matches the requested ID AND belongs to the logged-in user
-    const data = await Note.findOne({ _id: req.params.id, creatorId });
-
-    if (!data) return res.status(404).json({ message: "Note not found!" });
-
-    res.status(200).json(data);
+    const { image } = req.body;
+    if (!image) {
+      return res.status(400).json({ message: "Image is required" });
+    }
+    const uploadedImg = await cloudinary.uploader.upload(image);
+    res.status(200).json({ secure_url: uploadedImg.secure_url });
   } catch (error) {
-    console.error("Error in getNoteById controller", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-export const addNote = async (req, res) => {
-  try {
-    const { title, content } = req.body;
-    const creatorId = req.user._id;
-    const note = new Note({ title, content, creatorId });
-
-    const savedNote = await note.save();
-    res.json(savedNote);
-  } catch (error) {
-    console.log("Error Creating new Note ", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-export const modifyNote = async (req, res) => {
-  try {
-    const id = req.params.id;
-    const { title, content } = req.body;
-    const creatorId = req.user._id;
-
-    const modifiedNote = await Note.findByIdAndUpdate(
-      id,
-      { title, content },
-      { new: true },
-    );
-    if (!modifiedNote)
-      return res.status(404).json({ message: "Note not found" });
-    res.status(200).json(modifiedNote);
-  } catch (error) {
-    console.log("Error Updating note ", error);
-    res.status(500).json({ message: "Internal server error" });
-  }
-};
-
-export const delNote = async (req, res) => {
-  try {
-    const deletedNote = await Note.findByIdAndDelete(req.params.id);
-    if (!deletedNote)
-      return res.status(404).json({ message: "Note not found" });
-    res.status(200).json({ message: "Note deleted successfully!" });
-  } catch (error) {
-    console.error("Error in Deleting Note", error);
-    res.status(500).json({ message: "Internal server error" });
+    console.error("Upload Image Error:", error);
+    res.status(500).json({ message: "Image upload failed" });
   }
 };

@@ -5,18 +5,24 @@ import { Link, useNavigate } from "react-router";
 import api from "../lib/axios.js";
 import Tiny from "../components/Tiny.jsx";
 import { useDebounce } from "../hooks/useDebounce.js";
+import { v4 as uuidv4 } from "uuid";
+import { localDB } from "../lib/db";
+import { triggerSync } from "../lib/syncEngine";
+import { useAuthStore } from "../stores/useAuthStore.js";
 
 const CreatePage = ({ isModal }) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [noteId, setNoteId] = useState(null);
 
   const navigate = useNavigate();
   const debouncedTitle = useDebounce(title, 500);
   const debouncedContent = useDebounce(content, 500);
   const isInit = useRef(true);
+  const { authUser } = useAuthStore();
+
+  const [noteId] = useState(() => uuidv4());
 
   useEffect(() => {
     if (isInit.current) {
@@ -29,30 +35,24 @@ const CreatePage = ({ isModal }) => {
     const autoSaveNote = async () => {
       setSaving(true);
       try {
-        if (!noteId) {
-          const res = await api.post("/notes", {
-            title: debouncedTitle,
-            content: debouncedContent,
-          });
-          setNoteId(res.data._id || res.data.id);
-        } else {
-          await api.put(`/notes/${noteId}`, {
-            title: debouncedTitle,
-            content: debouncedContent,
-          });
-        }
+        const newNote = {
+          id: noteId,
+          user_id: authUser._id || authUser.id,
+          title: debouncedTitle,
+          content: debouncedContent,
+          updated_at: new Date().toISOString(),
+          is_deleted: false,
+          sync_status: "pending_update",
+        };
+
+        await localDB.notes.put(newNote);
+
         setSaving("saved");
         setTimeout(() => setSaving(""), 2000);
+        triggerSync(authUser._id || authUser.id);
       } catch (error) {
         setSaving("Saving failed..");
-        console.log("Error in Creating note ", error);
-
-        if (error.response?.status === 429) {
-          toast.error("Slow down! You're creating notes too fast", {
-            duration: 4000,
-            icon: "⏰",
-          });
-        }
+        console.error("Error saving note locally: ", error);
       }
     };
 

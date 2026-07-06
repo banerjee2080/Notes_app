@@ -6,37 +6,27 @@ import Navbar from "../components/Navbar";
 import RateLimitedUI from "../components/RateLimitedUI";
 import NoteCard from "../components/NoteCard";
 import NotesNotFound from "../components/NotesNotFound";
+import { localDB } from "../lib/db.js";
+import { useLiveQuery } from "dexie-react-hooks";
+import { useAuthStore } from "../stores/useAuthStore.js";
 
 const HomePage = () => {
-  const [notes, setNotes] = React.useState([]);
-  const [loading, setLoading] = React.useState(true);
+  const { authUser } = useAuthStore();
   const [isRateLimited, setIsRateLimited] = React.useState(false);
 
-  const location = useLocation();
+  const notes = useLiveQuery(
+    () =>
+      localDB.notes
+        .where("user_id")
+        .equals(authUser?._id || authUser?.id || "")
+        .filter((note) => note.is_deleted === false)
+        .reverse()
+        .sortBy("updated_at"),
+    [authUser],
+  );
 
-  React.useEffect(() => {
-    if (location.pathname !== "/") return;
+  const loading = notes === undefined;
 
-    const fetchNotes = async () => {
-      try {
-        const res = await api.get("/notes");
-        console.log(res.data);
-        setNotes(res.data);
-        setIsRateLimited(false);
-      } catch (error) {
-        console.log("Error in fetching notes ", error);
-        if (error.response?.status === 429) {
-          setIsRateLimited(true);
-        } else {
-          toast.error("Error in fetching notes");
-        }
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchNotes();
-  }, [location.key, location.pathname]);
   return (
     <div className="min-h-screen">
       <Navbar />
@@ -58,7 +48,7 @@ const HomePage = () => {
           {!loading && notes.length !== 0 && !isRateLimited && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {notes.map((note) => (
-                <NoteCard key={note._id} note={note} setNote={setNotes} />
+                <NoteCard key={note.id} note={note} />
               ))}
             </div>
           )}

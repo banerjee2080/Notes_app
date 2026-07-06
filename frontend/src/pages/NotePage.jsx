@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
-import api from "../lib/axios";
 import toast from "react-hot-toast";
 import { ArrowLeftIcon, Trash2Icon } from "lucide-react";
 import Tiny from "../components/Tiny.jsx";
 import { useDebounce } from "../hooks/useDebounce.js";
+import { localDB } from "../lib/db.js";
+import { triggerSync } from "../lib/syncEngine.js";
+import { useAuthStore } from "../stores/useAuthStore.js";
 
 const NotePage = ({ isModal }) => {
   const [note, setNote] = useState({});
@@ -16,14 +18,20 @@ const NotePage = ({ isModal }) => {
 
   const { id } = useParams();
   const navigate = useNavigate();
+  const { authUser } = useAuthStore();
 
   useEffect(() => {
     const fetchNote = async () => {
       try {
-        const res = await api.get(`/notes/${id}`);
-        setNote(res.data);
+        const res = await localDB.notes.get(id);
+        if (res && !res.is_deleted) {
+          setNote(res);
+        } else {
+          toast.error("Note not found or deleted");
+          navigate("/");
+        }
       } catch (error) {
-        console.log("Error in fetching notes ", error);
+        console.log("Error in fetching note locally", error);
         toast.error("Error while fetching notes");
       } finally {
         setLoading(false);
@@ -31,7 +39,7 @@ const NotePage = ({ isModal }) => {
     };
 
     fetchNote();
-  }, [id]);
+  }, [id, navigate]);
 
   useEffect(() => {
     if (isInit.current) {
@@ -39,36 +47,49 @@ const NotePage = ({ isModal }) => {
       return;
     }
 
-    if (!debouncedContent || !debouncedTitle) return;
+    if (debouncedContent === undefined || debouncedTitle === undefined) return;
 
     const autoSaveNote = async () => {
+      if (!note.id) return;
+      
       setSaving(true);
       try {
-        await api.put(`/notes/${note._id}`, {
+        const updatedNote = {
+          ...note,
           title: debouncedTitle,
           content: debouncedContent,
-        });
+          updated_at: new Date().toISOString(),
+          sync_status: "pending_update",
+        };
+        
+        await localDB.notes.update(note.id, updatedNote);
         setSaving("saved");
         setTimeout(() => setSaving(""), 2000);
+        
+        if (authUser) {
+          triggerSync(authUser._id || authUser.id);
+        }
       } catch (error) {
         setSaving("Saving failed..");
-        console.log("Error in Creating note ", error);
-
-        if (error.response?.status === 429) {
-          toast.error("Slow down! You're creating notes too fast", {
-            duration: 4000,
-            icon: "⏰",
-          });
-        }
+        console.error("Error saving note locally: ", error);
       }
     };
 
     autoSaveNote();
-  }, [debouncedTitle, debouncedContent, note._id]);
+  }, [debouncedTitle, debouncedContent, note.id, authUser]);
 
   const handleDelete = async () => {
     try {
-      await api.delete(`/notes/${id}`);
+      await localDB.notes.update(id, {
+        is_deleted: true,
+        updated_at: new Date().toISOString(),
+        sync_status: "pending_update",
+      });
+
+      if (authUser) {
+        triggerSync(authUser._id || authUser.id);
+      }
+      
       toast.success("Note Deleted");
       navigate("/");
     } catch (error) {

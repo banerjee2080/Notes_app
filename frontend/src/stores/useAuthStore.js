@@ -1,70 +1,116 @@
 import { create } from "zustand";
+import { persist } from "zustand/middleware";
 import axiosInstance from "../lib/axios.js";
 import toast from "react-hot-toast";
 import sendMail from "../lib/sendMail.js";
 
-export const useAuthStore = create((set) => ({
-  authUser: null,
-  isSigningUp: false,
-  isLoggingIn: false,
-  isUpdatingProfile: false,
-  isCheckingAuth: true,
-  isThemeChanging: false,
-  themeMode: localStorage.getItem("themeMode") || "dark",
+const SESSION_TTL_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
 
-  toggleThemeMode: () => set((state) => {
-    const newMode = state.themeMode === "dark" ? "light" : "dark";
-    localStorage.setItem("themeMode", newMode);
-    return { themeMode: newMode };
-  }),
+export const useAuthStore = create(
+  persist(
+    (set, get) => ({
+      authUser: null,
+      isSigningUp: false,
+      isLoggingIn: false,
+      isUpdatingProfile: false,
+      isCheckingAuth: true,
+      isThemeChanging: false,
+      themeMode: localStorage.getItem("themeMode") || "dark",
+      _hasHydrated: false,
+      _cachedAt: null,
 
-  checkAuth: async () => {
-    try {
-      const res = await axiosInstance.get("/auth/check");
-      set({ authUser: res.data });
-    } catch (error) {
-      if (error.response?.status !== 401) {
-        console.log("Error in checkAuth: ", error);
-      }
-      set({ authUser: null });
-    } finally {
-      set({ isCheckingAuth: false });
-    }
-  },
+      setHasHydrated: (state) => {
+        set({ _hasHydrated: state });
+      },
 
-  logout: async () => {
-    try {
-      await axiosInstance.get("/auth/logout");
-      set({ authUser: null });
-      toast.success("Logout Successful");
-    } catch (error) {
-      console.log("Error in logout: ", error);
-      toast.error(error.response?.data?.message || error.message);
-    }
-  },
+      toggleThemeMode: () =>
+        set((state) => {
+          const newMode = state.themeMode === "dark" ? "light" : "dark";
+          localStorage.setItem("themeMode", newMode);
+          return { themeMode: newMode };
+        }),
 
-  login: async (formData) => {
-    set({ isLoggingIn: true });
-    try {
-      const res = await axiosInstance.post("/auth/login", formData);
-      set({ authUser: res.data });
-      toast.success("Logged in Successfully");
-    } catch (error) {
-      console.log("Error in login: ", error);
-      toast.error(error.response?.data?.message || error.message);
-    } finally {
-      set({ isLoggingIn: false });
-    }
-  },
+      checkAuth: async () => {
+        const { authUser, _cachedAt } = get();
+        set({ isCheckingAuth: true });
 
-  signup: async (formData) => {
-    set({ isSigningUp: true });
-    try {
-      const res = await axiosInstance.post("/auth/signup", formData);
-      set({ authUser: res.data });
-      toast.success("Signed up successfully.");
+        if (!navigator.onLine) {
+          if (
+            authUser &&
+            _cachedAt &&
+            Date.now() - _cachedAt < SESSION_TTL_MS
+          ) {
+            console.log(
+              "Offline: using cached auth (expires in",
+              Math.round(
+                (SESSION_TTL_MS - (Date.now() - _cachedAt)) / 86400000,
+              ),
+              "days)",
+            );
+            set({ isCheckingAuth: false });
+            return;
+          }
+          set({ authUser: null, _cachedAt: null, isCheckingAuth: false });
+          return;
+        }
 
-      const welcomeHtml = `
+        try {
+          const res = await axiosInstance.get("/auth/check");
+          set({ authUser: res.data, _cachedAt: Date.now() });
+        } catch (error) {
+          if (error.code === "ERR_NETWORK") {
+            if (
+              authUser &&
+              _cachedAt &&
+              Date.now() - _cachedAt < SESSION_TTL_MS
+            ) {
+              console.log("Network error: using cached auth data");
+              set({ isCheckingAuth: false });
+              return;
+            }
+          }
+          if (error.response?.status !== 401) {
+            console.log("Error in checkAuth: ", error);
+          }
+          set({ authUser: null, _cachedAt: null });
+        } finally {
+          set({ isCheckingAuth: false });
+        }
+      },
+
+      logout: async () => {
+        try {
+          await axiosInstance.get("/auth/logout");
+          set({ authUser: null, _cachedAt: null });
+          toast.success("Logout Successful");
+        } catch (error) {
+          console.log("Error in logout: ", error);
+          toast.error(error.response?.data?.message || error.message);
+        }
+      },
+
+      login: async (formData) => {
+        set({ isLoggingIn: true });
+        try {
+          const res = await axiosInstance.post("/auth/login", formData);
+          set({ authUser: res.data, _cachedAt: Date.now() });
+          toast.success("Logged in Successfully");
+        } catch (error) {
+          console.log("Error in login: ", error);
+          toast.error(error.response?.data?.message || error.message);
+        } finally {
+          set({ isLoggingIn: false });
+        }
+      },
+
+      signup: async (formData) => {
+        set({ isSigningUp: true });
+        try {
+          const res = await axiosInstance.post("/auth/signup", formData);
+          set({ authUser: res.data, _cachedAt: Date.now() });
+          toast.success("Signed up successfully.");
+
+          const welcomeHtml = `
       <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #f8fafc; padding: 40px; border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
         <div style="text-align: center; margin-bottom: 30px;">
           <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">Welcome to Our App!</h1>
@@ -80,38 +126,51 @@ export const useAuthStore = create((set) => ({
         <p style="color: #64748b; font-size: 14px; text-align: center; margin-top: 30px; margin-bottom: 0;">If you have any questions, feel free to reply to this email.</p>
       </div>`;
 
-      sendMail(formData.email, "Welcome to Our App!", welcomeHtml);
-    } catch (error) {
-      console.log("Error in signup: ", error);
-      toast.error(error.response?.data?.message || error.message);
-    } finally {
-      set({ isSigningUp: false });
-    }
-  },
+          sendMail(formData.email, "Welcome to Our App!", welcomeHtml);
+        } catch (error) {
+          console.log("Error in signup: ", error);
+          toast.error(error.response?.data?.message || error.message);
+        } finally {
+          set({ isSigningUp: false });
+        }
+      },
 
-  updateProfile: async (data) => {
-    set({ isUpdatingProfile: true });
-    try {
-      const res = await axiosInstance.put("/auth/updateProfile", data);
-      set({ authUser: res.data });
-      toast.success("Profile Updated Successfully");
-    } catch (error) {
-      toast.error(error.response?.data?.message || error.message);
-    } finally {
-      set({ isUpdatingProfile: false });
-    }
-  },
+      updateProfile: async (data) => {
+        set({ isUpdatingProfile: true });
+        try {
+          const res = await axiosInstance.put("/auth/updateProfile", data);
+          set({ authUser: res.data, _cachedAt: Date.now() });
+          toast.success("Profile Updated Successfully");
+        } catch (error) {
+          toast.error(error.response?.data?.message || error.message);
+        } finally {
+          set({ isUpdatingProfile: false });
+        }
+      },
 
-  setTheme: async (image) => {
-    set({ isThemeChanging: true });
-    try {
-      const res = await axiosInstance.put("/auth/setBackgroundImg", image);
-      set({ authUser: res.data });
-      toast.success("Theme changed successfully");
-    } catch (error) {
-      toast.error(error.response?.data?.message || error.message);
-    } finally {
-      set({ isThemeChanging: false });
-    }
-  },
-}));
+      setTheme: async (image) => {
+        set({ isThemeChanging: true });
+        try {
+          const res = await axiosInstance.put("/auth/setBackgroundImg", image);
+          set({ authUser: res.data, _cachedAt: Date.now() });
+          toast.success("Theme changed successfully");
+        } catch (error) {
+          toast.error(error.response?.data?.message || error.message);
+        } finally {
+          set({ isThemeChanging: false });
+        }
+      },
+    }),
+    {
+      name: "auth-storage",
+      partialize: (state) => ({
+        authUser: state.authUser,
+        themeMode: state.themeMode,
+        _cachedAt: state._cachedAt,
+      }),
+      onRehydrateStorage: () => (state) => {
+        state?.setHasHydrated(true);
+      },
+    },
+  ),
+);

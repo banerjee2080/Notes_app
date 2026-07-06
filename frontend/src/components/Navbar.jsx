@@ -3,12 +3,14 @@ import { PlusIcon, LogOut, Loader2, Menu, X, Image as ImageIcon, Sun, Moon } fro
 import { useAuthStore } from "../stores/useAuthStore";
 import { useRef, useState } from "react";
 import { compressImage } from "../lib/utils";
+import { useOnlineStatus } from "../hooks/useOnlineStatus";
 
 const Navbar = () => {
   const location = useLocation();
   const { authUser, logout, setTheme, isThemeChanging, themeMode, toggleThemeMode } = useAuthStore();
   const fileInputRef = useRef(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const isOnline = useOnlineStatus();
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -91,9 +93,9 @@ const Navbar = () => {
                 />
                 <div className="relative group flex items-center">
                   <button 
-                    onClick={() => fileInputRef.current?.click()}
-                    disabled={isThemeChanging}
-                    className={`w-10 h-10 rounded-full theme-button-outline transition-all duration-300 backdrop-blur-sm shadow-[0_0_15px_rgba(0,0,0,0.2)] flex items-center justify-center ${isThemeChanging ? 'opacity-70 cursor-not-allowed' : ''}`}
+                    onClick={() => { if(isOnline) fileInputRef.current?.click(); }}
+                    disabled={isThemeChanging || !isOnline}
+                    className={`w-10 h-10 rounded-full theme-button-outline transition-all duration-300 backdrop-blur-sm shadow-[0_0_15px_rgba(0,0,0,0.2)] flex items-center justify-center ${isThemeChanging || !isOnline ? 'opacity-70 cursor-not-allowed grayscale-[50%]' : ''}`}
                   >
                     {isThemeChanging ? (
                       <Loader2 className="size-5 animate-spin" />
@@ -102,7 +104,7 @@ const Navbar = () => {
                     )}
                   </button>
                   <div className="absolute right-0 top-full mt-2 w-48 p-3 bg-black/80 backdrop-blur-md rounded-xl text-xs text-white/90 opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all duration-300 border border-white/10 text-center pointer-events-none shadow-xl z-50">
-                    Upload an image to automatically extract its vibrant colors and set your theme.
+                    {!isOnline ? "Background theme changes are unavailable while offline." : "Upload an image to automatically extract its vibrant colors and set your theme."}
                   </div>
                 </div>
               </>
@@ -156,10 +158,10 @@ const Navbar = () => {
               <button 
                 onClick={() => {
                    setIsMobileMenuOpen(false);
-                   fileInputRef.current?.click();
+                   if (isOnline) fileInputRef.current?.click();
                 }}
-                disabled={isThemeChanging}
-                className={`py-3 theme-button-outline text-sm font-medium rounded-lg flex items-center justify-center gap-2 ${isThemeChanging ? 'opacity-70 cursor-not-allowed' : ''}`}
+                disabled={isThemeChanging || !isOnline}
+                className={`py-3 theme-button-outline text-sm font-medium rounded-lg flex items-center justify-center gap-2 ${isThemeChanging || !isOnline ? 'opacity-70 cursor-not-allowed' : ''}`}
               >
                  {isThemeChanging ? (
                    <>
@@ -169,7 +171,7 @@ const Navbar = () => {
                  ) : (
                    <>
                      <ImageIcon className="size-4" />
-                     Change Background
+                     {!isOnline ? "Theme Update Offline" : "Change Background"}
                    </>
                  )}
               </button>
