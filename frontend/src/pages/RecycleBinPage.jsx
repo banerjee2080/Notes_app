@@ -19,7 +19,26 @@ const RecycleBinPage = () => {
       const notes = await localDB.notes
         .filter((note) => note.is_deleted === true && note.user_id === authUser?._id)
         .toArray();
-      setDeletedNotes(notes);
+
+      const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+      const now = Date.now();
+      
+      const validNotes = [];
+      const expiredNoteIds = [];
+      
+      for (const note of notes) {
+        if (now - new Date(note.updated_at).getTime() > thirtyDaysMs) {
+          expiredNoteIds.push(note.id);
+        } else {
+          validNotes.push(note);
+        }
+      }
+      
+      if (expiredNoteIds.length > 0) {
+        await localDB.notes.bulkDelete(expiredNoteIds);
+      }
+      
+      setDeletedNotes(validNotes);
     };
     fetchDeletedNotes();
 
@@ -102,6 +121,10 @@ const RecycleBinPage = () => {
         )}
       </div>
 
+      <p className="text-sm text-white/60 mb-8 text-center bg-white/5 py-3 px-4 rounded-xl border border-white/10 w-full">
+        Items in the recycle bin will be permanently deleted after 30 days.
+      </p>
+
       {deletedNotes.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 text-white/40">
           <Trash2Icon className="size-16 mb-4 opacity-20" />
@@ -109,11 +132,18 @@ const RecycleBinPage = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {deletedNotes.map((deletedNote) => (
-            <div key={deletedNote.id}>
-              <NoteCard mode="delete" note={deletedNote} />
-            </div>
-          ))}
+          {deletedNotes.map((deletedNote) => {
+            const daysPassed = Math.floor((Date.now() - new Date(deletedNote.updated_at).getTime()) / (1000 * 60 * 60 * 24));
+            const daysLeft = Math.max(0, 30 - daysPassed);
+            return (
+              <div key={deletedNote.id} className="flex flex-col gap-2">
+                <NoteCard mode="delete" note={deletedNote} />
+                <span className="text-xs text-white/50 text-center font-medium">
+                  {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left to restore
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

@@ -8,6 +8,7 @@ import dotenv from "dotenv";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
+import { startCronJobs } from "./src/services/cron.service.js";
 
 dotenv.config();
 
@@ -46,6 +47,7 @@ if (process.env.MODE !== "production") {
 }
 
 connectdb();
+startCronJobs();
 
 if (process.env.MODE !== "production") {
   app.listen(PORT, () => {

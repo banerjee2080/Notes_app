@@ -24,7 +24,7 @@
 ## ✨ Key Features
 
 - 🏢 **Enterprise-Grade Offline Architecture**: Built with a highly resilient, offline-first system using `Dexie.js`, `Workbox`, and Service Workers. The application functions flawlessly without an internet connection. Create, edit, delete, and restore notes locally, and let the custom sync engine seamlessly reconcile all changes with the cloud once your connection is restored!
-- ♻️ **Intelligent Recycle Bin**: Accidentally deleted a note? No problem. The advanced Recycle Bin acts as a safe haven. View, restore, or permanently empty them, fully integrated with the offline-first architecture.
+- ♻️ **Intelligent Recycle Bin**: Accidentally deleted a note? No problem. The advanced Recycle Bin acts as a safe haven. View, restore, or permanently empty them, fully integrated with the offline-first architecture. Additionally, a background cron job automatically cleans up notes that have been in the recycle bin for over 30 days!
 - 🎨 **Dynamic Theming with Node-Vibrant**: Upload a background image via your profile, and the backend automatically extracts a custom color palette (main, accent, and secondary accent colors) using `node-vibrant`. The frontend applies this custom palette across all UI elements for a personalized aesthetic.
 - 🌓 **Dark & Vibrant Mode**: Toggle between a deeper dark mode and a lighter vibrant mode, dynamically adapting the interface and background overlay to match your custom color palette.
 - 💾 **Auto Save**: Notes are automatically saved as you type, so you never lose your train of thought.
