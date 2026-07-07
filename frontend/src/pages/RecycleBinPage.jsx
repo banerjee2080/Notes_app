@@ -17,7 +17,7 @@ const RecycleBinPage = () => {
   useEffect(() => {
     const fetchDeletedNotes = async () => {
       const notes = await localDB.notes
-        .filter((note) => note.is_deleted === true)
+        .filter((note) => note.is_deleted === true && note.user_id === authUser?._id)
         .toArray();
       setDeletedNotes(notes);
     };
