@@ -1,4 +1,4 @@
-import { PenSquareIcon, Trash2Icon } from "lucide-react";
+import { PenSquareIcon, Trash2Icon, Undo2Icon } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import api from "../lib/axios.js";
 import toast from "react-hot-toast";
@@ -7,7 +7,7 @@ import { useAuthStore } from "../stores/useAuthStore.js";
 import { localDB } from "../lib/db.js";
 import { triggerSync } from "../lib/syncEngine.js";
 
-const NoteCard = ({ note, setNote }) => {
+const NoteCard = ({ note, mode }) => {
   const location = useLocation();
   const { authUser } = useAuthStore();
 
@@ -24,10 +24,31 @@ const NoteCard = ({ note, setNote }) => {
       if (authUser) {
         triggerSync(authUser._id || authUser.id);
       }
-      toast.success("Note deleted offline");
+      toast.success("Note deleted");
     } catch (error) {
       console.log("Error in handleDelete", error);
       toast.error("Error in deleting note");
+    }
+  };
+
+  const handleRestore = async (e, id) => {
+    e.preventDefault();
+    if (!window.confirm("Are you sure you want to restore this note?")) return;
+    try {
+      await localDB.notes.update(id, {
+        is_deleted: false,
+        updated_at: new Date().toISOString(),
+        sync_status: "pending_update",
+      });
+
+      if (authUser) {
+        triggerSync(authUser._id || authUser.id);
+      }
+      toast.success("Note Restored");
+      window.dispatchEvent(new CustomEvent("note-restored", { detail: id }));
+    } catch (error) {
+      console.log("Error in handleRestore", error);
+      toast.error("Error in Restoring note");
     }
   };
 
@@ -49,7 +70,7 @@ const NoteCard = ({ note, setNote }) => {
       ></div>
 
       <Link
-        to={`/note/${note.id}`}
+        to={mode !== "delete" ? `/note/${note.id}` : `/delNote/${note.id}`}
         state={{ backgroundLocation: location }}
         className="flex flex-col flex-1 cursor-pointer"
       >
@@ -66,17 +87,39 @@ const NoteCard = ({ note, setNote }) => {
             {formatDate(note.createdAt || note.updated_at)}
           </span>
           <div className="flex items-center gap-2">
-            <div className="p-2 bg-white/5 hover:bg-white/20 rounded-lg transition-colors border border-transparent hover:border-white/10 text-white/70 hover:text-white">
+            <div
+              hidden={mode === "delete"}
+              className="p-2 bg-white/5 hover:bg-white/20 rounded-lg transition-colors border border-transparent hover:border-white/10 text-white/70 hover:text-white"
+            >
               <PenSquareIcon className="size-4" />
             </div>
             <button
               onClick={(e) => {
-                e.preventDefault(); // Stop event bubbling to Link
-                handleDelete(e, note.id);
+                e.preventDefault();
+                mode === "delete"
+                  ? handleRestore(e, note.id)
+                  : handleDelete(e, note.id);
               }}
-              className="p-2 bg-white/5 hover:bg-red-500/20 rounded-lg transition-colors border border-transparent hover:border-red-500/30 text-white/70 hover:text-red-400 z-10 relative"
+              className={
+                mode === "delete"
+                  ? "p-2 rounded-lg transition-all border border-transparent hover:brightness-125 z-10 relative"
+                  : "p-2 bg-white/5 hover:bg-red-500/20 rounded-lg transition-colors border border-transparent hover:border-red-500/30 text-white/70 hover:text-red-400 z-10 relative"
+              }
+              style={
+                mode === "delete"
+                  ? {
+                      backgroundColor:
+                        "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
+                      color: "var(--theme-accent)",
+                    }
+                  : {}
+              }
             >
-              <Trash2Icon className="size-4" />
+              {mode === "delete" ? (
+                <Undo2Icon className="size-4" />
+              ) : (
+                <Trash2Icon className="size-4" />
+              )}
             </button>
           </div>
         </div>

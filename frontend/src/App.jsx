@@ -7,6 +7,8 @@ import HomePage from "./pages/HomePage";
 import CreatePage from "./pages/CreatePage";
 import NotePage from "./pages/NotePage";
 import ProfilePage from "./pages/ProfilePage";
+import DelNotePage from "./pages/DelNotePage.jsx";
+import RecycleBinPage from "./pages/RecycleBinPage.jsx";
 import { useAuthStore } from "./stores/useAuthStore.js";
 import LoginPage from "./pages/LoginPage";
 import SignUpPage from "./pages/SignUpPage";
@@ -18,10 +20,10 @@ const App = () => {
   const backgroundLocation = location.state?.backgroundLocation;
   const isOnline = useOnlineStatus();
 
-  const { authUser, checkAuth, isCheckingAuth, themeMode, _hasHydrated } = useAuthStore();
+  const { authUser, checkAuth, isCheckingAuth, themeMode, _hasHydrated } =
+    useAuthStore();
 
   useEffect(() => {
-    // Only call checkAuth after zustand has hydrated persisted data from localStorage
     if (_hasHydrated) {
       checkAuth();
     }
@@ -33,7 +35,7 @@ const App = () => {
 
       const handleOnline = () => triggerSync(authUser._id);
       const handleVisibilityChange = () => {
-        if (document.visibilityState === 'visible') {
+        if (document.visibilityState === "visible") {
           triggerSync(authUser._id);
         }
       };
@@ -43,7 +45,10 @@ const App = () => {
 
       return () => {
         window.removeEventListener("online", handleOnline);
-        document.removeEventListener("visibilitychange", handleVisibilityChange);
+        document.removeEventListener(
+          "visibilitychange",
+          handleVisibilityChange,
+        );
       };
     }
   }, [authUser]);
@@ -155,18 +160,31 @@ const App = () => {
           path="/signup"
           element={!authUser ? <SignUpPage /> : <Navigate to={"/"} />}
         />
+        <Route
+          path="/recycleBin"
+          element={authUser ? <RecycleBinPage /> : <Navigate to={"/login"} />}
+        />
+        <Route
+          path="/delNote/:id"
+          element={authUser ? <DelNotePage /> : <Navigate to={"/login"} />}
+        />
       </Routes>
 
       {backgroundLocation && (
         <Routes>
           <Route path="/createNote" element={<CreatePage isModal />} />
           <Route path="/note/:id" element={<NotePage isModal />} />
+          <Route path="/delNote/:id" element={<DelNotePage isModal />} />
         </Routes>
       )}
 
       {/* Subtle Online/Offline Indicator */}
-      <div className={`fixed bottom-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium backdrop-blur-md transition-all duration-300 z-50 opacity-50 hover:opacity-100 ${isOnline ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 'bg-red-500/10 text-red-400 border border-red-500/20'}`}>
-        <div className={`w-1.5 h-1.5 rounded-full ${isOnline ? 'bg-emerald-400' : 'bg-red-400 animate-pulse'}`}></div>
+      <div
+        className={`fixed bottom-2 right-2 flex items-center gap-1.5 px-2 py-1 rounded-full text-[10px] font-medium backdrop-blur-md transition-all duration-300 z-50 opacity-50 hover:opacity-100 ${isOnline ? "bg-emerald-500/10 text-emerald-400 border border-emerald-500/20" : "bg-red-500/10 text-red-400 border border-red-500/20"}`}
+      >
+        <div
+          className={`w-1.5 h-1.5 rounded-full ${isOnline ? "bg-emerald-400" : "bg-red-400 animate-pulse"}`}
+        ></div>
         {isOnline ? "System Online" : "Offline Mode"}
       </div>
 

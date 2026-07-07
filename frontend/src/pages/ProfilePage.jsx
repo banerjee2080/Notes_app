@@ -1,6 +1,14 @@
 import { useState } from "react";
 import { useAuthStore } from "../stores/useAuthStore.js";
-import { Camera, Mail, User, Loader2, Calendar, ArrowLeft } from "lucide-react";
+import {
+  Camera,
+  Mail,
+  User,
+  Loader2,
+  Calendar,
+  ArrowLeft,
+  Trash2Icon,
+} from "lucide-react";
 import { useNavigate } from "react-router";
 import { compressImage } from "../lib/utils";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
@@ -48,8 +56,12 @@ const ProfilePage = () => {
 
           {/* Avatar Upload Section */}
           <div className="flex flex-col items-center mb-10">
-            <div className={`relative group ${!isOnline ? 'cursor-not-allowed' : ''}`}>
-              <div className={`w-32 h-32 rounded-full overflow-hidden border-4 border-white/10 shadow-xl shadow-black/20 relative z-10 transition-all duration-300 ${!isOnline ? 'grayscale-[50%]' : 'group-hover:scale-[1.02] group-hover:border-[var(--theme-main)] group-hover:shadow-[0_0_25px_var(--theme-main)]'}`}>
+            <div
+              className={`relative group ${!isOnline ? "cursor-not-allowed" : ""}`}
+            >
+              <div
+                className={`w-32 h-32 rounded-full overflow-hidden border-4 border-white/10 shadow-xl shadow-black/20 relative z-10 transition-all duration-300 ${!isOnline ? "grayscale-[50%]" : "group-hover:scale-[1.02] group-hover:border-[var(--theme-main)] group-hover:shadow-[0_0_25px_var(--theme-main)]"}`}
+              >
                 <img
                   src={authUser.profilePic || selectedImage || "/avatar.png"}
                   alt="Profile picture"
@@ -59,14 +71,20 @@ const ProfilePage = () => {
                 {/* Upload Overlay */}
                 <label
                   htmlFor={isOnline ? "avatar-upload" : ""}
-                  className={`absolute inset-0 flex items-center justify-center transition-all duration-300 backdrop-blur-sm rounded-full ${isOnline ? 'bg-black/40 opacity-0 group-hover:opacity-100 cursor-pointer' : 'bg-black/60 opacity-0 group-hover:opacity-100 cursor-not-allowed'} ${isUpdatingProfile ? "pointer-events-none" : ""}`}
+                  className={`absolute inset-0 flex items-center justify-center transition-all duration-300 backdrop-blur-sm rounded-full ${isOnline ? "bg-black/40 opacity-0 group-hover:opacity-100 cursor-pointer" : "bg-black/60 opacity-0 group-hover:opacity-100 cursor-not-allowed"} ${isUpdatingProfile ? "pointer-events-none" : ""}`}
                 >
                   {isUpdatingProfile ? (
                     <Loader2 className="size-8 text-white animate-spin" />
                   ) : (
                     <div className="flex flex-col items-center">
-                      <Camera className={`size-8 ${!isOnline ? 'text-white/50' : 'text-white'}`} />
-                      {!isOnline && <span className="text-[10px] text-white/90 mt-1 font-medium bg-black/60 px-2 py-0.5 rounded backdrop-blur-md">Offline</span>}
+                      <Camera
+                        className={`size-8 ${!isOnline ? "text-white/50" : "text-white"}`}
+                      />
+                      {!isOnline && (
+                        <span className="text-[10px] text-white/90 mt-1 font-medium bg-black/60 px-2 py-0.5 rounded backdrop-blur-md">
+                          Offline
+                        </span>
+                      )}
                     </div>
                   )}
                 </label>
@@ -82,7 +100,11 @@ const ProfilePage = () => {
               />
             </div>
             <p className="mt-4 text-sm text-white/60 font-medium">
-              {!isOnline ? "Profile updates unavailable offline" : isUpdatingProfile ? "Uploading..." : "Click image to update"}
+              {!isOnline
+                ? "Profile updates unavailable offline"
+                : isUpdatingProfile
+                  ? "Uploading..."
+                  : "Click image to update"}
             </p>
           </div>
 
@@ -136,6 +158,16 @@ const ProfilePage = () => {
                 Active
               </div>
             </div>
+          </div>
+          
+          <div className="mt-6">
+            <button
+              onClick={() => navigate("/recycleBin")}
+              className="w-full bg-red-500/10 hover:bg-red-500/20 backdrop-blur-md rounded-3xl p-4 border border-red-500/20 flex items-center justify-center gap-3 transition-all duration-300 group"
+            >
+              <Trash2Icon className="size-5 text-red-400 group-hover:scale-110 transition-transform" />
+              <span className="font-semibold text-red-400">Recycle Bin</span>
+            </button>
           </div>
         </div>
       </div>

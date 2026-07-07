@@ -77,3 +77,14 @@ export const uploadImage = async (req, res) => {
     res.status(500).json({ message: "Image upload failed" });
   }
 };
+
+export const clearRecycleBin = async (req, res) => {
+  const userId = req.user._id;
+  try {
+    await Note.deleteMany({ user_id: userId, is_deleted: true });
+    res.status(200).json({ message: "Recycle bin cleared successfully" });
+  } catch (error) {
+    console.error("Clear Recycle Bin Error:", error);
+    res.status(500).json({ message: "Failed to clear recycle bin" });
+  }
+};
