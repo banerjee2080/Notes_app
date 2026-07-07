@@ -14,7 +14,7 @@ const authRouter = express.Router();
 
 authRouter.post("/signup", signup);
 authRouter.post("/login", login);
-authRouter.get("/logout", logout);
+authRouter.post("/logout", logout);
 authRouter.put("/updateProfile", ProtectedRoute, updateProfile);
 authRouter.put("/setBackgroundImg", ProtectedRoute, setBackgroundImg);
 authRouter.get("/check", ProtectedRoute, checkAuth);
