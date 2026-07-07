@@ -4,6 +4,8 @@ A full-stack, responsive note-taking application built with React, Node.js, Expr
 
 ## ✨ Key Features
 
+- 🏢 **Enterprise-Grade Offline Architecture**: Built with a highly resilient, offline-first system using `Dexie.js`, `Workbox`, and Service Workers. The application functions flawlessly without an internet connection. You can create, edit, delete, and restore notes locally, and the powerful custom sync engine will seamlessly reconcile all changes with the cloud server the moment your connection is restored!
+- ♻️ **Intelligent Recycle Bin**: Accidentally deleted a note? No problem. The advanced Recycle Bin acts as a safe haven for your deleted notes. You can view, restore, or permanently empty them. All actions inside the recycle bin are fully integrated with the offline-first architecture, ensuring data consistency and giving you complete peace of mind.
 - **Dynamic Theming with Node-Vibrant**: Upload a background image via your profile, and the backend automatically extracts a custom color palette (main, accent, and secondary accent colors) using `node-vibrant`. The frontend then seamlessly applies this custom palette across all UI elements, including gradients, text, buttons, and glow effects, giving every user a personalized experience.
 - **Dark & Vibrant Mode**: Toggle between a deeper dark mode and a lighter vibrant mode, dynamically adapting the interface and background overlay to match your custom color palette and mood.
 - **Auto Save**: Notes are automatically saved as you type, so you never lose your train of thought.
