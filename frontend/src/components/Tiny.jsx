@@ -16,6 +16,7 @@ export default function Tiny({ value, onEditorChange, placeholder }) {
           placeholder: placeholder,
           skin: "oxide-dark",
           content_css: "dark",
+          promotion: false,
           plugins: [
             "anchor",
             "autolink",
