@@ -64,6 +64,7 @@ const Navbar = () => {
                     src={authUser.profilePic || "/avatar.png"}
                     alt="Profile"
                     className="w-full h-full object-cover"
+                    referrerPolicy="no-referrer"
                   />
                   <div className="absolute inset-0 bg-black/20 opacity-0 group-hover:opacity-100 transition-opacity" />
                 </Link>
@@ -137,6 +138,7 @@ const Navbar = () => {
                   src={authUser.profilePic || "/avatar.png"}
                   alt="Profile"
                   className="w-8 h-8 rounded-full object-cover"
+                  referrerPolicy="no-referrer"
                 />
                 <span className="text-white font-medium">Profile</span>
               </Link>

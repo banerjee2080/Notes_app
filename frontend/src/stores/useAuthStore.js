@@ -164,6 +164,23 @@ export const useAuthStore = create(
           set({ isThemeChanging: false });
         }
       },
+
+      googleLogin: async (access_token) => {
+        set({ isLoggingIn: true });
+        try {
+          const res = await axiosInstance.post("/auth/google", { access_token });
+          set({ authUser: res.data, _cachedAt: Date.now() });
+          triggerSync(res.data._id);
+          toast.success("Logged in with Google!");
+        } catch (error) {
+          console.log("Error in googleLogin: ", error);
+          toast.error(
+            error.response?.data?.message || "Google authentication failed",
+          );
+        } finally {
+          set({ isLoggingIn: false });
+        }
+      },
     }),
     {
       name: "auth-storage",

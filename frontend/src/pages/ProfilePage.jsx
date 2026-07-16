@@ -66,6 +66,7 @@ const ProfilePage = () => {
                   src={authUser.profilePic || selectedImage || "/avatar.png"}
                   alt="Profile picture"
                   className="w-full h-full object-cover"
+                  referrerPolicy="no-referrer"
                 />
 
                 {/* Upload Overlay */}

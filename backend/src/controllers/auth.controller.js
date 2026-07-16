@@ -3,6 +3,65 @@ import { generateToken } from "../lib/utils.js";
 import User from "../models/user.model.js";
 import cloudinary from "../lib/cloudinary.js";
 import { Vibrant } from "node-vibrant/node";
+import { OAuth2Client } from "google-auth-library";
+
+OAuth2Client.CLOCK_SKEW_SECS_ = 3600;
+
+const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+
+export const googleAuth = async (req, res) => {
+  try {
+    const { access_token } = req.body;
+    if (!access_token) {
+      return res.status(400).json({ message: "Google access token is missing" });
+    }
+
+    const response = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
+      headers: { Authorization: `Bearer ${access_token}` },
+    });
+
+    if (!response.ok) {
+      return res.status(400).json({ message: "Failed to fetch user info from Google" });
+    }
+    const data = await response.json();
+
+    const {
+      sub: googleId,
+      email,
+      name: fullName,
+      picture: profilePic,
+    } = data;
+
+    let user = await User.findOne({ email });
+    if (user) {
+      user.googleId = googleId;
+      if (!user.profilePic) user.profilePic = profilePic;
+      await user.save();
+    } else {
+      user = new User({
+        fullName,
+        email,
+        googleId,
+        profilePic: profilePic || "",
+      });
+      await user.save();
+    }
+    generateToken(user._id, res);
+    res.status(200).json({
+      _id: user._id,
+      fullName: user.fullName,
+      email: user.email,
+      profilePic: user.profilePic,
+      backgroundImg: user.backgroundImg,
+      main_colour: user.main_colour,
+      accent_colour: user.accent_colour,
+      accent_colour2: user.accent_colour2,
+    });
+  } catch (error) {
+    console.log("Error in the google authentication: ", error);
+    res.status(500).json({ message: error.message });
+  }
+};
 
 export const signup = async (req, res) => {
   try {
@@ -56,6 +115,13 @@ export const login = async (req, res) => {
 
     if (!user) {
       return res.status(400).json({ message: "Invalid Credentials" });
+    }
+
+    if (!user.password) {
+      return res.status(400).json({
+        message:
+          "You registered using Google. Please click 'Sign in with Google'.",
+      });
     }
 
     const isPasswordCorrect = await bcrypt.compare(password, user.password);
