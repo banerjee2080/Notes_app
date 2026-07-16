@@ -4,6 +4,7 @@ import User from "../models/user.model.js";
 import cloudinary from "../lib/cloudinary.js";
 import { Vibrant } from "node-vibrant/node";
 import { OAuth2Client } from "google-auth-library";
+import BlockedCookie from "../models/blockedCookies.model.js";
 
 OAuth2Client.CLOCK_SKEW_SECS_ = 3600;
 
@@ -13,24 +14,26 @@ export const googleAuth = async (req, res) => {
   try {
     const { access_token } = req.body;
     if (!access_token) {
-      return res.status(400).json({ message: "Google access token is missing" });
+      return res
+        .status(400)
+        .json({ message: "Google access token is missing" });
     }
 
-    const response = await fetch("https://www.googleapis.com/oauth2/v3/userinfo", {
-      headers: { Authorization: `Bearer ${access_token}` },
-    });
+    const response = await fetch(
+      "https://www.googleapis.com/oauth2/v3/userinfo",
+      {
+        headers: { Authorization: `Bearer ${access_token}` },
+      },
+    );
 
     if (!response.ok) {
-      return res.status(400).json({ message: "Failed to fetch user info from Google" });
+      return res
+        .status(400)
+        .json({ message: "Failed to fetch user info from Google" });
     }
     const data = await response.json();
 
-    const {
-      sub: googleId,
-      email,
-      name: fullName,
-      picture: profilePic,
-    } = data;
+    const { sub: googleId, email, name: fullName, picture: profilePic } = data;
 
     let user = await User.findOne({ email });
     if (user) {
@@ -145,8 +148,20 @@ export const login = async (req, res) => {
   }
 };
 
-export const logout = (req, res) => {
+export const logout = async (req, res) => {
   try {
+    const token = req.cookies.jwt;
+    if (token) {
+      await BlockedCookie.create({ token });
+    }
+
+    res.cookie("jwt", "", {
+      maxAge: 0,
+      httpOnly: true,
+      sameSite: "strict",
+      secure: process.env.NODE_ENV !== "development",
+      path: "/",
+    });
     res.clearCookie("jwt", {
       httpOnly: true,
       sameSite: "strict",

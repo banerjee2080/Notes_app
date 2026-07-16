@@ -1,11 +1,18 @@
 import jwt from "jsonwebtoken";
 import User from "../models/user.model.js";
+import BlockedCookie from "../models/blockedCookies.model.js";
 
 export const ProtectedRoute = async (req, res, next) => {
   try {
     const token = req.cookies.jwt;
     if (!token)
       return res.status(401).json({ message: "Invalid - No token provided" });
+
+    const isBlocked = await BlockedCookie.findOne({ token });
+    if (isBlocked) {
+      return res.status(401).json({ message: "Token has been revoked. Please log in again." });
+    }
+
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
     if (!decoded) return res.status(401).json({ message: "Invalid token" });
