@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { Search } from "lucide-react";
 import { useLocation } from "react-router";
 import api from "../lib/axios";
 import toast from "react-hot-toast";
@@ -59,9 +60,40 @@ const HomePage = () => {
         {isRateLimited && <RateLimitedUI />}
 
         <div className="mt-8">
-          {!loading && filteredNotes.length === 0 && !isRateLimited && (
+          {!loading && notes.length === 0 && !isRateLimited && (
             <NotesNotFound />
           )}
+
+          {!loading &&
+            filteredNotes.length === 0 &&
+            notes.length !== 0 &&
+            !isRateLimited && (
+              <div className="flex flex-col items-center justify-center py-16 px-4 space-y-6 max-w-md mx-auto text-center theme-bg-glass backdrop-blur-xl border border-white/10 rounded-3xl mt-10">
+                <div 
+                  className="rounded-full p-6 border border-white/10"
+                  style={{ 
+                    background: 'linear-gradient(to bottom right, color-mix(in srgb, var(--theme-main) 20%, transparent), color-mix(in srgb, var(--theme-accent) 5%, transparent))',
+                    boxShadow: '0 0 30px color-mix(in srgb, var(--theme-main) 20%, transparent)'
+                  }}
+                >
+                  <Search className="size-12 theme-text opacity-90" />
+                </div>
+                <div className="space-y-2">
+                  <h2 className="text-2xl font-bold text-white tracking-wide">
+                    No Matches Found
+                  </h2>
+                  <p className="text-white/60 leading-relaxed max-w-xs mx-auto">
+                    We couldn't find any notes matching "<span className="text-white/90 font-medium">{searchQuery}</span>"
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="px-6 py-2.5 theme-button-outline rounded-xl transition-all duration-300 backdrop-blur-sm font-medium mt-2"
+                >
+                  Clear Search
+                </button>
+              </div>
+            )}
 
           {!loading && filteredNotes.length !== 0 && !isRateLimited && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
