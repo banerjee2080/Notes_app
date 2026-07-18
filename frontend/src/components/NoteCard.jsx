@@ -78,7 +78,7 @@ const NoteCard = ({ note, mode }) => {
           {note.title}
         </h2>
         <div
-          className="text-white/70 mb-6 line-clamp-3 leading-relaxed [&>p]:m-0 [&>p]:inline"
+          className="text-white/95 mb-6 line-clamp-3 leading-relaxed [&>p]:m-0 [&>p]:inline"
           dangerouslySetInnerHTML={{ __html: note.content }}
         />
 

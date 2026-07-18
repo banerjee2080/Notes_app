@@ -87,12 +87,12 @@ const App = () => {
           color: transparent;
         }
         .theme-bg-glass {
-          background-color: color-mix(in srgb, var(--theme-main) 10%, rgba(255,255,255,0.03));
-          border-color: color-mix(in srgb, var(--theme-main) 20%, rgba(255,255,255,0.1));
+          background-color: color-mix(in srgb, var(--theme-main) 15%, rgba(0, 0, 0, 0.4));
+          border-color: color-mix(in srgb, var(--theme-main) 30%, rgba(255, 255, 255, 0.15));
         }
         .theme-bg-glass:hover {
-          background-color: color-mix(in srgb, var(--theme-main) 20%, rgba(255,255,255,0.08));
-          border-color: color-mix(in srgb, var(--theme-main) 40%, rgba(255,255,255,0.2));
+          background-color: color-mix(in srgb, var(--theme-main) 20%, rgba(0, 0, 0, 0.5));
+          border-color: color-mix(in srgb, var(--theme-main) 50%, rgba(255, 255, 255, 0.25));
           box-shadow: 0 8px 30px color-mix(in srgb, var(--theme-main) 20%, transparent);
         }
         .theme-button {
