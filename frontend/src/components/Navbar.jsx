@@ -1,16 +1,17 @@
 import { Link, useLocation } from "react-router";
-import { PlusIcon, LogOut, Loader2, Menu, X, Image as ImageIcon, Sun, Moon, Search } from "lucide-react";
+import { PlusIcon, LogOut, Loader2, Menu, X, Image as ImageIcon, Sun, Moon, Search, CalendarDays } from "lucide-react";
 import { useAuthStore } from "../stores/useAuthStore";
 import { useRef, useState } from "react";
 import { compressImage } from "../lib/utils";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 
-const Navbar = ({ searchQuery, setSearchQuery }) => {
+const Navbar = ({ searchQuery, setSearchQuery, dateFilter, setDateFilter }) => {
   const location = useLocation();
   const { authUser, logout, setTheme, isThemeChanging, themeMode, toggleThemeMode } = useAuthStore();
   const fileInputRef = useRef(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isDateOpen, setIsDateOpen] = useState(false);
   const isOnline = useOnlineStatus();
 
   const handleImageUpload = async (e) => {
@@ -45,6 +46,37 @@ const Navbar = ({ searchQuery, setSearchQuery }) => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-4">
+            {setDateFilter && (
+              <div className="flex items-center">
+                <div
+                  className={`overflow-hidden transition-all duration-300 flex items-center ${
+                    isDateOpen ? "w-40 opacity-100 mr-2" : "w-0 opacity-0 mr-0"
+                  }`}
+                >
+                  <input
+                    type="month"
+                    value={dateFilter || ""}
+                    onChange={(e) => setDateFilter(e.target.value)}
+                    className="w-full bg-black/40 border border-white/20 rounded-full py-1.5 px-4 text-white focus:outline-none focus:border-white/40 focus:bg-black/60 transition-all backdrop-blur-md text-sm h-10 [color-scheme:dark]"
+                  />
+                </div>
+                <button
+                  onClick={() => {
+                    setIsDateOpen(!isDateOpen);
+                    if (isSearchOpen) setIsSearchOpen(false);
+                  }}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border hover:scale-110 active:scale-95 ${
+                    isDateOpen || dateFilter
+                      ? "bg-white/20 text-white border-white/40 shadow-[0_0_15px_rgba(255,255,255,0.2)]" 
+                      : "bg-white/5 hover:bg-white/10 text-white border-white/10 hover:border-white/30"
+                  }`}
+                  title="Filter by Month"
+                >
+                  <CalendarDays className="size-5" />
+                </button>
+              </div>
+            )}
+
             {setSearchQuery && (
               <div className="flex items-center">
                 <div
@@ -61,9 +93,12 @@ const Navbar = ({ searchQuery, setSearchQuery }) => {
                   />
                 </div>
                 <button
-                  onClick={() => setIsSearchOpen(!isSearchOpen)}
+                  onClick={() => {
+                    setIsSearchOpen(!isSearchOpen);
+                    if (isDateOpen) setIsDateOpen(false);
+                  }}
                   className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border hover:scale-110 active:scale-95 ${
-                    isSearchOpen 
+                    isSearchOpen || searchQuery
                       ? "bg-white/20 text-white border-white/40 shadow-[0_0_15px_rgba(255,255,255,0.2)]" 
                       : "bg-white/5 hover:bg-white/10 text-white border-white/10 hover:border-white/30"
                   }`}
@@ -157,6 +192,18 @@ const Navbar = ({ searchQuery, setSearchQuery }) => {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Search notes..."
                 className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white placeholder-white/50 focus:outline-none focus:border-white/30 focus:bg-white/10 transition-all"
+              />
+            </div>
+          )}
+
+          {setDateFilter && (
+            <div className="relative">
+              <CalendarDays className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-white/50" />
+              <input
+                type="month"
+                value={dateFilter || ""}
+                onChange={(e) => setDateFilter(e.target.value)}
+                className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white focus:outline-none focus:border-white/30 focus:bg-white/10 transition-all [color-scheme:dark]"
               />
             </div>
           )}
