@@ -59,13 +59,13 @@ const HomePage = () => {
         {isRateLimited && <RateLimitedUI />}
 
         <div className="mt-8">
-          {!loading && notes.length === 0 && !isRateLimited && (
+          {!loading && filteredNotes.length === 0 && !isRateLimited && (
             <NotesNotFound />
           )}
 
-          {!loading && notes.length !== 0 && !isRateLimited && (
+          {!loading && filteredNotes.length !== 0 && !isRateLimited && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {notes.map((note, index) => (
+              {filteredNotes.map((note, index) => (
                 <div
                   key={note.id}
                   className="animate-slide-up opacity-0"
