@@ -53,7 +53,7 @@ const NoteCard = ({ note, mode }) => {
   };
 
   return (
-    <div className="relative group theme-bg-glass backdrop-blur-lg border rounded-2xl p-6 transition-all duration-300 overflow-hidden h-full flex flex-col">
+    <div className="relative group theme-bg-glass backdrop-blur-lg border rounded-2xl p-6 transition-all duration-300 overflow-hidden h-full flex flex-col hover:-translate-y-1 hover:shadow-xl hover:shadow-white/5">
       <div
         className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-300 -z-10 pointer-events-none"
         style={{

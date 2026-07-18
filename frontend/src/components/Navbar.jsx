@@ -47,7 +47,7 @@ const Navbar = () => {
             <Link
               to={"/createNote"}
               state={{ backgroundLocation: location }}
-              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg transition-all duration-300 backdrop-blur-sm shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.2)]"
+              className="flex items-center gap-2 px-4 py-2 bg-white/10 hover:bg-white/20 border border-white/20 rounded-lg transition-all duration-300 backdrop-blur-sm shadow-[0_0_15px_rgba(255,255,255,0.1)] hover:shadow-[0_0_20px_rgba(255,255,255,0.2)] hover:scale-105 active:scale-95"
             >
               <PlusIcon className="size-5" />
               <span className="font-medium text-white">New Note</span>
@@ -71,7 +71,7 @@ const Navbar = () => {
 
                 <button
                   onClick={logout}
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-white hover:text-red-400 border border-white/10 hover:border-red-500/50 transition-all duration-300"
+                  className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 hover:bg-red-500/20 text-white hover:text-red-400 border border-white/10 hover:border-red-500/50 transition-all duration-300 hover:scale-110 active:scale-95"
                   title="Logout"
                 >
                   <LogOut className="size-5" />
@@ -79,7 +79,7 @@ const Navbar = () => {
 
                 <button
                   onClick={toggleThemeMode}
-                  className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/30 transition-all duration-300"
+                  className="w-10 h-10 rounded-full flex items-center justify-center bg-white/5 hover:bg-white/10 text-white border border-white/10 hover:border-white/30 transition-all duration-300 hover:scale-110 hover:rotate-12 active:scale-95"
                   title={themeMode === 'dark' ? "Switch to Vibrant Mode" : "Switch to Dark Mode"}
                 >
                   {themeMode === 'dark' ? <Sun className="size-5" /> : <Moon className="size-5" />}
@@ -96,7 +96,7 @@ const Navbar = () => {
                   <button 
                     onClick={() => { if(isOnline) fileInputRef.current?.click(); }}
                     disabled={isThemeChanging || !isOnline}
-                    className={`w-10 h-10 rounded-full theme-button-outline transition-all duration-300 backdrop-blur-sm shadow-[0_0_15px_rgba(0,0,0,0.2)] flex items-center justify-center ${isThemeChanging || !isOnline ? 'opacity-70 cursor-not-allowed grayscale-[50%]' : ''}`}
+                    className={`w-10 h-10 rounded-full theme-button-outline transition-all duration-300 backdrop-blur-sm shadow-[0_0_15px_rgba(0,0,0,0.2)] flex items-center justify-center hover:scale-110 active:scale-95 ${isThemeChanging || !isOnline ? 'opacity-70 cursor-not-allowed grayscale-[50%]' : ''}`}
                   >
                     {isThemeChanging ? (
                       <Loader2 className="size-5 animate-spin" />

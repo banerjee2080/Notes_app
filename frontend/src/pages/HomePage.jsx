@@ -47,8 +47,14 @@ const HomePage = () => {
 
           {!loading && notes.length !== 0 && !isRateLimited && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {notes.map((note) => (
-                <NoteCard key={note.id} note={note} />
+              {notes.map((note, index) => (
+                <div 
+                  key={note.id} 
+                  className="animate-slide-up opacity-0" 
+                  style={{ animationDelay: `${index * 75}ms` }}
+                >
+                  <NoteCard note={note} />
+                </div>
               ))}
             </div>
           )}
