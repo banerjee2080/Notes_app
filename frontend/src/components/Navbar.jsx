@@ -1,15 +1,16 @@
 import { Link, useLocation } from "react-router";
-import { PlusIcon, LogOut, Loader2, Menu, X, Image as ImageIcon, Sun, Moon } from "lucide-react";
+import { PlusIcon, LogOut, Loader2, Menu, X, Image as ImageIcon, Sun, Moon, Search } from "lucide-react";
 import { useAuthStore } from "../stores/useAuthStore";
 import { useRef, useState } from "react";
 import { compressImage } from "../lib/utils";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 
-const Navbar = () => {
+const Navbar = ({ searchQuery, setSearchQuery }) => {
   const location = useLocation();
   const { authUser, logout, setTheme, isThemeChanging, themeMode, toggleThemeMode } = useAuthStore();
   const fileInputRef = useRef(null);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const isOnline = useOnlineStatus();
 
   const handleImageUpload = async (e) => {
@@ -44,6 +45,35 @@ const Navbar = () => {
 
           {/* Desktop Navigation */}
           <div className="hidden md:flex items-center gap-4">
+            {setSearchQuery && (
+              <div className="flex items-center">
+                <div
+                  className={`overflow-hidden transition-all duration-300 flex items-center ${
+                    isSearchOpen ? "w-48 opacity-100 mr-2" : "w-0 opacity-0 mr-0"
+                  }`}
+                >
+                  <input
+                    type="text"
+                    value={searchQuery || ""}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search..."
+                    className="w-full bg-black/40 border border-white/20 rounded-full py-1.5 px-4 text-white placeholder-white/50 focus:outline-none focus:border-white/40 focus:bg-black/60 transition-all backdrop-blur-md text-sm h-10"
+                  />
+                </div>
+                <button
+                  onClick={() => setIsSearchOpen(!isSearchOpen)}
+                  className={`w-10 h-10 rounded-full flex items-center justify-center transition-all duration-300 border hover:scale-110 active:scale-95 ${
+                    isSearchOpen 
+                      ? "bg-white/20 text-white border-white/40 shadow-[0_0_15px_rgba(255,255,255,0.2)]" 
+                      : "bg-white/5 hover:bg-white/10 text-white border-white/10 hover:border-white/30"
+                  }`}
+                  title="Search Notes"
+                >
+                  <Search className="size-5" />
+                </button>
+              </div>
+            )}
+
             <Link
               to={"/createNote"}
               state={{ backgroundLocation: location }}
@@ -115,8 +145,22 @@ const Navbar = () => {
       </div>
 
       {/* Mobile Navigation Dropdown */}
-      <div className={`md:hidden absolute top-full left-0 w-full bg-black/95 backdrop-blur-xl border-b border-white/10 transition-all duration-300 overflow-hidden ${isMobileMenuOpen ? 'max-h-[500px] opacity-100 py-4' : 'max-h-0 opacity-0 py-0'}`}>
+      <div className={`md:hidden absolute top-full left-0 w-full bg-black/95 backdrop-blur-xl border-b border-white/10 transition-all duration-300 overflow-hidden ${isMobileMenuOpen ? 'max-h-[600px] opacity-100 py-4' : 'max-h-0 opacity-0 py-0'}`}>
         <div className="flex flex-col gap-4 px-4">
+          
+          {setSearchQuery && (
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-5 text-white/50" />
+              <input
+                type="text"
+                value={searchQuery || ""}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                placeholder="Search notes..."
+                className="w-full bg-white/5 border border-white/10 rounded-lg py-3 pl-10 pr-4 text-white placeholder-white/50 focus:outline-none focus:border-white/30 focus:bg-white/10 transition-all"
+              />
+            </div>
+          )}
+
           <Link
             to={"/createNote"}
             state={{ backgroundLocation: location }}
