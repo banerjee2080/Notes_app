@@ -50,7 +50,7 @@ connectdb();
 startCronJobs();
 
 if (process.env.MODE !== "production") {
-  app.listen(PORT, () => {
+  app.listen(PORT, "0.0.0.0", () => {
     console.log("App listening on PORT:", PORT);
   });
 }
