@@ -40,7 +40,7 @@ export const syncNotes = async (req, res) => {
     const query = { user_id: userId };
 
     if (lastSyncedAt) {
-      query.updated_at = { $gt: new Date(lastSyncedAt) };
+      query.updatedAt = { $gt: new Date(lastSyncedAt) };
     }
 
     const serverChangesRaw = await Note.find(query);
