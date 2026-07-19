@@ -7,7 +7,7 @@ import { useDebounce } from "../hooks/useDebounce.js";
 import { localDB } from "../lib/db.js";
 import api from "../lib/axios.js";
 import { useAuthStore } from "../stores/useAuthStore.js";
-import { triggerSync } from "../lib/syncEngine.js";
+import { triggerSync, registerBackgroundSync } from "../lib/syncEngine.js";
 
 const NotePage = ({ isModal }) => {
   const [note, setNote] = useState({});
@@ -75,6 +75,7 @@ const NotePage = ({ isModal }) => {
             await localDB.notes.update(note.id, { sync_status: "synced" });
           } catch (e) {
             console.log("Offline: Note edit queued for background sync");
+            registerBackgroundSync(authUser._id || authUser.id);
           }
         }
       } catch (error) {

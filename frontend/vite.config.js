@@ -20,10 +20,14 @@ export default defineConfig({
     tailwindcss(),
     react(),
     VitePWA({
+      strategies: "injectManifest",
+      srcDir: "src/serviceWorker",
+      filename: "serviceWorker.js",
       registerType: "autoUpdate",
       // Enable this so you can test turning off your WiFi while running 'npm run dev'
       devOptions: {
         enabled: true,
+        type: "module",
       },
       manifest: {
         name: "Enterprise Notes",
@@ -44,30 +48,9 @@ export default defineConfig({
           },
         ],
       },
-      workbox: {
-        // This is the most critical line for Path 2.
-        // It tells the Service Worker to aggressively cache all UI assets.
+      injectManifest: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,webp}"],
-        maximumFileSizeToCacheInBytes: 5000000, // 5MB to ensure TinyMCE files are cached
-        skipWaiting: true,
-        clientsClaim: true,
-        cleanupOutdatedCaches: true,
-        runtimeCaching: [
-          {
-            // This regex must match your backend's save/update endpoint
-            urlPattern: /\/api\/notes\/upsert/,
-            handler: "NetworkOnly", // Only attempt network, fail to queue if offline
-            method: "POST",
-            options: {
-              backgroundSync: {
-                name: "notes-sync-queue",
-                options: {
-                  maxRetentionTime: 24 * 60, // Retain the failed request for up to 24 hours
-                },
-              },
-            },
-          },
-        ],
+        maximumFileSizeToCacheInBytes: 5000000,
       },
     }),
   ],

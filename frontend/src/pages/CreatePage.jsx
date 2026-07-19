@@ -7,6 +7,7 @@ import Tiny from "../components/Tiny.jsx";
 import { useDebounce } from "../hooks/useDebounce.js";
 import { v4 as uuidv4 } from "uuid";
 import { localDB } from "../lib/db";
+import { registerBackgroundSync } from "../lib/syncEngine.js";
 import { useAuthStore } from "../stores/useAuthStore.js";
 
 const CreatePage = ({ isModal }) => {
@@ -53,6 +54,7 @@ const CreatePage = ({ isModal }) => {
           await localDB.notes.update(noteId, { sync_status: "synced" });
         } catch (networkError) {
           console.log("Offline: Note queued for background sync");
+          registerBackgroundSync(authUser._id || authUser.id);
         }
       } catch (error) {
         setSaving("Saving failed..");
