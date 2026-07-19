@@ -36,7 +36,7 @@ export default defineConfig({
       workbox: {
         // This is the most critical line for Path 2.
         // It tells the Service Worker to aggressively cache all UI assets.
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp}", "tinymce/**/*"],
+        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp}"],
         maximumFileSizeToCacheInBytes: 5000000, // 5MB to ensure TinyMCE files are cached
         skipWaiting: true,
         clientsClaim: true,
