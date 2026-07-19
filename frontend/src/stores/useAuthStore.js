@@ -4,6 +4,7 @@ import axiosInstance from "../lib/axios.js";
 import toast from "react-hot-toast";
 import sendMail from "../lib/sendMail.js";
 import { triggerSync } from "../lib/syncEngine.js";
+import { clearLocalDB } from "../lib/db.js";
 
 const SESSION_TTL_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
 
@@ -84,6 +85,7 @@ export const useAuthStore = create(
         try {
           await axiosInstance.post("/auth/logout");
           set({ authUser: null, _cachedAt: null });
+          clearLocalDB();
           toast.success("Logout Successful");
         } catch (error) {
           console.log("Error in logout: ", error);
@@ -125,9 +127,8 @@ export const useAuthStore = create(
           <p style="font-size: 16px; color: #cbd5e1; margin-top: 16px; line-height: 1.6;">Your account has been created successfully. You can now explore all the features and start your journey with us.</p>
         </div>
         <div style="text-align: center; margin-top: 30px;">
-          <a href="#" style="background: linear-gradient(to right, #3b82f6, #4f46e5); color: #ffffff; padding: 14px 32px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);">Get Started</a>
+          <a href="https://www.notejs.in/" style="background: linear-gradient(to right, #3b82f6, #4f46e5); color: #ffffff; padding: 14px 32px; border-radius: 50px; text-decoration: none; font-weight: 600; font-size: 16px; display: inline-block; box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3);">Get Started</a>
         </div>
-        <p style="color: #64748b; font-size: 14px; text-align: center; margin-top: 30px; margin-bottom: 0;">If you have any questions, feel free to reply to this email.</p>
       </div>`;
 
           sendMail(formData.email, "Welcome to Our App!", welcomeHtml);
@@ -168,7 +169,9 @@ export const useAuthStore = create(
       googleLogin: async (access_token) => {
         set({ isLoggingIn: true });
         try {
-          const res = await axiosInstance.post("/auth/google", { access_token });
+          const res = await axiosInstance.post("/auth/google", {
+            access_token,
+          });
           set({ authUser: res.data, _cachedAt: Date.now() });
           triggerSync(res.data._id);
           toast.success("Logged in with Google!");
@@ -191,6 +194,9 @@ export const useAuthStore = create(
       }),
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
+        if (state && !state.authUser) {
+          clearLocalDB();
+        }
       },
     },
   ),
