@@ -41,6 +41,22 @@ export default defineConfig({
         skipWaiting: true,
         clientsClaim: true,
         cleanupOutdatedCaches: true,
+        runtimeCaching: [
+          {
+            // This regex must match your backend's save/update endpoint
+            urlPattern: /\/api\/notes\/upsert/,
+            handler: "NetworkOnly", // Only attempt network, fail to queue if offline
+            method: "POST",
+            options: {
+              backgroundSync: {
+                name: "notes-sync-queue",
+                options: {
+                  maxRetentionTime: 24 * 60, // Retain the failed request for up to 24 hours
+                },
+              },
+            },
+          },
+        ],
       },
     }),
   ],

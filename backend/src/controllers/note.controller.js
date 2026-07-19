@@ -88,3 +88,31 @@ export const clearRecycleBin = async (req, res) => {
     res.status(500).json({ message: "Failed to clear recycle bin" });
   }
 };
+
+export const upsertNote = async (req, res) => {
+  const { id, title, content, updated_at, is_deleted } = req.body;
+  const user_id = req.user._id;
+  try {
+    const cleanContent = await processHtmlImages(content);
+    const note = await Note.findOneAndUpdate(
+      { _id: id, user_id: user_id },
+      {
+        $set: {
+          title,
+          content: cleanContent,
+          updated_at: new Date(updated_at),
+          is_deleted,
+        },
+      },
+      {
+        new: true,
+        upsert: true,
+      },
+    );
+
+    res.status(200).json(note);
+  } catch (error) {
+    console.error("Error in background sync upsert:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
+};

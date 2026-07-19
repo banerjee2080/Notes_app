@@ -7,7 +7,6 @@ import Tiny from "../components/Tiny.jsx";
 import { useDebounce } from "../hooks/useDebounce.js";
 import { v4 as uuidv4 } from "uuid";
 import { localDB } from "../lib/db";
-import { triggerSync } from "../lib/syncEngine";
 import { useAuthStore } from "../stores/useAuthStore.js";
 
 const CreatePage = ({ isModal }) => {
@@ -49,7 +48,12 @@ const CreatePage = ({ isModal }) => {
 
         setSaving("saved");
         setTimeout(() => setSaving(""), 2000);
-        triggerSync(authUser._id || authUser.id);
+        try {
+          await api.post("/notes/upsert", newNote, { adapter: "fetch" });
+          await localDB.notes.update(noteId, { sync_status: "synced" });
+        } catch (networkError) {
+          console.log("Offline: Note queued for background sync");
+        }
       } catch (error) {
         setSaving("Saving failed..");
         console.error("Error saving note locally: ", error);

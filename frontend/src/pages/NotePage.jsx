@@ -5,8 +5,9 @@ import { ArrowLeftIcon, Trash2Icon } from "lucide-react";
 import Tiny from "../components/Tiny.jsx";
 import { useDebounce } from "../hooks/useDebounce.js";
 import { localDB } from "../lib/db.js";
-import { triggerSync } from "../lib/syncEngine.js";
+import api from "../lib/axios.js";
 import { useAuthStore } from "../stores/useAuthStore.js";
+import { triggerSync } from "../lib/syncEngine.js";
 
 const NotePage = ({ isModal }) => {
   const [note, setNote] = useState({});
@@ -51,7 +52,7 @@ const NotePage = ({ isModal }) => {
 
     const autoSaveNote = async () => {
       if (!note.id) return;
-      
+
       setSaving(true);
       try {
         const updatedNote = {
@@ -61,13 +62,20 @@ const NotePage = ({ isModal }) => {
           updated_at: new Date().toISOString(),
           sync_status: "pending_update",
         };
-        
+
         await localDB.notes.update(note.id, updatedNote);
         setSaving("saved");
         setTimeout(() => setSaving(""), 2000);
-        
+
         if (authUser) {
-          triggerSync(authUser._id || authUser.id);
+          try {
+            await api.post("/notes/upsert", updatedNote, {
+              adapter: "fetch",
+            });
+            await localDB.notes.update(note.id, { sync_status: "synced" });
+          } catch (e) {
+            console.log("Offline: Note edit queued for background sync");
+          }
         }
       } catch (error) {
         setSaving("Saving failed..");
@@ -89,7 +97,7 @@ const NotePage = ({ isModal }) => {
       if (authUser) {
         triggerSync(authUser._id || authUser.id);
       }
-      
+
       toast.success("Note Deleted");
       navigate("/");
     } catch (error) {
