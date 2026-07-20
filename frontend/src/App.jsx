@@ -82,15 +82,6 @@ const App = () => {
     }
   }, [authUser]);
 
-  // Show loading spinner only when we have no user data at all (not yet hydrated or still checking)
-  if (!_hasHydrated || (isCheckingAuth && !authUser)) {
-    return (
-      <div className="flex items-center justify-center h-screen bg-slate-900">
-        <Loader2 className="size-10 animate-spin text-white" />
-      </div>
-    );
-  }
-
   const mainColor = authUser?.main_colour || "#3b82f6";
   const lightAccent = authUser?.accent_colour || "#6366f1";
   const darkAccent = authUser?.accent_colour2 || "#8b5cf6";
@@ -106,6 +97,15 @@ const App = () => {
       isDark ? lightAccent : darkAccent
     );
   }, [mainColor, accentColor, lightAccent, darkAccent, isDark]);
+
+  // Show loading spinner only when we have no user data at all (not yet hydrated or still checking)
+  if (!_hasHydrated || (isCheckingAuth && !authUser)) {
+    return (
+      <div className="flex items-center justify-center h-screen bg-slate-900">
+        <Loader2 className="size-10 animate-spin text-white" />
+      </div>
+    );
+  }
 
   const themeStyles = {
     "--theme-main": mainColor,
