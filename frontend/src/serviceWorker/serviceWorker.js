@@ -41,6 +41,12 @@ async function syncNotesBackground(userId) {
 
     if (localChanges.length === 0) return;
 
+    const currentSyncTime = new Date().toISOString();
+    localChanges = localChanges.map((note) => ({
+      ...note,
+      updated_at: currentSyncTime,
+    }));
+
     // 2. Fetch lastSyncedAt from IndexedDB meta table
     const metaEntry = await localDB.meta.get(`lastSyncedAt_${userId}`);
     const lastSyncedAt = metaEntry ? metaEntry.value : null;
