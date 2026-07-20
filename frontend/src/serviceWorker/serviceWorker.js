@@ -33,7 +33,7 @@ self.addEventListener("sync", (event) => {
 async function syncNotesBackground(userId) {
   try {
     // 1. Fetch pending changes from IndexedDB
-    const localChanges = await localDB.notes
+    let localChanges = await localDB.notes
       .where("sync_status")
       .notEqual("synced")
       .and((note) => note.user_id === userId)
