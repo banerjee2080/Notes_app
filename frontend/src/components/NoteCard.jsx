@@ -1,5 +1,7 @@
+import { useState } from "react";
 import { PenSquareIcon, Trash2Icon, Undo2Icon } from "lucide-react";
 import { Link, useLocation } from "react-router";
+import ConfirmModal from "./ConfirmModal.jsx";
 import api from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { formatDate } from "../lib/utils.js";
@@ -10,10 +12,24 @@ import { triggerSync } from "../lib/syncEngine.js";
 const NoteCard = ({ note, mode }) => {
   const location = useLocation();
   const { authUser } = useAuthStore();
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [actionType, setActionType] = useState(null);
 
-  const handleDelete = async (e, id) => {
+  const requestAction = (e, action) => {
     e.preventDefault();
-    if (!window.confirm("Are you sure you want to delete this note?")) return;
+    setActionType(action);
+    setIsConfirmModalOpen(true);
+  };
+
+  const confirmAction = () => {
+    if (actionType === "delete") {
+      executeDelete(note.id);
+    } else if (actionType === "restore") {
+      executeRestore(note.id);
+    }
+  };
+
+  const executeDelete = async (id) => {
     try {
       await localDB.notes.update(id, {
         is_deleted: true,
@@ -31,9 +47,7 @@ const NoteCard = ({ note, mode }) => {
     }
   };
 
-  const handleRestore = async (e, id) => {
-    e.preventDefault();
-    if (!window.confirm("Are you sure you want to restore this note?")) return;
+  const executeRestore = async (id) => {
     try {
       await localDB.notes.update(id, {
         is_deleted: false,
@@ -95,10 +109,9 @@ const NoteCard = ({ note, mode }) => {
             </div>
             <button
               onClick={(e) => {
-                e.preventDefault();
                 mode === "delete"
-                  ? handleRestore(e, note.id)
-                  : handleDelete(e, note.id);
+                  ? requestAction(e, "restore")
+                  : requestAction(e, "delete");
               }}
               className={
                 mode === "delete"
@@ -124,6 +137,20 @@ const NoteCard = ({ note, mode }) => {
           </div>
         </div>
       </Link>
+
+      <ConfirmModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={confirmAction}
+        title={actionType === "delete" ? "Delete Note" : "Restore Note"}
+        message={
+          actionType === "delete"
+            ? "Are you sure you want to delete this note? It will be moved to the recycle bin."
+            : "Are you sure you want to restore this note?"
+        }
+        confirmText={actionType === "delete" ? "Delete" : "Restore"}
+        isDestructive={actionType === "delete"}
+      />
     </div>
   );
 };
