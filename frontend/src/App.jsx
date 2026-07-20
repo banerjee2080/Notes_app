@@ -69,6 +69,15 @@ const App = () => {
   const isDark = themeMode === "dark";
   const accentColor = isDark ? darkAccent : lightAccent;
 
+  useEffect(() => {
+    document.documentElement.style.setProperty("--theme-main", mainColor);
+    document.documentElement.style.setProperty("--theme-accent", accentColor);
+    document.documentElement.style.setProperty(
+      "--theme-accent2",
+      isDark ? lightAccent : darkAccent
+    );
+  }, [mainColor, accentColor, lightAccent, darkAccent, isDark]);
+
   const themeStyles = {
     "--theme-main": mainColor,
     "--theme-accent": accentColor,
