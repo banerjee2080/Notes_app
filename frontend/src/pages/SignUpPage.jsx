@@ -20,8 +20,10 @@ const SignUpPage = () => {
     fullName: "",
     email: "",
     password: "",
+    confirmPassword: "",
   });
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [takeOtp, setTakeOtp] = useState(false);
   const [otp, setOtp] = useState("");
   const [sentOtp, setSentOtp] = useState(null);
@@ -46,6 +48,8 @@ const SignUpPage = () => {
     if (!formData.password) return toast.error("Password is required");
     if (formData.password.length < 6)
       return toast.error("Password must be at least 6 characters");
+    if (formData.password !== formData.confirmPassword)
+      return toast.error("Passwords do not match");
 
     return true;
   };
@@ -222,6 +226,37 @@ const SignUpPage = () => {
                     onClick={() => setShowPassword(!showPassword)}
                   >
                     {showPassword ? (
+                      <EyeOff className="size-5" />
+                    ) : (
+                      <Eye className="size-5" />
+                    )}
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-2">
+                <label className="text-sm font-medium text-white/80">
+                  Confirm Password
+                </label>
+                <div className="relative flex items-center">
+                  <div className="absolute left-4 text-white/40">
+                    <Lock className="size-5" />
+                  </div>
+                  <input
+                    type={showConfirmPassword ? "text" : "password"}
+                    placeholder="Confirm your password"
+                    className="w-full pl-12 pr-12 py-3 rounded-full bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 transition-all duration-300"
+                    value={formData.confirmPassword}
+                    onChange={(e) =>
+                      setFromData({ ...formData, confirmPassword: e.target.value })
+                    }
+                  />
+                  <button
+                    type="button"
+                    className="absolute right-4 text-white/40 hover:text-white/80 transition-colors"
+                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                  >
+                    {showConfirmPassword ? (
                       <EyeOff className="size-5" />
                     ) : (
                       <Eye className="size-5" />
