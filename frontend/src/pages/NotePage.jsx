@@ -14,6 +14,7 @@ const NotePage = ({ isModal }) => {
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
   const isInit = useRef(true);
+  const isDeleting = useRef(false);
   const debouncedTitle = useDebounce(note.title, 500);
   const debouncedContent = useDebounce(note.content, 500);
 
@@ -51,7 +52,7 @@ const NotePage = ({ isModal }) => {
     if (debouncedContent === undefined || debouncedTitle === undefined) return;
 
     const autoSaveNote = async () => {
-      if (!note.id) return;
+      if (!note.id || isDeleting.current) return;
 
       setSaving(true);
       try {
@@ -88,6 +89,7 @@ const NotePage = ({ isModal }) => {
   }, [debouncedTitle, debouncedContent, note.id, authUser]);
 
   const handleDelete = async () => {
+    isDeleting.current = true;
     try {
       await localDB.notes.update(id, {
         is_deleted: true,
