@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
+import ConfirmModal from "../components/ConfirmModal.jsx";
 import toast from "react-hot-toast";
 import { ArrowLeftIcon, Trash2Icon } from "lucide-react";
 import Tiny from "../components/Tiny.jsx";
@@ -13,6 +14,7 @@ const NotePage = ({ isModal }) => {
   const [note, setNote] = useState({});
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const isInit = useRef(true);
   const isDeleting = useRef(false);
   const debouncedTitle = useDebounce(note.title, 500);
@@ -88,7 +90,11 @@ const NotePage = ({ isModal }) => {
     autoSaveNote();
   }, [debouncedTitle, debouncedContent, note.id, authUser]);
 
-  const handleDelete = async () => {
+  const requestDelete = () => {
+    setIsConfirmModalOpen(true);
+  };
+
+  const executeDelete = async () => {
     isDeleting.current = true;
     try {
       await localDB.notes.update(id, {
@@ -196,7 +202,7 @@ const NotePage = ({ isModal }) => {
           </div>
 
           <button
-            onClick={handleDelete}
+            onClick={requestDelete}
             className="inline-flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl transition-colors"
           >
             <Trash2Icon className="size-4" />
@@ -227,6 +233,16 @@ const NotePage = ({ isModal }) => {
           </div>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={executeDelete}
+        title="Delete Note"
+        message="Are you sure you want to delete this note? It will be moved to the recycle bin."
+        confirmText="Delete"
+        isDestructive={true}
+      />
     </div>
   );
 };

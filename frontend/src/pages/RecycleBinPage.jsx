@@ -8,11 +8,13 @@ import { ArrowLeftIcon, Trash2Icon } from "lucide-react";
 import axiosInstance from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
+import ConfirmModal from "../components/ConfirmModal.jsx";
 
 const RecycleBinPage = () => {
   const [deletedNotes, setDeletedNotes] = useState([]);
   const { authUser } = useAuthStore();
   const isOnline = useOnlineStatus();
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
 
   useEffect(() => {
     const fetchDeletedNotes = async () => {
@@ -76,13 +78,11 @@ const RecycleBinPage = () => {
     }
   }, [authUser]);
 
-  const handleClear = async () => {
-    if (
-      !window.confirm(
-        "Are you sure you want to permanently delete all notes in the recycle bin?",
-      )
-    )
-      return;
+  const handleClear = () => {
+    setIsConfirmModalOpen(true);
+  };
+
+  const confirmClear = async () => {
     try {
       await axiosInstance.delete("/notes/clear-recycle-bin");
       await localDB.notes.filter((note) => note.is_deleted === true).delete();
@@ -146,6 +146,16 @@ const RecycleBinPage = () => {
           })}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={isConfirmModalOpen}
+        onClose={() => setIsConfirmModalOpen(false)}
+        onConfirm={confirmClear}
+        title="Empty Recycle Bin"
+        message="Are you sure you want to permanently delete all notes in the recycle bin? This action cannot be undone."
+        confirmText="Empty Bin"
+        isDestructive={true}
+      />
     </div>
   );
 };
