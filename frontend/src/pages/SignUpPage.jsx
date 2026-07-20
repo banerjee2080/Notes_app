@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useAuthStore } from "../stores/useAuthStore.js";
 import toast from "react-hot-toast";
 import { Link } from "react-router";
@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import sendMail from "../lib/sendMail.js";
 import { useGoogleLogin } from "@react-oauth/google";
+import api from "../lib/axios.js";
 
 const SignUpPage = () => {
   const [formData, setFromData] = useState({
@@ -28,7 +29,20 @@ const SignUpPage = () => {
   const [otp, setOtp] = useState("");
   const [sentOtp, setSentOtp] = useState(null);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
+  const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [resendTimer, setResendTimer] = useState(0);
+  const [resendCount, setResendCount] = useState(0);
   const { isSigningUp, signup, googleLogin } = useAuthStore();
+
+  useEffect(() => {
+    let interval;
+    if (resendTimer > 0) {
+      interval = setInterval(() => {
+        setResendTimer((prev) => prev - 1);
+      }, 1000);
+    }
+    return () => clearInterval(interval);
+  }, [resendTimer]);
 
   const handleGoogleLogin = useGoogleLogin({
     onSuccess: (codeResponse) => {
@@ -59,36 +73,54 @@ const SignUpPage = () => {
     const success = validateForm();
     if (success) {
       setIsSendingOtp(true);
-      const generatedOtp = Math.floor(
-        100000 + Math.random() * 900000,
-      ).toString();
-      setSentOtp(generatedOtp);
-
-      const emailHtml = `
-      <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #f8fafc; padding: 40px; border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
-        <div style="text-align: center; margin-bottom: 30px;">
-          <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">Verify Your Email</h1>
-          <p style="color: #94a3b8; font-size: 16px; margin-top: 12px;">Use the OTP below to complete your sign-up process.</p>
-        </div>
-        <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 40px; text-align: center; margin-bottom: 30px;">
-          <span style="font-size: 48px; font-weight: 800; color: #60a5fa; letter-spacing: 12px; display: block; text-shadow: 0 0 20px rgba(96, 165, 250, 0.4);">${generatedOtp}</span>
-        </div>
-        <p style="color: #64748b; font-size: 14px; text-align: center; margin: 0;">If you didn't request this code, you can safely ignore this email.</p>
-      </div>`;
-
-      await sendMail(formData.email, "Your OTP Code", emailHtml);
-      setIsSendingOtp(false);
-      setTakeOtp(true);
-      toast.success("OTP sent to your email");
+      try {
+        await api.post("/otp", {
+          email: formData.email,
+        });
+        setTakeOtp(true);
+        setResendTimer(60);
+        setResendCount(0);
+        toast.success("OTP sent to your email");
+      } catch (error) {
+        toast.error(error.response?.data?.message || "Failed to send OTP");
+      } finally {
+        setIsSendingOtp(false);
+      }
     }
   };
 
-  const verifyOtp = (e) => {
+  const handleResendOtp = async () => {
+    setIsSendingOtp(true);
+    try {
+      await api.post("/otp", { email: formData.email });
+      
+      const nextCount = resendCount + 1;
+      const waitTimeInSeconds = 60 + (nextCount * 120); 
+      
+      setResendTimer(waitTimeInSeconds);
+      setResendCount(nextCount);
+      toast.success("OTP resent to your email");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Failed to resend OTP");
+    } finally {
+      setIsSendingOtp(false);
+    }
+  };
+
+  const verifyOtp = async (e) => {
     e.preventDefault();
-    if (otp === sentOtp) {
+    setIsVerifyingOtp(true);
+    try {
+      await api.post("/otp/verify", {
+        email: formData.email,
+        otp,
+      });
+      toast.success("OTP verified successfully");
       signup(formData);
-    } else {
-      toast.error("Invalid OTP");
+    } catch (error) {
+      toast.error(error.response?.data?.message || "Invalid OTP");
+    } finally {
+      setIsVerifyingOtp(false);
     }
   };
 
@@ -156,7 +188,9 @@ const SignUpPage = () => {
                     fill="#EA4335"
                   />
                 </svg>
-                <span className="relative z-10 drop-shadow-md">Sign up with Google</span>
+                <span className="relative z-10 drop-shadow-md">
+                  Sign up with Google
+                </span>
               </button>
             </div>
           )}
@@ -248,7 +282,10 @@ const SignUpPage = () => {
                     className="w-full pl-12 pr-12 py-3 rounded-full bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 transition-all duration-300"
                     value={formData.confirmPassword}
                     onChange={(e) =>
-                      setFromData({ ...formData, confirmPassword: e.target.value })
+                      setFromData({
+                        ...formData,
+                        confirmPassword: e.target.value,
+                      })
                     }
                   />
                   <button
@@ -312,9 +349,9 @@ const SignUpPage = () => {
               <button
                 type="submit"
                 className="w-full py-3 px-4 rounded-full mt-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-all duration-300 transform active:scale-[0.98] flex items-center justify-center disabled:opacity-70 disabled:pointer-events-none"
-                disabled={isSigningUp || otp.length < 6}
+                disabled={isSigningUp || isVerifyingOtp || otp.length < 6}
               >
-                {isSigningUp ? (
+                {isSigningUp || isVerifyingOtp ? (
                   <>
                     <Loader2 className="size-5 animate-spin mr-2" />
                     Verifying & Creating account...
@@ -323,6 +360,23 @@ const SignUpPage = () => {
                   "Verify OTP & Sign Up"
                 )}
               </button>
+
+              <div className="text-center mt-4 text-sm">
+                {resendTimer > 0 ? (
+                  <p className="text-white/60">
+                    Resend OTP in <span className="text-blue-400 font-medium">{Math.floor(resendTimer / 60)}:{(resendTimer % 60).toString().padStart(2, '0')}</span>
+                  </p>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleResendOtp}
+                    disabled={isSendingOtp}
+                    className="text-blue-400 hover:text-blue-300 transition-colors font-medium disabled:opacity-50"
+                  >
+                    {isSendingOtp ? "Sending..." : "Resend OTP"}
+                  </button>
+                )}
+              </div>
             </form>
           )}
 

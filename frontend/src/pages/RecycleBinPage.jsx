@@ -25,20 +25,9 @@ const RecycleBinPage = () => {
       const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
       const now = Date.now();
       
-      const validNotes = [];
-      const expiredNoteIds = [];
-      
-      for (const note of notes) {
-        if (now - new Date(note.updated_at).getTime() > thirtyDaysMs) {
-          expiredNoteIds.push(note.id);
-        } else {
-          validNotes.push(note);
-        }
-      }
-      
-      if (expiredNoteIds.length > 0) {
-        await localDB.notes.bulkDelete(expiredNoteIds);
-      }
+      const validNotes = notes.filter((note) => {
+        return (now - new Date(note.updated_at).getTime()) <= thirtyDaysMs;
+      });
       
       setDeletedNotes(validNotes);
     };

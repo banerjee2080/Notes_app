@@ -2,6 +2,7 @@ import { useEffect } from "react";
 import { Loader2 } from "lucide-react";
 import { Navigate, Route, Routes, useLocation } from "react-router";
 import { triggerSync } from "./lib/syncEngine";
+import { localDB } from "./lib/db.js";
 
 import HomePage from "./pages/HomePage";
 import CreatePage from "./pages/CreatePage";
@@ -32,6 +33,34 @@ const App = () => {
   useEffect(() => {
     if (authUser && authUser._id) {
       triggerSync(authUser._id);
+
+      // Client-Side Data Governance: Clean up expired notes locally
+      const cleanupExpiredNotes = async () => {
+        try {
+          const notes = await localDB.notes
+            .filter((note) => note.is_deleted === true && note.user_id === authUser._id)
+            .toArray();
+
+          const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+          const now = Date.now();
+          const expiredNoteIds = [];
+          
+          for (const note of notes) {
+            if (now - new Date(note.updated_at).getTime() > thirtyDaysMs) {
+              expiredNoteIds.push(note.id);
+            }
+          }
+          
+          if (expiredNoteIds.length > 0) {
+            await localDB.notes.bulkDelete(expiredNoteIds);
+            console.log(`[Client Cleanup] Deleted ${expiredNoteIds.length} expired notes from localDB.`);
+          }
+        } catch (error) {
+          console.error("Error during local cleanup of expired notes:", error);
+        }
+      };
+
+      cleanupExpiredNotes();
 
       const handleOnline = () => triggerSync(authUser._id);
       const handleVisibilityChange = () => {

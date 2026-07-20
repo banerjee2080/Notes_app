@@ -2,6 +2,7 @@ import express from "express";
 import cookieParser from "cookie-parser";
 import notesRoutes from "./src/routes/notes.routes.js";
 import authRoutes from "./src/routes/auth.routes.js";
+import otpRoutes from "./src/routes/otp.routes.js";
 import { connectdb } from "./src/config/db.js";
 import rateLimiter from "./src/middleware/ratelimiter.middleware.js";
 import dotenv from "dotenv";
@@ -36,6 +37,7 @@ const PORT = process.env.PORT || 5001;
 app.use(rateLimiter);
 app.use("/api/notes", notesRoutes);
 app.use("/api/auth", authRoutes);
+app.use("/api/otp", otpRoutes);
 
 // Serve the static files from the React frontend build
 if (process.env.MODE !== "production") {
