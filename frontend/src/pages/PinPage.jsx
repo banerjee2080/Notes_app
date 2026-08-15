@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from "react";
 import { useAuthStore } from "../stores/useAuthStore";
 import toast from "react-hot-toast";
 import { useNavigate, useLocation } from "react-router";
-import { X, Lock, KeyRound, ShieldCheck } from "lucide-react";
+import { X, Lock, KeyRound, ShieldCheck, AlertTriangle } from "lucide-react";
 import { localDB, isPinConfigured, markPinConfigured } from "../lib/db.js";
 import { decryptData } from "../lib/crypto.js";
 import api from "../lib/axios.js";
@@ -354,6 +354,21 @@ const PinPage = ({ isModal }) => {
             {subtitleText}
           </p>
         </div>
+
+        {isSetup && step !== "otp" && (
+          <div
+            className={`flex items-start gap-3 mb-6 p-4 rounded-xl border ${
+              isDark
+                ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
+                : "bg-amber-50 border-amber-300 text-amber-700"
+            }`}
+          >
+            <AlertTriangle size={20} className="shrink-0 mt-0.5" />
+            <p className="text-sm leading-snug">
+              <span className="font-semibold">Warning:</span> once set, this PIN cannot be reset or recovered. Losing it means losing access to your encrypted notes. Please remember it carefully.
+            </p>
+          </div>
+        )}
 
         {step === "otp" ? (
           <form onSubmit={handleVerifyOtp} className="flex flex-col items-center">

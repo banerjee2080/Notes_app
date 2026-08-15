@@ -121,7 +121,8 @@ export const useAuthStore = create(
       logout: async () => {
         try {
           await axiosInstance.post("/auth/logout");
-          set({ authUser: null, _cachedAt: null });
+          localStorage.removeItem("pin");
+          set({ authUser: null, _cachedAt: null, cryptoKey: null, pin: null });
           clearLocalDB();
           toast.success("Logout Successful");
         } catch (error) {
@@ -134,7 +135,7 @@ export const useAuthStore = create(
         set({ isLoggingIn: true });
         try {
           const res = await axiosInstance.post("/auth/login", formData);
-          set({ authUser: res.data, _cachedAt: Date.now() });
+          set({ authUser: res.data, _cachedAt: Date.now(), cryptoKey: null, pin: null });
           triggerSync(res.data._id);
           toast.success("Logged in Successfully");
         } catch (error) {
@@ -231,7 +232,7 @@ export const useAuthStore = create(
             return res.data;
           }
 
-          set({ authUser: res.data, _cachedAt: Date.now() });
+          set({ authUser: res.data, _cachedAt: Date.now(), cryptoKey: null, pin: null });
           triggerSync(res.data._id);
           toast.success("Logged in with Google!");
           return res.data;
