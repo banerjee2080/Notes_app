@@ -13,6 +13,7 @@ import RecycleBinPage from "./pages/RecycleBinPage.jsx";
 import { useAuthStore } from "./stores/useAuthStore.js";
 import LoginPage from "./pages/LoginPage";
 import SignUpPage from "./pages/SignUpPage";
+import PinPage from "./pages/PinPage.jsx";
 import SyncLoader from "./components/SyncLoader";
 import { useOnlineStatus } from "./hooks/useOnlineStatus";
 
@@ -38,22 +39,27 @@ const App = () => {
       const cleanupExpiredNotes = async () => {
         try {
           const notes = await localDB.notes
-            .filter((note) => note.is_deleted === true && note.user_id === authUser._id)
+            .filter(
+              (note) =>
+                note.is_deleted === true && note.user_id === authUser._id,
+            )
             .toArray();
 
           const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
           const now = Date.now();
           const expiredNoteIds = [];
-          
+
           for (const note of notes) {
             if (now - new Date(note.updated_at).getTime() > thirtyDaysMs) {
               expiredNoteIds.push(note.id);
             }
           }
-          
+
           if (expiredNoteIds.length > 0) {
             await localDB.notes.bulkDelete(expiredNoteIds);
-            console.log(`[Client Cleanup] Deleted ${expiredNoteIds.length} expired notes from localDB.`);
+            console.log(
+              `[Client Cleanup] Deleted ${expiredNoteIds.length} expired notes from localDB.`,
+            );
           }
         } catch (error) {
           console.error("Error during local cleanup of expired notes:", error);
@@ -94,7 +100,7 @@ const App = () => {
     document.documentElement.style.setProperty("--theme-accent", accentColor);
     document.documentElement.style.setProperty(
       "--theme-accent2",
-      isDark ? lightAccent : darkAccent
+      isDark ? lightAccent : darkAccent,
     );
   }, [mainColor, accentColor, lightAccent, darkAccent, isDark]);
 
@@ -206,6 +212,10 @@ const App = () => {
           path="/delNote/:id"
           element={authUser ? <DelNotePage /> : <Navigate to={"/login"} />}
         />
+        <Route
+          path="/pin"
+          element={authUser ? <PinPage /> : <Navigate to={"/login"} />}
+        />
       </Routes>
 
       {backgroundLocation && (
@@ -213,6 +223,7 @@ const App = () => {
           <Route path="/createNote" element={<CreatePage isModal />} />
           <Route path="/note/:id" element={<NotePage isModal />} />
           <Route path="/delNote/:id" element={<DelNotePage isModal />} />
+          <Route path="/pin" element={<PinPage isModal />} />
         </Routes>
       )}
 

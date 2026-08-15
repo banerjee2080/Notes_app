@@ -19,6 +19,14 @@ const noteSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    iv_title: {
+      type: String,
+      default: "",
+    },
+    iv_content: {
+      type: String,
+      default: "",
+    },
     updated_at: {
       type: Date,
       required: true,

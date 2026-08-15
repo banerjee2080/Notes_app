@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router";
+import { Link, useNavigate, useLocation } from "react-router";
 import { localDB } from "../lib/db.js";
 import { useAuthStore } from "../stores/useAuthStore";
 import NoteCard from "../components/NoteCard.jsx";
@@ -9,12 +9,27 @@ import axiosInstance from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import ConfirmModal from "../components/ConfirmModal.jsx";
+import { decryptData } from "../lib/crypto.js";
 
 const RecycleBinPage = () => {
   const [deletedNotes, setDeletedNotes] = useState([]);
-  const { authUser } = useAuthStore();
+  const { authUser, checkPin, cryptoKey } = useAuthStore();
   const isOnline = useOnlineStatus();
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    let isMounted = true;
+    const verifyPin = async () => {
+      const isValid = await checkPin();
+      if (!isValid && isMounted) {
+        navigate("/pin", { state: { backgroundLocation: location }, replace: true });
+      }
+    };
+    verifyPin();
+    return () => { isMounted = false; };
+  }, [checkPin, navigate, location]);
 
   useEffect(() => {
     const fetchDeletedNotes = async () => {
@@ -28,8 +43,19 @@ const RecycleBinPage = () => {
       const validNotes = notes.filter((note) => {
         return (now - new Date(note.updated_at).getTime()) <= thirtyDaysMs;
       });
+
+      if (!cryptoKey) {
+        setDeletedNotes(validNotes);
+        return;
+      }
+
+      const decrypted = await Promise.all(validNotes.map(async (note) => {
+        const title = note.iv_title ? await decryptData(note.title, note.iv_title, cryptoKey) : note.title;
+        const content = note.iv_content ? await decryptData(note.content, note.iv_content, cryptoKey) : note.content;
+        return { ...note, title, content };
+      }));
       
-      setDeletedNotes(validNotes);
+      setDeletedNotes(decrypted);
     };
     fetchDeletedNotes();
 

@@ -18,6 +18,8 @@ export const syncNotes = async (req, res) => {
             user_id: userId,
             title: localNote.title,
             content: cleanContent,
+            iv_title: localNote.iv_title,
+            iv_content: localNote.iv_content,
             updated_at: new Date(localNote.updated_at),
             is_deleted: localNote.is_deleted,
           });
@@ -29,6 +31,8 @@ export const syncNotes = async (req, res) => {
             await Note.findByIdAndUpdate(localNote.id, {
               title: localNote.title,
               content: cleanContent,
+              iv_title: localNote.iv_title,
+              iv_content: localNote.iv_content,
               updated_at: new Date(localNote.updated_at),
               is_deleted: localNote.is_deleted,
             });
@@ -50,6 +54,8 @@ export const syncNotes = async (req, res) => {
       user_id: note.user_id,
       title: note.title,
       content: note.content,
+      iv_title: note.iv_title,
+      iv_content: note.iv_content,
       updated_at: note.updated_at.toISOString(),
       is_deleted: note.is_deleted,
     }));
@@ -90,7 +96,8 @@ export const clearRecycleBin = async (req, res) => {
 };
 
 export const upsertNote = async (req, res) => {
-  const { id, title, content, updated_at, is_deleted } = req.body;
+  const { id, title, content, iv_title, iv_content, updated_at, is_deleted } =
+    req.body;
   const user_id = req.user._id;
   try {
     const cleanContent = await processHtmlImages(content);
@@ -100,6 +107,8 @@ export const upsertNote = async (req, res) => {
         $set: {
           title,
           content: cleanContent,
+          iv_title,
+          iv_content,
           updated_at: new Date(updated_at),
           is_deleted,
         },

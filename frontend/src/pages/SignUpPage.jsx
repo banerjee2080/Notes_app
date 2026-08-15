@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuthStore } from "../stores/useAuthStore.js";
 import toast from "react-hot-toast";
 import { Link } from "react-router";
@@ -26,13 +26,27 @@ const SignUpPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [takeOtp, setTakeOtp] = useState(false);
+  const [takePin, setTakePin] = useState(false);
+  const [pinDigits, setPinDigits] = useState(["", "", "", "", "", ""]);
+  const [confirmPinDigits, setConfirmPinDigits] = useState([
+    "",
+    "",
+    "",
+    "",
+    "",
+    "",
+  ]);
+  const createPinRefs = useRef([]);
+  const confirmPinRefs = useRef([]);
+  const [rememberMe, setRememberMe] = useState(false);
   const [otp, setOtp] = useState("");
   const [sentOtp, setSentOtp] = useState(null);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [resendCount, setResendCount] = useState(0);
-  const { isSigningUp, signup, googleLogin } = useAuthStore();
+  const { isSigningUp, signup, googleLogin, finalizeGoogleSignup, pendingGoogleUser, themeMode } = useAuthStore();
+  const isDark = themeMode === "dark";
 
   useEffect(() => {
     let interval;
@@ -45,8 +59,12 @@ const SignUpPage = () => {
   }, [resendTimer]);
 
   const handleGoogleLogin = useGoogleLogin({
-    onSuccess: (codeResponse) => {
-      googleLogin(codeResponse.access_token);
+    onSuccess: async (codeResponse) => {
+      const user = await googleLogin(codeResponse.access_token, true);
+      if (user) {
+        setTakeOtp(false);
+        setTakePin(true);
+      }
     },
     onError: (error) => {
       console.log("Google Login Failed:", error);
@@ -93,10 +111,10 @@ const SignUpPage = () => {
     setIsSendingOtp(true);
     try {
       await api.post("/otp", { email: formData.email });
-      
+
       const nextCount = resendCount + 1;
-      const waitTimeInSeconds = 60 + (nextCount * 120); 
-      
+      const waitTimeInSeconds = 60 + nextCount * 120;
+
       setResendTimer(waitTimeInSeconds);
       setResendCount(nextCount);
       toast.success("OTP resent to your email");
@@ -116,11 +134,82 @@ const SignUpPage = () => {
         otp,
       });
       toast.success("OTP verified successfully");
-      signup(formData);
+      setTakeOtp(false);
+      setTakePin(true);
     } catch (error) {
       toast.error(error.response?.data?.message || "Invalid OTP");
     } finally {
       setIsVerifyingOtp(false);
+    }
+  };
+
+  const handlePinChange = (index, e, isConfirm = false) => {
+    const value = e.target.value;
+    if (isNaN(value)) return;
+
+    const currentDigits = isConfirm ? [...confirmPinDigits] : [...pinDigits];
+    const setDigits = isConfirm ? setConfirmPinDigits : setPinDigits;
+    const refs = isConfirm ? confirmPinRefs : createPinRefs;
+
+    // Allow pasting
+    if (value.length > 1) {
+      const pasted = value.slice(0, 6).split("");
+      for (let i = 0; i < pasted.length; i++) {
+        if (!isNaN(pasted[i])) {
+          currentDigits[i] = pasted[i];
+        }
+      }
+      setDigits(currentDigits);
+      const nextIndex = Math.min(pasted.length, 5);
+      if (refs.current[nextIndex]) {
+        refs.current[nextIndex].focus();
+      } else if (refs.current[5]) {
+        refs.current[5].focus();
+      }
+      return;
+    }
+
+    currentDigits[index] = value.slice(-1);
+    setDigits(currentDigits);
+
+    // Move to next input
+    if (value !== "" && index < 5) {
+      refs.current[index + 1].focus();
+    }
+  };
+
+  const handlePinKeyDown = (index, e, isConfirm = false) => {
+    const currentDigits = isConfirm ? confirmPinDigits : pinDigits;
+    const refs = isConfirm ? confirmPinRefs : createPinRefs;
+
+    if (e.key === "Backspace" && currentDigits[index] === "" && index > 0) {
+      refs.current[index - 1].focus();
+    } else if (e.key === "Enter") {
+      e.preventDefault();
+      if (!isConfirm && index === 5) {
+        confirmPinRefs.current[0]?.focus();
+      } else if (isConfirm && index === 5) {
+        handlePinSubmit(e);
+      }
+    }
+  };
+
+  const handlePinSubmit = async (e) => {
+    e?.preventDefault();
+    const pin = pinDigits.join("");
+    const confirmPin = confirmPinDigits.join("");
+
+    if (pin.length !== 6 || isNaN(pin)) {
+      return toast.error("Please enter a valid 6-digit numerical PIN");
+    }
+    if (pin !== confirmPin) {
+      return toast.error("PINs do not match. Please try again.");
+    }
+
+    if (pendingGoogleUser) {
+      finalizeGoogleSignup(pin, rememberMe);
+    } else {
+      signup(formData, pin, rememberMe);
     }
   };
 
@@ -133,14 +222,14 @@ const SignUpPage = () => {
         <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
 
         <div className="relative z-10">
-          {!takeOtp ? (
+          {!takeOtp && !takePin ? (
             <div className="text-center mb-10">
               <h1 className="text-3xl font-semibold tracking-tight text-white mb-2">
                 Create Account
               </h1>
               <p className="text-white/60 text-sm">Join us to get started</p>
             </div>
-          ) : (
+          ) : takeOtp && !takePin ? (
             <div className="text-center mb-10 relative">
               <div className="mx-auto w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-4 relative before:absolute before:inset-0 before:bg-blue-500/20 before:rounded-full before:animate-ping">
                 <Mail className="size-8 text-blue-400 relative z-10" />
@@ -155,9 +244,22 @@ const SignUpPage = () => {
                 </span>
               </p>
             </div>
+          ) : (
+            <div className="text-center mb-8 relative">
+              <div className="mx-auto w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mb-4 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
+                <ShieldCheck className="size-8 text-emerald-400" />
+              </div>
+              <h1 className="text-3xl font-semibold tracking-tight text-white mb-2">
+                Secure Your Vault
+              </h1>
+              <p className="text-red-400 text-sm font-medium mt-3 bg-red-500/10 py-2 px-3 rounded-xl border border-red-500/20 shadow-sm inline-block">
+                Warning: Once your PIN is set, it cannot be reset. <br />
+                You must remember it to access your notes!
+              </p>
+            </div>
           )}
 
-          {!takeOtp && (
+          {!takeOtp && !takePin && (
             <div className="flex justify-center mb-6">
               <button
                 type="button"
@@ -195,7 +297,7 @@ const SignUpPage = () => {
             </div>
           )}
 
-          {!takeOtp ? (
+          {!takeOtp && !takePin ? (
             <form onSubmit={handleSubmit} className="space-y-5">
               <div className="flex flex-col gap-2">
                 <label className="text-sm font-medium text-white/80">
@@ -317,7 +419,7 @@ const SignUpPage = () => {
                 )}
               </button>
             </form>
-          ) : (
+          ) : takeOtp && !takePin ? (
             <form onSubmit={verifyOtp} className="space-y-5">
               <button
                 type="button"
@@ -349,22 +451,26 @@ const SignUpPage = () => {
               <button
                 type="submit"
                 className="w-full py-3 px-4 rounded-full mt-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-all duration-300 transform active:scale-[0.98] flex items-center justify-center disabled:opacity-70 disabled:pointer-events-none"
-                disabled={isSigningUp || isVerifyingOtp || otp.length < 6}
+                disabled={isVerifyingOtp || otp.length < 6}
               >
-                {isSigningUp || isVerifyingOtp ? (
+                {isVerifyingOtp ? (
                   <>
                     <Loader2 className="size-5 animate-spin mr-2" />
-                    Verifying & Creating account...
+                    Verifying...
                   </>
                 ) : (
-                  "Verify OTP & Sign Up"
+                  "Verify OTP"
                 )}
               </button>
 
               <div className="text-center mt-4 text-sm">
                 {resendTimer > 0 ? (
                   <p className="text-white/60">
-                    Resend OTP in <span className="text-blue-400 font-medium">{Math.floor(resendTimer / 60)}:{(resendTimer % 60).toString().padStart(2, '0')}</span>
+                    Resend OTP in{" "}
+                    <span className="text-blue-400 font-medium">
+                      {Math.floor(resendTimer / 60)}:
+                      {(resendTimer % 60).toString().padStart(2, "0")}
+                    </span>
                   </p>
                 ) : (
                   <button
@@ -377,6 +483,110 @@ const SignUpPage = () => {
                   </button>
                 )}
               </div>
+            </form>
+          ) : (
+            <form
+              onSubmit={handlePinSubmit}
+              className="flex flex-col items-center w-full"
+            >
+              <div className="w-full mb-6">
+                <label className="text-sm font-medium text-white/80 block text-center mb-4">
+                  Create 6-Digit PIN
+                </label>
+                <div className="flex gap-2 sm:gap-3 w-full justify-center">
+                  {pinDigits.map((digit, index) => (
+                    <input
+                      key={index}
+                      ref={(el) => (createPinRefs.current[index] = el)}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={digit}
+                      onChange={(e) => handlePinChange(index, e, false)}
+                      onKeyDown={(e) => handlePinKeyDown(index, e, false)}
+                      className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold rounded-xl transition-all outline-none border-2 
+                        ${
+                          isDark
+                            ? "bg-white/5 text-white focus:border-[var(--theme-main)] border-white/10 shadow-inner"
+                            : "bg-white text-gray-900 focus:border-[var(--theme-main)] border-gray-200 shadow-inner"
+                        }
+                        ${digit ? "border-[var(--theme-main)] ring-2 ring-[var(--theme-main)]/20 bg-white/10" : ""}
+                      `}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="w-full mb-8">
+                <label className="text-sm font-medium text-white/80 block text-center mb-4">
+                  Confirm 6-Digit PIN
+                </label>
+                <div className="flex gap-2 sm:gap-3 w-full justify-center">
+                  {confirmPinDigits.map((digit, index) => (
+                    <input
+                      key={index}
+                      ref={(el) => (confirmPinRefs.current[index] = el)}
+                      type="text"
+                      inputMode="numeric"
+                      autoComplete="one-time-code"
+                      maxLength={6}
+                      value={digit}
+                      onChange={(e) => handlePinChange(index, e, true)}
+                      onKeyDown={(e) => handlePinKeyDown(index, e, true)}
+                      className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold rounded-xl transition-all outline-none border-2 
+                        ${
+                          isDark
+                            ? "bg-white/5 text-white focus:border-[var(--theme-main)] border-white/10 shadow-inner"
+                            : "bg-white text-gray-900 focus:border-[var(--theme-main)] border-gray-200 shadow-inner"
+                        }
+                        ${digit ? "border-[var(--theme-main)] ring-2 ring-[var(--theme-main)]/20 bg-white/10" : ""}
+                      `}
+                    />
+                  ))}
+                </div>
+              </div>
+
+              <div className="flex items-center justify-between w-full mb-8">
+                <label className="flex items-center gap-2 cursor-pointer select-none text-sm font-medium text-white/80">
+                  <div className="relative flex items-center">
+                    <input
+                      type="checkbox"
+                      className="peer sr-only"
+                      checked={rememberMe}
+                      onChange={() => setRememberMe(!rememberMe)}
+                    />
+                    <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center
+                      ${rememberMe ? "border-emerald-500 bg-emerald-500" : "border-white/20 bg-white/5"}
+                    `}>
+                      {rememberMe && <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                    </div>
+                  </div>
+                  Keep me unlocked for 7 days
+                </label>
+              </div>
+
+              <button
+                type="submit"
+                className="w-full py-3 px-4 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-medium shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all duration-300 transform active:scale-[0.98] flex items-center justify-center disabled:opacity-70 disabled:pointer-events-none"
+                disabled={
+                  isSigningUp ||
+                  pinDigits.join("").length < 6 ||
+                  confirmPinDigits.join("").length < 6
+                }
+              >
+                {isSigningUp ? (
+                  <>
+                    <Loader2 className="size-5 animate-spin mr-2" />
+                    Creating account...
+                  </>
+                ) : (
+                  <>
+                    <ShieldCheck className="size-5 mr-2" />
+                    Complete Sign Up
+                  </>
+                )}
+              </button>
             </form>
           )}
 

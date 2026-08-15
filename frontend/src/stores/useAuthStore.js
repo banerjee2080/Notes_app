@@ -4,7 +4,8 @@ import axiosInstance from "../lib/axios.js";
 import toast from "react-hot-toast";
 import sendMail from "../lib/sendMail.js";
 import { triggerSync } from "../lib/syncEngine.js";
-import { clearLocalDB } from "../lib/db.js";
+import { clearLocalDB, markPinConfigured } from "../lib/db.js";
+import { deriveKeyFromPin } from "../lib/crypto.js";
 
 const SESSION_TTL_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
 
@@ -20,6 +21,42 @@ export const useAuthStore = create(
       themeMode: localStorage.getItem("themeMode") || "dark",
       _hasHydrated: false,
       _cachedAt: null,
+      pin: null,
+      cryptoKey: null,
+
+      initCryptoKey: async (pinValue, userId) => {
+        if (!pinValue || !userId) return null;
+        try {
+          const key = await deriveKeyFromPin(pinValue, userId);
+          set({ cryptoKey: key, pin: pinValue });
+          return key;
+        } catch (err) {
+          console.error("Failed to derive encryption key:", err);
+          return null;
+        }
+      },
+
+      checkPin: async () => {
+        const state = get();
+        if (state.cryptoKey) return true;
+
+        const pinData = localStorage.getItem("pin");
+        if (pinData && state.authUser) {
+          try {
+            const parsed = JSON.parse(pinData);
+            if (new Date().getTime() > parsed.expiry) {
+              localStorage.removeItem("pin");
+              return false;
+            }
+            const userId = state.authUser._id || state.authUser.id;
+            await state.initCryptoKey(parsed.value, userId);
+            return true;
+          } catch (e) {
+            return false;
+          }
+        }
+        return false;
+      },
 
       setHasHydrated: (state) => {
         set({ _hasHydrated: state });
@@ -108,11 +145,24 @@ export const useAuthStore = create(
         }
       },
 
-      signup: async (formData) => {
+      signup: async (formData, pin, rememberMe = false) => {
         set({ isSigningUp: true });
         try {
           const res = await axiosInstance.post("/auth/signup", formData);
           set({ authUser: res.data, _cachedAt: Date.now() });
+          
+          if (pin) {
+            await get().initCryptoKey(pin, res.data._id || res.data.id);
+            await markPinConfigured(res.data._id || res.data.id);
+            if (rememberMe) {
+              const expiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
+              localStorage.setItem(
+                "pin",
+                JSON.stringify({ value: pin, expiry })
+              );
+            }
+          }
+
           triggerSync(res.data._id);
           toast.success("Signed up successfully.");
 
@@ -166,22 +216,59 @@ export const useAuthStore = create(
         }
       },
 
-      googleLogin: async (access_token) => {
+      pendingGoogleUser: null,
+
+      googleLogin: async (access_token, isSignUp = false) => {
         set({ isLoggingIn: true });
         try {
           const res = await axiosInstance.post("/auth/google", {
             access_token,
           });
+          
+          if (isSignUp) {
+            set({ pendingGoogleUser: res.data });
+            toast.success("Google authenticated. Please secure your vault with a PIN.");
+            return res.data;
+          }
+
           set({ authUser: res.data, _cachedAt: Date.now() });
           triggerSync(res.data._id);
           toast.success("Logged in with Google!");
+          return res.data;
         } catch (error) {
           console.log("Error in googleLogin: ", error);
           toast.error(
             error.response?.data?.message || "Google authentication failed",
           );
+          return null;
         } finally {
           set({ isLoggingIn: false });
+        }
+      },
+
+      finalizeGoogleSignup: async (pin, rememberMe = false) => {
+        const { pendingGoogleUser } = get();
+        if (!pendingGoogleUser) return;
+        
+        set({ isSigningUp: true });
+        try {
+          await get().initCryptoKey(pin, pendingGoogleUser._id || pendingGoogleUser.id);
+          await markPinConfigured(pendingGoogleUser._id || pendingGoogleUser.id);
+          if (rememberMe) {
+            const expiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
+            localStorage.setItem(
+              "pin",
+              JSON.stringify({ value: pin, expiry })
+            );
+          }
+          set({ authUser: pendingGoogleUser, _cachedAt: Date.now(), pendingGoogleUser: null });
+          triggerSync(pendingGoogleUser._id);
+          toast.success("Vault secured. Welcome!");
+        } catch (error) {
+          console.error("Error finalizing Google signup", error);
+          toast.error("Failed to secure vault.");
+        } finally {
+          set({ isSigningUp: false });
         }
       },
     }),

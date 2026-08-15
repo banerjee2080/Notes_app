@@ -1,6 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useState, useEffect, useRef } from "react";
 import { Search, CalendarDays } from "lucide-react";
-import { useLocation } from "react-router";
+import { useLocation, useNavigate } from "react-router";
 import api from "../lib/axios";
 import toast from "react-hot-toast";
 import Navbar from "../components/Navbar";
@@ -10,12 +10,32 @@ import NotesNotFound from "../components/NotesNotFound";
 import { localDB } from "../lib/db.js";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useAuthStore } from "../stores/useAuthStore.js";
+import { decryptData } from "../lib/crypto.js";
 
 const HomePage = () => {
-  const { authUser } = useAuthStore();
+  const { authUser, pin, checkPin, cryptoKey } = useAuthStore();
   const [isRateLimited, setIsRateLimited] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
+  const [decryptedNotes, setDecryptedNotes] = useState([]);
+  const navigate = useNavigate();
+
+  const location = useLocation();
+
+  const hasNavigated = useRef(false);
+  useEffect(() => {
+    let isMounted = true;
+    const verifyPin = async () => {
+      const isValid = await checkPin();
+      if (!isValid && isMounted && !hasNavigated.current) {
+        hasNavigated.current = true;
+        console.log("PIN is not set or expired");
+        navigate("/pin", { state: { backgroundLocation: location }, replace: true });
+      }
+    };
+    verifyPin();
+    return () => { isMounted = false; };
+  }, [checkPin, navigate, location]);
 
   const notes = useLiveQuery(
     () =>
@@ -28,16 +48,55 @@ const HomePage = () => {
     [authUser],
   );
 
+  useEffect(() => {
+    if (!notes || !cryptoKey) return;
+
+    let isMounted = true;
+    const decryptAll = async () => {
+      const list = await Promise.all(
+        notes.map(async (note) => {
+          try {
+            const title = note.iv_title
+              ? await decryptData(note.title, note.iv_title, cryptoKey)
+              : note.title;
+            const content = note.iv_content
+              ? await decryptData(note.content, note.iv_content, cryptoKey)
+              : note.content;
+
+            return { ...note, title, content };
+          } catch (err) {
+            console.error(`Failed to decrypt note ${note.id}`, err);
+            // Fallback so the Promise.all doesn't reject entirely
+            return { 
+              ...note, 
+              title: "Decryption Failed", 
+              content: "<p>Could not decrypt this note. It may be corrupted or encrypted with a different PIN.</p>" 
+            };
+          }
+        }),
+      );
+      if (isMounted) setDecryptedNotes(list);
+    };
+
+    decryptAll();
+    return () => {
+      isMounted = false;
+    };
+  }, [notes, cryptoKey]);
+
+
   const filteredNotes = useMemo(() => {
     if (!notes) return [];
-    
+
     return notes.filter((note) => {
       // Date Filter Logic (YYYY-MM)
       if (dateFilter) {
         // Fallback to createdAt if updated_at is missing
-        const noteDate = new Date(note.updated_at || note.createdAt || note.created_at);
+        const noteDate = new Date(
+          note.updated_at || note.createdAt || note.created_at,
+        );
         if (!isNaN(noteDate.getTime())) {
-          const noteMonthYear = `${noteDate.getFullYear()}-${String(noteDate.getMonth() + 1).padStart(2, '0')}`;
+          const noteMonthYear = `${noteDate.getFullYear()}-${String(noteDate.getMonth() + 1).padStart(2, "0")}`;
           if (noteMonthYear !== dateFilter) {
             return false;
           }
@@ -50,7 +109,7 @@ const HomePage = () => {
         const titleMatch = (note.title || "").toLowerCase().includes(query);
         const rawContent = (note.content || "").replace(/<[^>]*>?/gm, "");
         const contentMatch = rawContent.toLowerCase().includes(query);
-        
+
         if (!titleMatch && !contentMatch) {
           return false;
         }
@@ -64,9 +123,9 @@ const HomePage = () => {
 
   return (
     <div className="min-h-screen">
-      <Navbar 
-        searchQuery={searchQuery} 
-        setSearchQuery={setSearchQuery} 
+      <Navbar
+        searchQuery={searchQuery}
+        setSearchQuery={setSearchQuery}
         dateFilter={dateFilter}
         setDateFilter={setDateFilter}
       />
@@ -90,11 +149,13 @@ const HomePage = () => {
             notes.length !== 0 &&
             !isRateLimited && (
               <div className="flex flex-col items-center justify-center py-16 px-4 space-y-6 max-w-md mx-auto text-center theme-bg-glass backdrop-blur-xl border border-white/10 rounded-3xl mt-10">
-                <div 
+                <div
                   className="rounded-full p-6 border border-white/10 flex items-center justify-center relative"
-                  style={{ 
-                    background: 'linear-gradient(to bottom right, color-mix(in srgb, var(--theme-main) 20%, transparent), color-mix(in srgb, var(--theme-accent) 5%, transparent))',
-                    boxShadow: '0 0 30px color-mix(in srgb, var(--theme-main) 20%, transparent)'
+                  style={{
+                    background:
+                      "linear-gradient(to bottom right, color-mix(in srgb, var(--theme-main) 20%, transparent), color-mix(in srgb, var(--theme-accent) 5%, transparent))",
+                    boxShadow:
+                      "0 0 30px color-mix(in srgb, var(--theme-main) 20%, transparent)",
                   }}
                 >
                   {dateFilter && !searchQuery ? (
@@ -108,15 +169,35 @@ const HomePage = () => {
                     No Matches Found
                   </h2>
                   <p className="text-white/60 leading-relaxed max-w-xs mx-auto">
-                    We couldn't find any notes matching 
-                    {searchQuery && <> "<span className="text-white/90 font-medium">{searchQuery}</span>"</>}
+                    We couldn't find any notes matching
+                    {searchQuery && (
+                      <>
+                        {" "}
+                        "
+                        <span className="text-white/90 font-medium">
+                          {searchQuery}
+                        </span>
+                        "
+                      </>
+                    )}
                     {searchQuery && dateFilter && " in "}
-                    {dateFilter && (() => {
-                      const [year, month] = dateFilter.split("-");
-                      const dateObj = new Date(year, month - 1);
-                      const formattedDate = dateObj.toLocaleString('default', { month: 'long', year: 'numeric' });
-                      return <> <span className="text-white/90 font-medium">{formattedDate}</span></>;
-                    })()}
+                    {dateFilter &&
+                      (() => {
+                        const [year, month] = dateFilter.split("-");
+                        const dateObj = new Date(year, month - 1);
+                        const formattedDate = dateObj.toLocaleString(
+                          "default",
+                          { month: "long", year: "numeric" },
+                        );
+                        return (
+                          <>
+                            {" "}
+                            <span className="text-white/90 font-medium">
+                              {formattedDate}
+                            </span>
+                          </>
+                        );
+                      })()}
                   </p>
                 </div>
                 <div className="flex gap-3">
@@ -142,15 +223,18 @@ const HomePage = () => {
 
           {!loading && filteredNotes.length !== 0 && !isRateLimited && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {filteredNotes.map((note, index) => (
-                <div
-                  key={note.id}
-                  className="animate-slide-up opacity-0"
-                  style={{ animationDelay: `${index * 75}ms` }}
-                >
-                  <NoteCard note={note} />
-                </div>
-              ))}
+              {filteredNotes.map((note, index) => {
+                const decryptedNote = decryptedNotes.find(n => n.id === note.id) || note;
+                return (
+                  <div
+                    key={decryptedNote.id}
+                    className="animate-slide-up opacity-0"
+                    style={{ animationDelay: `${index * 75}ms` }}
+                  >
+                    <NoteCard note={decryptedNote} />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

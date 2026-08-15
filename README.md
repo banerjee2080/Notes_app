@@ -24,6 +24,14 @@
 ## ✨ Key Features
 
 - 🏢 **Enterprise-Grade Offline Architecture**: Built with a highly resilient, offline-first system using `Dexie.js`, `Workbox`, and Service Workers. The application functions flawlessly without an internet connection. Create, edit, delete, and restore notes locally, and let the custom sync engine seamlessly reconcile all changes with the cloud once your connection is restored!
+- 🔐 **Zero-Knowledge PIN Encryption**: Secure your notes with a custom 6-digit PIN. Notes are encrypted using AES-GCM before being stored locally in IndexedDB and synced to the cloud. The server only sees encrypted gibberish, and your notes are only decrypted locally on your device when you enter your PIN.
+  <br/>
+  <div align="center">
+    <img src="./assets/encrypted_db.png" alt="Encrypted Note in Database" width="48%" />
+    <img src="./assets/decrypted_ui.png" alt="Decrypted Note in UI" width="48%" />
+    <br/>
+    <em>Left: Encrypted note in the database. Right: The same note decrypted and visible in the UI.</em>
+  </div>
 - 📡 **Intelligent Background Sync**: Never worry about losing data when your connection drops. Thanks to Workbox Background Sync, any notes created or updated while offline are automatically queued by the Service Worker and reliably re-synced to the server the moment you regain internet access—even if the app is closed!
 - ♻️ **Intelligent Recycle Bin**: Accidentally deleted a note? No problem. The advanced Recycle Bin acts as a safe haven. View, restore, or permanently empty them, fully integrated with the offline-first architecture. Additionally, a background cron job automatically cleans up notes that have been in the recycle bin for over 30 days!
 - 🌐 **Seamless Google OAuth Integration**: Offers secure, one-click sign-in using Google Authentication, letting you bypass passwords entirely while maintaining strict security standards.

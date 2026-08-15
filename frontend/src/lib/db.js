@@ -14,3 +14,19 @@ export const clearLocalDB = async () => {
     console.error("Failed to clear local IndexedDB:", error);
   }
 };
+
+// Tracks (per-user, per-device) whether a vault PIN has already been established.
+// Stored in IndexedDB rather than inferred from notes so it survives reloads/tab
+// closes even before any note has synced locally.
+const pinMetaKey = (userId) => `pinConfigured_${userId}`;
+
+export const isPinConfigured = async (userId) => {
+  if (!userId) return false;
+  const entry = await localDB.meta.get(pinMetaKey(userId));
+  return !!entry?.value;
+};
+
+export const markPinConfigured = async (userId) => {
+  if (!userId) return;
+  await localDB.meta.put({ key: pinMetaKey(userId), value: true });
+};

@@ -1,13 +1,14 @@
 import { ArrowLeftIcon } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import toast from "react-hot-toast";
-import { Link, useNavigate } from "react-router";
+import { Link, useNavigate, useLocation } from "react-router";
 import api from "../lib/axios.js";
 import Tiny from "../components/Tiny.jsx";
 import { useDebounce } from "../hooks/useDebounce.js";
 import { v4 as uuidv4 } from "uuid";
 import { localDB } from "../lib/db";
 import { registerBackgroundSync } from "../lib/syncEngine.js";
+import { encryptData } from "../lib/crypto.js";
 import { useAuthStore } from "../stores/useAuthStore.js";
 
 const CreatePage = ({ isModal }) => {
@@ -17,12 +18,27 @@ const CreatePage = ({ isModal }) => {
   const [saving, setSaving] = useState(false);
 
   const navigate = useNavigate();
+  const location = useLocation();
   const debouncedTitle = useDebounce(title, 500);
   const debouncedContent = useDebounce(content, 500);
   const isInit = useRef(true);
-  const { authUser } = useAuthStore();
-
+  const { authUser, checkPin } = useAuthStore();
+  
   const [noteId] = useState(() => uuidv4());
+
+  const hasNavigated = useRef(false);
+  useEffect(() => {
+    let isMounted = true;
+    const verifyPin = async () => {
+      const isValid = await checkPin();
+      if (!isValid && isMounted && !hasNavigated.current) {
+        hasNavigated.current = true;
+        navigate("/pin", { state: { backgroundLocation: location }, replace: true });
+      }
+    };
+    verifyPin();
+    return () => { isMounted = false; };
+  }, [checkPin, navigate, location]);
 
   useEffect(() => {
     if (isInit.current) {
@@ -33,13 +49,30 @@ const CreatePage = ({ isModal }) => {
     if (!debouncedContent || !debouncedTitle) return;
 
     const autoSaveNote = async () => {
+      const { cryptoKey } = useAuthStore.getState();
+      if (!cryptoKey) {
+        console.error("No encryption key available in memory.");
+        return;
+      }
+
       setSaving(true);
       try {
+        const { ciphertext: encTitle, iv: ivTitle } = await encryptData(
+          debouncedTitle,
+          cryptoKey,
+        );
+        const { ciphertext: encContent, iv: ivContent } = await encryptData(
+          debouncedContent,
+          cryptoKey,
+        );
+
         const newNote = {
           id: noteId,
           user_id: authUser._id || authUser.id,
-          title: debouncedTitle,
-          content: debouncedContent,
+          title: encTitle,
+          content: encContent,
+          iv_title: ivTitle,
+          iv_content: ivContent,
           updated_at: new Date().toISOString(),
           is_deleted: false,
           sync_status: "pending_update",

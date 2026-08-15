@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams } from "react-router";
+import { Link, useNavigate, useParams, useLocation } from "react-router";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import toast from "react-hot-toast";
 import { ArrowLeftIcon, Trash2Icon } from "lucide-react";
@@ -9,6 +9,7 @@ import { localDB } from "../lib/db.js";
 import api from "../lib/axios.js";
 import { useAuthStore } from "../stores/useAuthStore.js";
 import { triggerSync, registerBackgroundSync } from "../lib/syncEngine.js";
+import { encryptData, decryptData } from "../lib/crypto.js";
 
 const NotePage = ({ isModal }) => {
   const [note, setNote] = useState({});
@@ -22,14 +23,47 @@ const NotePage = ({ isModal }) => {
 
   const { id } = useParams();
   const navigate = useNavigate();
-  const { authUser } = useAuthStore();
+  const location = useLocation();
+  const { authUser, checkPin, cryptoKey } = useAuthStore();
+
+  const hasNavigated = useRef(false);
+  useEffect(() => {
+    let isMounted = true;
+    const verifyPin = async () => {
+      const isValid = await checkPin();
+      if (!isValid && isMounted && !hasNavigated.current) {
+        hasNavigated.current = true;
+        navigate("/pin", { state: { backgroundLocation: location }, replace: true });
+      }
+    };
+    verifyPin();
+    return () => { isMounted = false; };
+  }, [checkPin, navigate, location]);
 
   useEffect(() => {
     const fetchNote = async () => {
       try {
         const res = await localDB.notes.get(id);
         if (res && !res.is_deleted) {
-          setNote(res);
+          
+          // Check if the note is encrypted
+          if (res.iv_title || res.iv_content) {
+            
+            // Only decrypt and set state if the key is ready
+            if (cryptoKey) {
+              const title = res.iv_title ? await decryptData(res.title, res.iv_title, cryptoKey) : res.title;
+              const content = res.iv_content ? await decryptData(res.content, res.iv_content, cryptoKey) : res.content;
+              setNote({ ...res, title, content });
+              setLoading(false);
+            }
+            // CRITICAL: If cryptoKey is missing, do NOT call setNote.
+            // Just wait. The verifyPin effect will handle the PIN prompt, 
+            // and this effect will re-run once cryptoKey is available.
+            
+          } else {
+            setNote(res);
+            setLoading(false);
+          }
         } else {
           toast.error("Note not found or deleted");
           navigate("/");
@@ -37,13 +71,11 @@ const NotePage = ({ isModal }) => {
       } catch (error) {
         console.log("Error in fetching note locally", error);
         toast.error("Error while fetching notes");
-      } finally {
         setLoading(false);
       }
     };
-
     fetchNote();
-  }, [id, navigate]);
+  }, [id, navigate, cryptoKey]); // <-- cryptoKey MUST be in this array
 
   useEffect(() => {
     if (isInit.current) {
@@ -58,10 +90,27 @@ const NotePage = ({ isModal }) => {
 
       setSaving(true);
       try {
+        let encTitle = debouncedTitle;
+        let encContent = debouncedContent;
+        let ivTitle = note.iv_title;
+        let ivContent = note.iv_content;
+
+        if (cryptoKey) {
+          const encT = await encryptData(debouncedTitle, cryptoKey);
+          encTitle = encT.ciphertext;
+          ivTitle = encT.iv;
+
+          const encC = await encryptData(debouncedContent, cryptoKey);
+          encContent = encC.ciphertext;
+          ivContent = encC.iv;
+        }
+
         const updatedNote = {
           ...note,
-          title: debouncedTitle,
-          content: debouncedContent,
+          title: encTitle,
+          content: encContent,
+          iv_title: ivTitle,
+          iv_content: ivContent,
           updated_at: new Date().toISOString(),
           sync_status: "pending_update",
         };
