@@ -27,8 +27,8 @@
 - 🔐 **Zero-Knowledge PIN Encryption**: Secure your notes with a custom 6-digit PIN. Notes are encrypted using AES-GCM before being stored locally in IndexedDB and synced to the cloud. The server only sees encrypted gibberish, and your notes are only decrypted locally on your device when you enter your PIN.
   <br/>
   <div align="center">
-    <img src="./assets/encrypted_db.png" alt="Encrypted Note in Database" width="48%" />
-    <img src="./assets/decrypted_ui.png" alt="Decrypted Note in UI" width="48%" />
+    <img src="./assets/encrypted_DB.png" alt="Encrypted Note in Database" width="48%" />
+    <img src="./assets/decrypted_UI.png" alt="Decrypted Note in UI" width="48%" />
     <br/>
     <em>Left: Encrypted note in the database. Right: The same note decrypted and visible in the UI.</em>
   </div>
@@ -70,26 +70,26 @@ graph TD
         State[Zustand Store]
         SW[Service Worker / Workbox]
         IDB[(Dexie.js / IndexedDB)]
-        
+
         UI <--> State
         State <--> IDB
         State <--> SW
     end
-    
+
     subgraph Backend [Server - Node.js/Express]
         API[Express REST API]
         Auth[JWT Authentication]
         Vibrant[Node-Vibrant Color Extractor]
-        
+
         API --> Auth
         API --> Vibrant
     end
-    
+
     subgraph External [External Services]
         DB[(MongoDB)]
         Cloudinary[Cloudinary CDN]
     end
-    
+
     SW <--> |"Background Sync"| API
     State <--> |"Direct API Requests"| API
     API <--> DB
@@ -105,6 +105,7 @@ Follow these detailed step-by-step instructions to deploy Note.js locally on you
 ### Prerequisites
 
 Ensure you have the following installed and set up before you begin:
+
 - **[Node.js](https://nodejs.org/)** (v16 or higher recommended)
 - **[Git](https://git-scm.com/)**
 - A **MongoDB URI** (You can get a free cluster on [MongoDB Atlas](https://www.mongodb.com/cloud/atlas))
@@ -120,7 +121,7 @@ git clone https://github.com/your-username/Note.js.git
 cd Note.js
 ```
 
-*(Note: Replace the repository URL with the actual URL if different).*
+_(Note: Replace the repository URL with the actual URL if different)._
 
 ### 2. Set Up the Backend
 
@@ -175,12 +176,13 @@ Install the frontend dependencies:
 npm install
 ```
 
-*(Optional)* If you need to configure the backend API URL for the frontend, create a `.env` file in the `frontend` directory:
+_(Optional)_ If you need to configure the backend API URL for the frontend, create a `.env` file in the `frontend` directory:
 
 ```env
 VITE_API_URL=http://localhost:5001
 ```
-*(Note: Adjust depending on your Vite config and backend port).*
+
+_(Note: Adjust depending on your Vite config and backend port)._
 
 Start the frontend development server:
 
