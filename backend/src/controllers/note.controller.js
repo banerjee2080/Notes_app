@@ -7,10 +7,41 @@ export const syncNotes = async (req, res) => {
   const { lastSyncedAt, localChanges } = req.body;
 
   try {
-    if (localChanges && localChanges.length > 0) {
+    if (Array.isArray(localChanges) && localChanges.length > 0) {
+      const ids = [];
+      for (const localNote of localChanges) {
+        if (
+          !localNote ||
+          typeof localNote.id !== "string" ||
+          localNote.id.length === 0 ||
+          localNote.id.length > 64
+        ) {
+          return res.status(400).json({ message: "Invalid note id" });
+        }
+        if (isNaN(new Date(localNote.updated_at).getTime())) {
+          return res.status(400).json({ message: "Invalid updated_at" });
+        }
+        ids.push(localNote.id);
+      }
+
+      const existingNotes = await Note.find({ _id: { $in: ids } })
+        .select("_id user_id updated_at")
+        .lean();
+
+      const foreign = existingNotes.find(
+        (n) => String(n.user_id) !== String(userId),
+      );
+      if (foreign) {
+        return res
+          .status(403)
+          .json({ message: "One or more notes do not belong to you" });
+      }
+
+      const serverById = new Map(existingNotes.map((n) => [n._id, n]));
+
       for (const localNote of localChanges) {
         const cleanContent = await processHtmlImages(localNote.content);
-        const serverNote = await Note.findById(localNote.id);
+        const serverNote = serverById.get(localNote.id);
 
         if (!serverNote) {
           await Note.create({
@@ -28,14 +59,19 @@ export const syncNotes = async (req, res) => {
           const serverTime = new Date(serverNote.updated_at).getTime();
 
           if (localTime > serverTime) {
-            await Note.findByIdAndUpdate(localNote.id, {
-              title: localNote.title,
-              content: cleanContent,
-              iv_title: localNote.iv_title,
-              iv_content: localNote.iv_content,
-              updated_at: new Date(localNote.updated_at),
-              is_deleted: localNote.is_deleted,
-            });
+            await Note.updateOne(
+              { _id: localNote.id, user_id: userId },
+              {
+                $set: {
+                  title: localNote.title,
+                  content: cleanContent,
+                  iv_title: localNote.iv_title,
+                  iv_content: localNote.iv_content,
+                  updated_at: new Date(localNote.updated_at),
+                  is_deleted: localNote.is_deleted,
+                },
+              },
+            );
           }
         }
       }
@@ -65,8 +101,11 @@ export const syncNotes = async (req, res) => {
       timestamp: new Date().toISOString(),
     });
   } catch (error) {
-    console.error("Sync Error:", error);
-    res.status(500).json({ message: "Server sync failed" });
+    if (error.code === 11000) {
+      return res.status(403).json({ message: "Note does not belong to you" });
+    }
+    console.error("Error in background sync upsert:", error);
+    res.status(500).json({ message: "Server Error" });
   }
 };
 
