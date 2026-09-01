@@ -50,9 +50,18 @@ const RecycleBinPage = () => {
       }
 
       const decrypted = await Promise.all(validNotes.map(async (note) => {
-        const title = note.iv_title ? await decryptData(note.title, note.iv_title, cryptoKey) : note.title;
-        const content = note.iv_content ? await decryptData(note.content, note.iv_content, cryptoKey) : note.content;
-        return { ...note, title, content };
+        try {
+          const title = note.iv_title ? await decryptData(note.title, note.iv_title, cryptoKey) : note.title;
+          const content = note.iv_content ? await decryptData(note.content, note.iv_content, cryptoKey) : note.content;
+          return { ...note, title, content };
+        } catch (err) {
+          console.error(`Failed to decrypt deleted note ${note.id}`, err);
+          return {
+            ...note,
+            title: "Decryption Failed",
+            content: "<p>Could not decrypt this note. It may be corrupted or encrypted with a different PIN.</p>",
+          };
+        }
       }));
       
       setDeletedNotes(decrypted);

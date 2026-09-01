@@ -59,27 +59,25 @@ export async function encryptData(text, cryptoKey) {
 }
 
 /**
- * Decrypts base64 ciphertext using the derived AES-GCM CryptoKey and base64 IV
+ * Decrypts base64 ciphertext using the derived AES-GCM CryptoKey and base64 IV.
+ *
+ * Throws on failure (wrong key / corrupted ciphertext) instead of swallowing
+ * the error - callers rely on this to detect an incorrect PIN (e.g. PinPage's
+ * verification step and useAuthStore.checkPin's remembered-PIN validation).
+ * Silently returning a placeholder here previously made those checks always
+ * "pass" even for the wrong key, so a bad PIN was never rejected.
  */
 export async function decryptData(ciphertext, ivBase64, cryptoKey) {
   if (!ciphertext || !ivBase64) return ciphertext || "";
 
-  try {
-    const iv = base64ToBuffer(ivBase64);
-    const encryptedBuffer = base64ToBuffer(ciphertext);
+  const iv = base64ToBuffer(ivBase64);
+  const encryptedBuffer = base64ToBuffer(ciphertext);
 
-    const decryptedBuffer = await window.crypto.subtle.decrypt(
-      { name: "AES-GCM", iv },
-      cryptoKey,
-      encryptedBuffer,
-    );
+  const decryptedBuffer = await window.crypto.subtle.decrypt(
+    { name: "AES-GCM", iv },
+    cryptoKey,
+    encryptedBuffer,
+  );
 
-    return new TextDecoder().decode(decryptedBuffer);
-  } catch (error) {
-    console.error(
-      "Decryption failed. Incorrect PIN or corrupted ciphertext:",
-      error,
-    );
-    return "[Encrypted Note - Unlock with PIN]";
-  }
+  return new TextDecoder().decode(decryptedBuffer);
 }

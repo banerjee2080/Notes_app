@@ -4,8 +4,8 @@ import axiosInstance from "../lib/axios.js";
 import toast from "react-hot-toast";
 import sendMail from "../lib/sendMail.js";
 import { triggerSync } from "../lib/syncEngine.js";
-import { clearLocalDB, markPinConfigured } from "../lib/db.js";
-import { deriveKeyFromPin } from "../lib/crypto.js";
+import { clearLocalDB, markPinConfigured, localDB } from "../lib/db.js";
+import { deriveKeyFromPin, decryptData } from "../lib/crypto.js";
 
 const SESSION_TTL_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
 
@@ -49,9 +49,30 @@ export const useAuthStore = create(
               return false;
             }
             const userId = state.authUser._id || state.authUser.id;
-            await state.initCryptoKey(parsed.value, userId);
+            const key = await state.initCryptoKey(parsed.value, userId);
+            if (!key) {
+              localStorage.removeItem("pin");
+              return false;
+            }
+
+            // Validate the remembered PIN against an existing note before
+            // trusting it. A stale/incorrect stored PIN still derives *a*
+            // key successfully (PBKDF2 never fails), so without this check
+            // the vault would silently "unlock" with the wrong key and
+            // never prompt again - notes just fail to decrypt afterwards.
+            const notes = await localDB.notes
+              .where("user_id")
+              .equals(userId)
+              .toArray();
+            const noteToVerify = notes.find((n) => !!n.iv_content);
+            if (noteToVerify) {
+              await decryptData(noteToVerify.content, noteToVerify.iv_content, key);
+            }
+
             return true;
           } catch (e) {
+            localStorage.removeItem("pin");
+            set({ cryptoKey: null, pin: null });
             return false;
           }
         }
