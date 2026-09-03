@@ -58,15 +58,6 @@ export async function encryptData(text, cryptoKey) {
   };
 }
 
-/**
- * Decrypts base64 ciphertext using the derived AES-GCM CryptoKey and base64 IV.
- *
- * Throws on failure (wrong key / corrupted ciphertext) instead of swallowing
- * the error - callers rely on this to detect an incorrect PIN (e.g. PinPage's
- * verification step and useAuthStore.checkPin's remembered-PIN validation).
- * Silently returning a placeholder here previously made those checks always
- * "pass" even for the wrong key, so a bad PIN was never rejected.
- */
 export async function decryptData(ciphertext, ivBase64, cryptoKey) {
   if (!ciphertext || !ivBase64) return ciphertext || "";
 

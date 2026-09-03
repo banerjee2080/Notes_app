@@ -55,18 +55,17 @@ export const useAuthStore = create(
               return false;
             }
 
-            // Validate the remembered PIN against an existing note before
-            // trusting it. A stale/incorrect stored PIN still derives *a*
-            // key successfully (PBKDF2 never fails), so without this check
-            // the vault would silently "unlock" with the wrong key and
-            // never prompt again - notes just fail to decrypt afterwards.
             const notes = await localDB.notes
               .where("user_id")
               .equals(userId)
               .toArray();
             const noteToVerify = notes.find((n) => !!n.iv_content);
             if (noteToVerify) {
-              await decryptData(noteToVerify.content, noteToVerify.iv_content, key);
+              await decryptData(
+                noteToVerify.content,
+                noteToVerify.iv_content,
+                key,
+              );
             }
 
             return true;
@@ -156,7 +155,12 @@ export const useAuthStore = create(
         set({ isLoggingIn: true });
         try {
           const res = await axiosInstance.post("/auth/login", formData);
-          set({ authUser: res.data, _cachedAt: Date.now(), cryptoKey: null, pin: null });
+          set({
+            authUser: res.data,
+            _cachedAt: Date.now(),
+            cryptoKey: null,
+            pin: null,
+          });
           triggerSync(res.data._id);
           toast.success("Logged in Successfully");
         } catch (error) {
@@ -172,7 +176,7 @@ export const useAuthStore = create(
         try {
           const res = await axiosInstance.post("/auth/signup", formData);
           set({ authUser: res.data, _cachedAt: Date.now() });
-          
+
           if (pin) {
             await get().initCryptoKey(pin, res.data._id || res.data.id);
             await markPinConfigured(res.data._id || res.data.id);
@@ -180,7 +184,7 @@ export const useAuthStore = create(
               const expiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
               localStorage.setItem(
                 "pin",
-                JSON.stringify({ value: pin, expiry })
+                JSON.stringify({ value: pin, expiry }),
               );
             }
           }
@@ -206,7 +210,14 @@ export const useAuthStore = create(
           sendMail(formData.email, "Welcome to Our App!", welcomeHtml);
         } catch (error) {
           console.log("Error in signup: ", error);
-          toast.error(error.response?.data?.message || error.message);
+          const code = error.response?.data?.code;
+          if (code === "OTP_VERIFICATION_REQUIRED") {
+            toast.error(
+              "Email verification expired. Please verify your email again.",
+            );
+          } else {
+            toast.error(error.response?.data?.message || error.message);
+          }
         } finally {
           set({ isSigningUp: false });
         }
@@ -246,14 +257,21 @@ export const useAuthStore = create(
           const res = await axiosInstance.post("/auth/google", {
             access_token,
           });
-          
+
           if (isSignUp) {
             set({ pendingGoogleUser: res.data });
-            toast.success("Google authenticated. Please secure your vault with a PIN.");
+            toast.success(
+              "Google authenticated. Please secure your vault with a PIN.",
+            );
             return res.data;
           }
 
-          set({ authUser: res.data, _cachedAt: Date.now(), cryptoKey: null, pin: null });
+          set({
+            authUser: res.data,
+            _cachedAt: Date.now(),
+            cryptoKey: null,
+            pin: null,
+          });
           triggerSync(res.data._id);
           toast.success("Logged in with Google!");
           return res.data;
@@ -271,19 +289,25 @@ export const useAuthStore = create(
       finalizeGoogleSignup: async (pin, rememberMe = false) => {
         const { pendingGoogleUser } = get();
         if (!pendingGoogleUser) return;
-        
+
         set({ isSigningUp: true });
         try {
-          await get().initCryptoKey(pin, pendingGoogleUser._id || pendingGoogleUser.id);
-          await markPinConfigured(pendingGoogleUser._id || pendingGoogleUser.id);
+          await get().initCryptoKey(
+            pin,
+            pendingGoogleUser._id || pendingGoogleUser.id,
+          );
+          await markPinConfigured(
+            pendingGoogleUser._id || pendingGoogleUser.id,
+          );
           if (rememberMe) {
             const expiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
-            localStorage.setItem(
-              "pin",
-              JSON.stringify({ value: pin, expiry })
-            );
+            localStorage.setItem("pin", JSON.stringify({ value: pin, expiry }));
           }
-          set({ authUser: pendingGoogleUser, _cachedAt: Date.now(), pendingGoogleUser: null });
+          set({
+            authUser: pendingGoogleUser,
+            _cachedAt: Date.now(),
+            pendingGoogleUser: null,
+          });
           triggerSync(pendingGoogleUser._id);
           toast.success("Vault secured. Welcome!");
         } catch (error) {

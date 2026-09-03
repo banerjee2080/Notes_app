@@ -67,7 +67,10 @@ const PinPage = ({ isModal }) => {
 
       // Fallback for a fresh device/browser: if an encrypted note has already
       // synced down from the server, a PIN was clearly set elsewhere.
-      const notes = await localDB.notes.where("user_id").equals(userId).toArray();
+      const notes = await localDB.notes
+        .where("user_id")
+        .equals(userId)
+        .toArray();
       const validNote = notes.find((n) => !!n.iv_content);
       if (validNote) {
         await markPinConfigured(userId);
@@ -138,7 +141,10 @@ const PinPage = ({ isModal }) => {
 
       if (rememberMe) {
         const expiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
-        localStorage.setItem("pin", JSON.stringify({ value: pinToUse, expiry }));
+        localStorage.setItem(
+          "pin",
+          JSON.stringify({ value: pinToUse, expiry }),
+        );
       }
 
       toast.success("PIN Set Successfully!");
@@ -146,7 +152,9 @@ const PinPage = ({ isModal }) => {
       if (isModal) {
         const bgLocation = location.state?.backgroundLocation;
         if (bgLocation) {
-          navigate(bgLocation.pathname + (bgLocation.search || ""), { replace: true });
+          navigate(bgLocation.pathname + (bgLocation.search || ""), {
+            replace: true,
+          });
         } else {
           navigate("/");
         }
@@ -166,7 +174,7 @@ const PinPage = ({ isModal }) => {
     }
     setIsSendingOtp(true);
     try {
-      await api.post("/otp", { email: authUser.email });
+      await api.post("/otp", { email: authUser.email, purpose: "pin_setup" });
       setStep("otp");
       setOtp("");
       setResendTimer(60);
@@ -183,7 +191,7 @@ const PinPage = ({ isModal }) => {
     if (!authUser?.email) return;
     setIsSendingOtp(true);
     try {
-      await api.post("/otp", { email: authUser.email });
+      await api.post("/otp", { email: authUser.email, purpose: "pin_setup" });
       const nextCount = resendCount + 1;
       setResendTimer(60 + nextCount * 120);
       setResendCount(nextCount);
@@ -205,7 +213,11 @@ const PinPage = ({ isModal }) => {
 
     setIsVerifyingOtp(true);
     try {
-      await api.post("/otp/verify", { email: authUser.email, otp });
+      await api.post("/otp/verify", {
+        email: authUser.email,
+        otp,
+        purpose: "pin_setup",
+      });
       await finalizePin(firstPin, userId);
     } catch (error) {
       toast.error(error.response?.data?.message || "Invalid OTP");
@@ -253,12 +265,19 @@ const PinPage = ({ isModal }) => {
 
       if (key) {
         // Client-side verification against an existing note
-        const notes = await localDB.notes.where("user_id").equals(userId).toArray();
+        const notes = await localDB.notes
+          .where("user_id")
+          .equals(userId)
+          .toArray();
         const noteToVerify = notes.find((n) => !!n.iv_content);
 
         if (noteToVerify) {
           try {
-            await decryptData(noteToVerify.content, noteToVerify.iv_content, key);
+            await decryptData(
+              noteToVerify.content,
+              noteToVerify.iv_content,
+              key,
+            );
           } catch (err) {
             console.error("PIN verification failed", err);
             toast.error("Incorrect PIN");
@@ -271,7 +290,10 @@ const PinPage = ({ isModal }) => {
 
         if (rememberMe) {
           const expiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
-          localStorage.setItem("pin", JSON.stringify({ value: enteredPin, expiry }));
+          localStorage.setItem(
+            "pin",
+            JSON.stringify({ value: enteredPin, expiry }),
+          );
         }
 
         toast.success("Vault Unlocked!");
@@ -279,7 +301,9 @@ const PinPage = ({ isModal }) => {
         if (isModal) {
           const bgLocation = location.state?.backgroundLocation;
           if (bgLocation) {
-            navigate(bgLocation.pathname + (bgLocation.search || ""), { replace: true });
+            navigate(bgLocation.pathname + (bgLocation.search || ""), {
+              replace: true,
+            });
           } else {
             navigate("/");
           }
@@ -300,7 +324,9 @@ const PinPage = ({ isModal }) => {
   const handleClose = () => {
     const bgLocation = location.state?.backgroundLocation;
     if (bgLocation) {
-      navigate(bgLocation.pathname + (bgLocation.search || ""), { replace: true });
+      navigate(bgLocation.pathname + (bgLocation.search || ""), {
+        replace: true,
+      });
     } else {
       navigate("/");
     }
@@ -325,16 +351,26 @@ const PinPage = ({ isModal }) => {
         : "Enter your 6-digit secure PIN to access your encrypted notes";
 
   return (
-    <div className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md ${isDark ? "bg-slate-900/60" : "bg-white/40"}`}>
-      <div className={`relative w-full max-w-md p-8 rounded-3xl shadow-2xl overflow-hidden border ${isDark ? "bg-slate-800 border-slate-700/50" : "bg-white border-gray-200"}`}>
-
+    <div
+      className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md ${isDark ? "bg-slate-900/60" : "bg-white/40"}`}
+    >
+      <div
+        className={`relative w-full max-w-md p-8 rounded-3xl shadow-2xl overflow-hidden border ${isDark ? "bg-slate-800 border-slate-700/50" : "bg-white border-gray-200"}`}
+      >
         <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10">
-           <div className={`absolute -top-1/2 -left-1/2 w-full h-full rounded-full blur-3xl opacity-20 ${isDark ? 'bg-[var(--theme-main)]' : 'bg-[var(--theme-main)]'}`} />
-           <div className={`absolute -bottom-1/2 -right-1/2 w-full h-full rounded-full blur-3xl opacity-20 ${isDark ? 'bg-[var(--theme-accent)]' : 'bg-[var(--theme-accent)]'}`} />
+          <div
+            className={`absolute -top-1/2 -left-1/2 w-full h-full rounded-full blur-3xl opacity-20 ${isDark ? "bg-[var(--theme-main)]" : "bg-[var(--theme-main)]"}`}
+          />
+          <div
+            className={`absolute -bottom-1/2 -right-1/2 w-full h-full rounded-full blur-3xl opacity-20 ${isDark ? "bg-[var(--theme-accent)]" : "bg-[var(--theme-accent)]"}`}
+          />
         </div>
 
         {isModal && (
-          <button onClick={handleClose} className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${isDark ? "hover:bg-slate-700 text-slate-400" : "hover:bg-gray-100 text-gray-500"}`}>
+          <button
+            onClick={handleClose}
+            className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${isDark ? "hover:bg-slate-700 text-slate-400" : "hover:bg-gray-100 text-gray-500"}`}
+          >
             <X size={20} />
           </button>
         )}
@@ -347,10 +383,14 @@ const PinPage = ({ isModal }) => {
               <Lock className="w-8 h-8 text-white" />
             )}
           </div>
-          <h2 className={`text-2xl font-bold mb-2 ${isDark ? "text-white" : "text-gray-900"}`}>
+          <h2
+            className={`text-2xl font-bold mb-2 ${isDark ? "text-white" : "text-gray-900"}`}
+          >
             {titleText}
           </h2>
-          <p className={`text-sm text-center ${isDark ? "text-slate-400" : "text-gray-500"}`}>
+          <p
+            className={`text-sm text-center ${isDark ? "text-slate-400" : "text-gray-500"}`}
+          >
             {subtitleText}
           </p>
         </div>
@@ -365,13 +405,18 @@ const PinPage = ({ isModal }) => {
           >
             <AlertTriangle size={20} className="shrink-0 mt-0.5" />
             <p className="text-sm leading-snug">
-              <span className="font-semibold">Warning:</span> once set, this PIN cannot be reset or recovered. Losing it means losing access to your encrypted notes. Please remember it carefully.
+              <span className="font-semibold">Warning:</span> once set, this PIN
+              cannot be reset or recovered. Losing it means losing access to
+              your encrypted notes. Please remember it carefully.
             </p>
           </div>
         )}
 
         {step === "otp" ? (
-          <form onSubmit={handleVerifyOtp} className="flex flex-col items-center">
+          <form
+            onSubmit={handleVerifyOtp}
+            className="flex flex-col items-center"
+          >
             <input
               ref={otpInputRef}
               type="text"
@@ -402,7 +447,8 @@ const PinPage = ({ isModal }) => {
                 <p className={isDark ? "text-slate-400" : "text-gray-500"}>
                   Resend OTP in{" "}
                   <span className="font-medium theme-text">
-                    {Math.floor(resendTimer / 60)}:{(resendTimer % 60).toString().padStart(2, "0")}
+                    {Math.floor(resendTimer / 60)}:
+                    {(resendTimer % 60).toString().padStart(2, "0")}
                   </span>
                 </p>
               ) : (
@@ -440,13 +486,36 @@ const PinPage = ({ isModal }) => {
             </div>
 
             <div className="flex items-center justify-between w-full mb-8">
-              <label className={`flex items-center gap-2 cursor-pointer select-none text-sm font-medium ${isDark ? 'text-slate-300' : 'text-gray-700'}`}>
+              <label
+                className={`flex items-center gap-2 cursor-pointer select-none text-sm font-medium ${isDark ? "text-slate-300" : "text-gray-700"}`}
+              >
                 <div className="relative flex items-center">
-                  <input type="checkbox" className="peer sr-only" checked={rememberMe} onChange={() => setRememberMe(!rememberMe)} />
-                  <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center
+                  <input
+                    type="checkbox"
+                    className="peer sr-only"
+                    checked={rememberMe}
+                    onChange={() => setRememberMe(!rememberMe)}
+                  />
+                  <div
+                    className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center
                     ${rememberMe ? "border-[var(--theme-main)] bg-[var(--theme-main)]" : isDark ? "border-slate-600 bg-slate-900" : "border-gray-300 bg-white"}
-                  `}>
-                    {rememberMe && <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                  `}
+                  >
+                    {rememberMe && (
+                      <svg
+                        className="w-3.5 h-3.5 text-white"
+                        fill="none"
+                        viewBox="0 0 24 24"
+                        stroke="currentColor"
+                        strokeWidth={3}
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          d="M5 13l4 4L19 7"
+                        />
+                      </svg>
+                    )}
                   </div>
                 </div>
                 Keep me unlocked for 7 days
@@ -462,12 +531,13 @@ const PinPage = ({ isModal }) => {
               {isSendingOtp
                 ? "Sending code..."
                 : isSetup
-                  ? (step === "confirm" ? "Confirm & Secure" : "Continue")
+                  ? step === "confirm"
+                    ? "Confirm & Secure"
+                    : "Continue"
                   : "Unlock Now"}
             </button>
           </form>
         )}
-
       </div>
     </div>
   );

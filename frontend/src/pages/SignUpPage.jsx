@@ -43,9 +43,17 @@ const SignUpPage = () => {
   const [sentOtp, setSentOtp] = useState(null);
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
+  const [verificationToken, setVerificationToken] = useState(null);
   const [resendTimer, setResendTimer] = useState(0);
   const [resendCount, setResendCount] = useState(0);
-  const { isSigningUp, signup, googleLogin, finalizeGoogleSignup, pendingGoogleUser, themeMode } = useAuthStore();
+  const {
+    isSigningUp,
+    signup,
+    googleLogin,
+    finalizeGoogleSignup,
+    pendingGoogleUser,
+    themeMode,
+  } = useAuthStore();
   const isDark = themeMode === "dark";
 
   useEffect(() => {
@@ -100,7 +108,16 @@ const SignUpPage = () => {
         setResendCount(0);
         toast.success("OTP sent to your email");
       } catch (error) {
-        toast.error(error.response?.data?.message || "Failed to send OTP");
+        if (error.response?.status === 429) {
+          const secs = error.response.data?.retryAfterSeconds || 3600;
+          setResendTimer(secs);
+          toast.error(
+            error.response.data?.message ||
+              `Too many requests. Try again in ${Math.ceil(secs / 60)} minute(s).`,
+          );
+        } else {
+          toast.error(error.response?.data?.message || "Failed to send OTP");
+        }
       } finally {
         setIsSendingOtp(false);
       }
@@ -119,7 +136,16 @@ const SignUpPage = () => {
       setResendCount(nextCount);
       toast.success("OTP resent to your email");
     } catch (error) {
-      toast.error(error.response?.data?.message || "Failed to resend OTP");
+      if (error.response?.status === 429) {
+        const secs = error.response.data?.retryAfterSeconds || 3600;
+        setResendTimer(secs);
+        toast.error(
+          error.response.data?.message ||
+            `Too many requests. Try again in ${Math.ceil(secs / 60)} minute(s).`,
+        );
+      } else {
+        toast.error(error.response?.data?.message || "Failed to send OTP");
+      }
     } finally {
       setIsSendingOtp(false);
     }
@@ -129,10 +155,18 @@ const SignUpPage = () => {
     e.preventDefault();
     setIsVerifyingOtp(true);
     try {
-      await api.post("/otp/verify", {
+      const res = await api.post("/otp/verify", {
         email: formData.email,
         otp,
+        purpose: "signup",
       });
+
+      if (!res.data?.verificationToken) {
+        toast.error("Verification failed. Please try again.");
+        return;
+      }
+
+      setVerificationToken(res.data.verificationToken);
       toast.success("OTP verified successfully");
       setTakeOtp(false);
       setTakePin(true);
@@ -209,7 +243,24 @@ const SignUpPage = () => {
     if (pendingGoogleUser) {
       finalizeGoogleSignup(pin, rememberMe);
     } else {
-      signup(formData, pin, rememberMe);
+      if (!verificationToken) {
+        toast.error(
+          "Your verification expired. Please verify your email again.",
+        );
+        setTakePin(false);
+        setTakeOtp(true);
+        return;
+      }
+      signup(
+        {
+          fullName: formData.fullName,
+          email: formData.email,
+          password: formData.password,
+          verificationToken,
+        },
+        pin,
+        rememberMe,
+      );
     }
   };
 
@@ -556,10 +607,26 @@ const SignUpPage = () => {
                       checked={rememberMe}
                       onChange={() => setRememberMe(!rememberMe)}
                     />
-                    <div className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center
+                    <div
+                      className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center
                       ${rememberMe ? "border-emerald-500 bg-emerald-500" : "border-white/20 bg-white/5"}
-                    `}>
-                      {rememberMe && <svg className="w-3.5 h-3.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}><path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" /></svg>}
+                    `}
+                    >
+                      {rememberMe && (
+                        <svg
+                          className="w-3.5 h-3.5 text-white"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          stroke="currentColor"
+                          strokeWidth={3}
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                      )}
                     </div>
                   </div>
                   Keep me unlocked for 7 days

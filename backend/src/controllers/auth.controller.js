@@ -5,6 +5,10 @@ import cloudinary from "../lib/cloudinary.js";
 import { Vibrant } from "node-vibrant/node";
 import { OAuth2Client } from "google-auth-library";
 import BlockedCookie from "../models/blockedCookies.model.js";
+import {
+  normalizeEmail,
+  consumeVerificationToken,
+} from "../lib/otpSecurity.js";
 
 OAuth2Client.CLOCK_SKEW_SECS_ = 3600;
 
@@ -68,7 +72,9 @@ export const googleAuth = async (req, res) => {
 
 export const signup = async (req, res) => {
   try {
-    const { email, fullName, password } = req.body;
+    const { fullName, password, verificationToken } = req.body;
+    const email = normalizeEmail(req.body.email);
+
     if (!email || !fullName || !password) {
       return res.status(400).json({ message: "All fields are required" });
     }
@@ -78,7 +84,27 @@ export const signup = async (req, res) => {
         .json({ message: "Password must atleast be 6 characters long" });
     }
 
-    const user = await User.findOne({ email });
+    // ---- email ownership gate ----
+    const tokenCheck = await consumeVerificationToken(
+      verificationToken,
+      email,
+      "signup",
+    );
+
+    if (!tokenCheck.ok) {
+      const message =
+        tokenCheck.reason === "already_used"
+          ? "This verification has already been used. Please verify your email again."
+          : "Email verification required or expired. Please verify your email again.";
+      return res
+        .status(401)
+        .json({ message, code: "OTP_VERIFICATION_REQUIRED" });
+    }
+    // ---- end gate ----
+
+    const user = await User.findOne({
+      email: { $in: [email, req.body.email] },
+    });
     if (user) return res.status(400).json({ message: "Email already exists" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
@@ -89,25 +115,22 @@ export const signup = async (req, res) => {
       password: hashedPassword,
     });
 
-    if (newUser) {
-      await newUser.save();
-      generateToken(newUser._id, res);
-      res.status(201).json({
-        _id: newUser._id,
-        fullName: newUser.fullName,
-        email: newUser.email,
-        profilePic: newUser.profilePic,
-        backgroundImg: newUser.backgroundImg,
-        main_colour: newUser.main_colour,
-        accent_colour: newUser.accent_colour,
-        accent_colour2: newUser.accent_colour2,
-      });
-    } else {
-      res.status(400).json({ message: "Invalid User Details" });
-    }
+    await newUser.save();
+    generateToken(newUser._id, res);
+
+    return res.status(201).json({
+      _id: newUser._id,
+      fullName: newUser.fullName,
+      email: newUser.email,
+      profilePic: newUser.profilePic,
+      backgroundImg: newUser.backgroundImg,
+      main_colour: newUser.main_colour,
+      accent_colour: newUser.accent_colour,
+      accent_colour2: newUser.accent_colour2,
+    });
   } catch (error) {
     console.log("Error in signup: ", error);
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: "Internal Server Error" });
   }
 };
 
