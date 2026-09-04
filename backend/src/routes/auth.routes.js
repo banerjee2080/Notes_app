@@ -10,16 +10,16 @@ import {
   googleAuth,
 } from "../controllers/auth.controller.js";
 import { ProtectedRoute } from "../middleware/auth.middleware.js";
+import { authRateLimiter } from "../middleware/ratelimiter.middleware.js";
 
 const authRouter = express.Router();
 
-authRouter.post("/signup", signup);
-authRouter.post("/login", login);
+authRouter.post("/signup", authRateLimiter, signup);
+authRouter.post("/login", authRateLimiter, login);
+authRouter.post("/google", authRateLimiter, googleAuth);
 authRouter.post("/logout", logout);
 authRouter.put("/updateProfile", ProtectedRoute, updateProfile);
 authRouter.put("/setBackgroundImg", ProtectedRoute, setBackgroundImg);
 authRouter.get("/check", ProtectedRoute, checkAuth);
-authRouter.post("/send-mail", sendMail);
-authRouter.post("/google", googleAuth);
 
 export default authRouter;

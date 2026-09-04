@@ -9,6 +9,7 @@ import {
   normalizeEmail,
   consumeVerificationToken,
 } from "../lib/otpSecurity.js";
+import { sendWelcomeEmail } from "../lib/mailer.js";
 
 OAuth2Client.CLOCK_SKEW_SECS_ = 3600;
 
@@ -52,6 +53,7 @@ export const googleAuth = async (req, res) => {
         profilePic: profilePic || "",
       });
       await user.save();
+      sendWelcomeEmail(user.email, user.fullName);
     }
     generateToken(user._id, res);
     res.status(200).json({
@@ -117,6 +119,8 @@ export const signup = async (req, res) => {
 
     await newUser.save();
     generateToken(newUser._id, res);
+
+    sendWelcomeEmail(newUser.email, newUser.fullName);
 
     return res.status(201).json({
       _id: newUser._id,

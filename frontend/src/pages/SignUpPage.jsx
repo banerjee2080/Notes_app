@@ -12,7 +12,6 @@ import {
   ShieldCheck,
   ArrowLeft,
 } from "lucide-react";
-import sendMail from "../lib/sendMail.js";
 import { useGoogleLogin } from "@react-oauth/google";
 import api from "../lib/axios.js";
 
