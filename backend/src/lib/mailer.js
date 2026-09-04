@@ -44,7 +44,6 @@ export const sendWelcomeEmail = async (toEmail, fullName) => {
 
     if (error) console.error("Welcome email failed:", error);
   } catch (err) {
-    // Never let a mail failure break signup.
     console.error("sendWelcomeEmail crashed:", err.message);
   }
 };
