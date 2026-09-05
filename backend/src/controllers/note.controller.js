@@ -108,7 +108,11 @@ export const syncNotes = async (req, res) => {
       const serverById = new Map(existingNotes.map((n) => [n._id, n]));
 
       for (const localNote of localChanges) {
-        const cleanContent = await processHtmlImages(localNote.content);
+        const safeContent = sanitizeIfPlaintext(
+          localNote.content,
+          localNote.iv_content,
+        );
+        const cleanContent = await processHtmlImages(safeContent);
         const serverNote = serverById.get(localNote.id);
 
         if (!serverNote) {
