@@ -1,7 +1,6 @@
 import Note from "../models/note.model.js";
 import cloudinary from "../lib/cloudinary.js";
 import { processHtmlImages } from "../lib/cloudinary.js";
-import DOMPurify from "isomorphic-dompurify";
 
 const SANITIZE_CONFIG = {
   ALLOWED_TAGS: [
@@ -65,8 +64,26 @@ const SANITIZE_CONFIG = {
   KEEP_CONTENT: true,
 };
 
-const sanitizeIfPlaintext = (content, ivContent) => {
+// isomorphic-dompurify pulls in jsdom, which is heavy and easy for a bundler
+// to mis-trace. Loading it on demand keeps a failure here scoped to note
+// syncing instead of stopping the whole API from booting.
+let purifierPromise = null;
+
+const getPurifier = () => {
+  if (!purifierPromise) {
+    purifierPromise = import("isomorphic-dompurify")
+      .then((module) => module.default)
+      .catch((error) => {
+        purifierPromise = null;
+        throw error;
+      });
+  }
+  return purifierPromise;
+};
+
+const sanitizeIfPlaintext = async (content, ivContent) => {
   if (ivContent) return content;
+  const DOMPurify = await getPurifier();
   return DOMPurify.sanitize(content || "", SANITIZE_CONFIG);
 };
 
@@ -108,7 +125,7 @@ export const syncNotes = async (req, res) => {
       const serverById = new Map(existingNotes.map((n) => [n._id, n]));
 
       for (const localNote of localChanges) {
-        const safeContent = sanitizeIfPlaintext(
+        const safeContent = await sanitizeIfPlaintext(
           localNote.content,
           localNote.iv_content,
         );

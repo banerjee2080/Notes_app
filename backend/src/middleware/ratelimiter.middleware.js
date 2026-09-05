@@ -3,6 +3,9 @@ import { globalLimiter, authLimiter } from "../config/upstash.js";
 const getClientKey = (req) => req.ip || "unknown";
 
 const makeRateLimiter = (limiter) => async (req, res, next) => {
+  // Rate limiting is disabled when Upstash is not configured.
+  if (!limiter) return next();
+
   try {
     const { success, limit, remaining, reset } = await limiter.limit(
       getClientKey(req),
