@@ -30,3 +30,40 @@ export const markPinConfigured = async (userId) => {
   if (!userId) return;
   await localDB.meta.put({ key: pinMetaKey(userId), value: true });
 };
+
+// ── Vault key persistence ───────────────────────────────────────────────
+// We store the derived CryptoKey (non-extractable), never the PIN itself.
+
+const VAULT_KEY_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
+
+const vaultKeyMetaKey = (userId) => `vaultKey_${userId}`;
+
+export const saveVaultKey = async (userId, cryptoKey, ttlMs = VAULT_KEY_TTL_MS) => {
+  if (!userId || !cryptoKey) return;
+  await localDB.meta.put({
+    key: vaultKeyMetaKey(userId),
+    value: {
+      cryptoKey,
+      expiry: Date.now() + ttlMs,
+    },
+  });
+};
+
+export const getVaultKey = async (userId) => {
+  if (!userId) return null;
+
+  const entry = await localDB.meta.get(vaultKeyMetaKey(userId));
+  if (!entry?.value?.cryptoKey) return null;
+
+  if (Date.now() > entry.value.expiry) {
+    await localDB.meta.delete(vaultKeyMetaKey(userId));
+    return null;
+  }
+
+  return entry.value.cryptoKey;
+};
+
+export const clearVaultKey = async (userId) => {
+  if (!userId) return;
+  await localDB.meta.delete(vaultKeyMetaKey(userId));
+};

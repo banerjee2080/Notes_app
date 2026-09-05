@@ -1,6 +1,74 @@
 import Note from "../models/note.model.js";
 import cloudinary from "../lib/cloudinary.js";
 import { processHtmlImages } from "../lib/cloudinary.js";
+import DOMPurify from "isomorphic-dompurify";
+
+const SANITIZE_CONFIG = {
+  ALLOWED_TAGS: [
+    "p",
+    "br",
+    "span",
+    "div",
+    "b",
+    "strong",
+    "i",
+    "em",
+    "u",
+    "s",
+    "strike",
+    "sub",
+    "sup",
+    "mark",
+    "h1",
+    "h2",
+    "h3",
+    "h4",
+    "h5",
+    "h6",
+    "ul",
+    "ol",
+    "li",
+    "blockquote",
+    "pre",
+    "code",
+    "hr",
+    "a",
+    "img",
+    "table",
+    "thead",
+    "tbody",
+    "tfoot",
+    "tr",
+    "th",
+    "td",
+    "caption",
+    "colgroup",
+    "col",
+  ],
+  ALLOWED_ATTR: [
+    "href",
+    "target",
+    "rel",
+    "src",
+    "alt",
+    "title",
+    "width",
+    "height",
+    "class",
+    "style",
+    "colspan",
+    "rowspan",
+    "align",
+  ],
+  ALLOWED_URI_REGEXP:
+    /^(?:https?:|mailto:|tel:|data:image\/(?:png|jpe?g|gif|webp);base64,)/i,
+  KEEP_CONTENT: true,
+};
+
+const sanitizeIfPlaintext = (content, ivContent) => {
+  if (ivContent) return content;
+  return DOMPurify.sanitize(content || "", SANITIZE_CONFIG);
+};
 
 export const syncNotes = async (req, res) => {
   const userId = req.user._id;

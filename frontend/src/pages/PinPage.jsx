@@ -3,7 +3,12 @@ import { useAuthStore } from "../stores/useAuthStore";
 import toast from "react-hot-toast";
 import { useNavigate, useLocation } from "react-router";
 import { X, Lock, KeyRound, ShieldCheck, AlertTriangle } from "lucide-react";
-import { localDB, isPinConfigured, markPinConfigured } from "../lib/db.js";
+import {
+  localDB,
+  isPinConfigured,
+  markPinConfigured,
+  saveVaultKey,
+} from "../lib/db.js";
 import { decryptData } from "../lib/crypto.js";
 import api from "../lib/axios.js";
 
@@ -140,11 +145,7 @@ const PinPage = ({ isModal }) => {
       await markPinConfigured(userId);
 
       if (rememberMe) {
-        const expiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
-        localStorage.setItem(
-          "pin",
-          JSON.stringify({ value: pinToUse, expiry }),
-        );
+        await saveVaultKey(userId, key);
       }
 
       toast.success("PIN Set Successfully!");
@@ -289,11 +290,7 @@ const PinPage = ({ isModal }) => {
         }
 
         if (rememberMe) {
-          const expiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
-          localStorage.setItem(
-            "pin",
-            JSON.stringify({ value: enteredPin, expiry }),
-          );
+          await saveVaultKey(userId, key);
         }
 
         toast.success("Vault Unlocked!");

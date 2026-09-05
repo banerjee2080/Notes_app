@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { PenSquareIcon, Trash2Icon, Undo2Icon } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import ConfirmModal from "./ConfirmModal.jsx";
@@ -8,12 +8,14 @@ import { formatDate } from "../lib/utils.js";
 import { useAuthStore } from "../stores/useAuthStore.js";
 import { localDB } from "../lib/db.js";
 import { triggerSync } from "../lib/syncEngine.js";
+import { sanitizeHtml } from "../lib/sanitize.js";
 
 const NoteCard = ({ note, mode }) => {
   const location = useLocation();
   const { authUser } = useAuthStore();
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [actionType, setActionType] = useState(null);
+  const safeContent = useMemo(() => sanitizeHtml(note.content), [note.content]);
 
   const requestAction = (e, action) => {
     e.preventDefault();
@@ -93,7 +95,7 @@ const NoteCard = ({ note, mode }) => {
         </h2>
         <div
           className="text-white/95 mb-6 line-clamp-3 leading-relaxed [&>p]:m-0 [&>p]:inline"
-          dangerouslySetInnerHTML={{ __html: note.content }}
+          dangerouslySetInnerHTML={{ __html: safeContent }}
         />
 
         <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5">

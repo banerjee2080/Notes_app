@@ -1,16 +1,21 @@
 import { useEffect, useState, useRef } from "react";
-import { useNavigate, useParams, useLocation } from "react-router";
+import { useNavigate, useParams, useLocation, useMemo } from "react-router";
 import toast from "react-hot-toast";
 import { ArrowLeftIcon, Undo2Icon } from "lucide-react";
 import { localDB } from "../lib/db.js";
 import { triggerSync } from "../lib/syncEngine.js";
 import { useAuthStore } from "../stores/useAuthStore.js";
 import { decryptData } from "../lib/crypto.js";
+import { sanitizeHtml } from "../lib/sanitize.js";
 
 const DelNotePage = ({ isModal }) => {
   const [note, setNote] = useState({});
   const [loading, setLoading] = useState(true);
-  
+  const safeContent = useMemo(
+    () => sanitizeHtml(note.content || "No content"),
+    [note.content],
+  );
+
   const { id } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
@@ -23,11 +28,16 @@ const DelNotePage = ({ isModal }) => {
       const isValid = await checkPin();
       if (!isValid && isMounted && !hasNavigated.current) {
         hasNavigated.current = true;
-        navigate("/pin", { state: { backgroundLocation: location }, replace: true });
+        navigate("/pin", {
+          state: { backgroundLocation: location },
+          replace: true,
+        });
       }
     };
     verifyPin();
-    return () => { isMounted = false; };
+    return () => {
+      isMounted = false;
+    };
   }, [checkPin, navigate, location]);
 
   useEffect(() => {
@@ -35,11 +45,14 @@ const DelNotePage = ({ isModal }) => {
       try {
         const res = await localDB.notes.get(id);
         if (res && res.is_deleted) {
-          
           if (res.iv_title || res.iv_content) {
             if (cryptoKey) {
-              const title = res.iv_title ? await decryptData(res.title, res.iv_title, cryptoKey) : res.title;
-              const content = res.iv_content ? await decryptData(res.content, res.iv_content, cryptoKey) : res.content;
+              const title = res.iv_title
+                ? await decryptData(res.title, res.iv_title, cryptoKey)
+                : res.title;
+              const content = res.iv_content
+                ? await decryptData(res.content, res.iv_content, cryptoKey)
+                : res.content;
               setNote({ ...res, title, content });
               setLoading(false);
             }
@@ -71,7 +84,7 @@ const DelNotePage = ({ isModal }) => {
       if (authUser) {
         triggerSync(authUser._id || authUser.id);
       }
-      
+
       toast.success("Note Restored");
       window.dispatchEvent(new CustomEvent("note-restored", { detail: id }));
       navigate("/recycleBin");
@@ -131,8 +144,10 @@ const DelNotePage = ({ isModal }) => {
             onClick={handleRestore}
             className="inline-flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 border hover:brightness-125 hover:scale-[1.02]"
             style={{
-              backgroundColor: "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
-              borderColor: "color-mix(in srgb, var(--theme-accent) 30%, transparent)",
+              backgroundColor:
+                "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
+              borderColor:
+                "color-mix(in srgb, var(--theme-accent) 30%, transparent)",
               color: "var(--theme-accent)",
             }}
           >
@@ -148,10 +163,10 @@ const DelNotePage = ({ isModal }) => {
             </div>
           </div>
           <div>
-             <div 
-               className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white opacity-70 min-h-[200px]"
-               dangerouslySetInnerHTML={{ __html: note.content || "No content" }}
-             />
+            <div
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white opacity-70 min-h-[200px]"
+              dangerouslySetInnerHTML={{ __html: safeContent }}
+            />
           </div>
         </div>
       </div>

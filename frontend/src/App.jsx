@@ -26,6 +26,10 @@ const App = () => {
     useAuthStore();
 
   useEffect(() => {
+    localStorage.removeItem("pin");
+  }, []);
+
+  useEffect(() => {
     if (_hasHydrated) {
       checkAuth();
     }

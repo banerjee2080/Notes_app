@@ -3,7 +3,14 @@ import { persist } from "zustand/middleware";
 import axiosInstance from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { triggerSync } from "../lib/syncEngine.js";
-import { clearLocalDB, markPinConfigured, localDB } from "../lib/db.js";
+import {
+  clearLocalDB,
+  markPinConfigured,
+  localDB,
+  saveVaultKey,
+  getVaultKey,
+  clearVaultKey,
+} from "../lib/db.js";
 import { deriveKeyFromPin, decryptData } from "../lib/crypto.js";
 
 const SESSION_TTL_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
@@ -20,14 +27,13 @@ export const useAuthStore = create(
       themeMode: localStorage.getItem("themeMode") || "dark",
       _hasHydrated: false,
       _cachedAt: null,
-      pin: null,
       cryptoKey: null,
 
       initCryptoKey: async (pinValue, userId) => {
         if (!pinValue || !userId) return null;
         try {
           const key = await deriveKeyFromPin(pinValue, userId);
-          set({ cryptoKey: key, pin: pinValue });
+          set({ cryptoKey: key });
           return key;
         } catch (err) {
           console.error("Failed to derive encryption key:", err);
@@ -38,43 +44,35 @@ export const useAuthStore = create(
       checkPin: async () => {
         const state = get();
         if (state.cryptoKey) return true;
+        if (!state.authUser) return false;
 
-        const pinData = localStorage.getItem("pin");
-        if (pinData && state.authUser) {
-          try {
-            const parsed = JSON.parse(pinData);
-            if (new Date().getTime() > parsed.expiry) {
-              localStorage.removeItem("pin");
-              return false;
-            }
-            const userId = state.authUser._id || state.authUser.id;
-            const key = await state.initCryptoKey(parsed.value, userId);
-            if (!key) {
-              localStorage.removeItem("pin");
-              return false;
-            }
+        const userId = state.authUser._id || state.authUser.id;
+        const key = await getVaultKey(userId);
+        if (!key) return false;
 
-            const notes = await localDB.notes
-              .where("user_id")
-              .equals(userId)
-              .toArray();
-            const noteToVerify = notes.find((n) => !!n.iv_content);
-            if (noteToVerify) {
-              await decryptData(
-                noteToVerify.content,
-                noteToVerify.iv_content,
-                key,
-              );
-            }
+        try {
+          const notes = await localDB.notes
+            .where("user_id")
+            .equals(userId)
+            .toArray();
 
-            return true;
-          } catch (e) {
-            localStorage.removeItem("pin");
-            set({ cryptoKey: null, pin: null });
-            return false;
+          const noteToVerify = notes.find((n) => !!n.iv_content);
+          if (noteToVerify) {
+            await decryptData(
+              noteToVerify.content,
+              noteToVerify.iv_content,
+              key,
+            );
           }
+
+          set({ cryptoKey: key });
+          return true;
+        } catch (e) {
+          console.error("Stored vault key failed verification", e);
+          await clearVaultKey(userId);
+          set({ cryptoKey: null });
+          return false;
         }
-        return false;
       },
 
       setHasHydrated: (state) => {
@@ -138,10 +136,13 @@ export const useAuthStore = create(
       },
 
       logout: async () => {
+        const state = get();
+        const userId = state.authUser?._id || state.authUser?.id;
         try {
           await axiosInstance.post("/auth/logout");
-          localStorage.removeItem("pin");
-          set({ authUser: null, _cachedAt: null, cryptoKey: null, pin: null });
+          await clearVaultKey(userId);
+          localStorage.removeItem("pin"); // legacy cleanup, safe to keep for a while
+          set({ authUser: null, _cachedAt: null, cryptoKey: null });
           clearLocalDB();
           toast.success("Logout Successful");
         } catch (error) {
@@ -177,14 +178,11 @@ export const useAuthStore = create(
           set({ authUser: res.data, _cachedAt: Date.now() });
 
           if (pin) {
-            await get().initCryptoKey(pin, res.data._id || res.data.id);
-            await markPinConfigured(res.data._id || res.data.id);
-            if (rememberMe) {
-              const expiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
-              localStorage.setItem(
-                "pin",
-                JSON.stringify({ value: pin, expiry }),
-              );
+            const userId = res.data._id || res.data.id;
+            const key = await get().initCryptoKey(pin, userId);
+            await markPinConfigured(userId);
+            if (rememberMe && key) {
+              await saveVaultKey(userId, key);
             }
           }
 
@@ -274,6 +272,9 @@ export const useAuthStore = create(
 
         set({ isSigningUp: true });
         try {
+          const userId = pendingGoogleUser._id || pendingGoogleUser.id;
+          const key = await get().initCryptoKey(pin, userId);
+          await markPinConfigured(userId);
           await get().initCryptoKey(
             pin,
             pendingGoogleUser._id || pendingGoogleUser.id,
@@ -281,9 +282,8 @@ export const useAuthStore = create(
           await markPinConfigured(
             pendingGoogleUser._id || pendingGoogleUser.id,
           );
-          if (rememberMe) {
-            const expiry = new Date().getTime() + 7 * 24 * 60 * 60 * 1000;
-            localStorage.setItem("pin", JSON.stringify({ value: pin, expiry }));
+          if (rememberMe && key) {
+            await saveVaultKey(userId, key);
           }
           set({
             authUser: pendingGoogleUser,
