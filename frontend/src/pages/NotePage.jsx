@@ -9,7 +9,13 @@ import { localDB } from "../lib/db.js";
 import api from "../lib/axios.js";
 import { useAuthStore } from "../stores/useAuthStore.js";
 import { triggerSync, registerBackgroundSync } from "../lib/syncEngine.js";
-import { encryptData, decryptData } from "../lib/crypto.js";
+import {
+  encryptData,
+  decryptData,
+  encryptHtml,
+  decryptHtml,
+} from "../lib/crypto.js";
+import { sanitizeHtml } from "../lib/sanitize.js";
 
 const NotePage = ({ isModal }) => {
   const [note, setNote] = useState({});
@@ -52,7 +58,9 @@ const NotePage = ({ isModal }) => {
             // Only decrypt and set state if the key is ready
             if (cryptoKey) {
               const title = res.iv_title ? await decryptData(res.title, res.iv_title, cryptoKey) : res.title;
-              const content = res.iv_content ? await decryptData(res.content, res.iv_content, cryptoKey) : res.content;
+              const content = res.iv_content
+                ? await decryptHtml(res.content, res.iv_content, cryptoKey)
+                : sanitizeHtml(res.content);
               setNote({ ...res, title, content });
               setLoading(false);
             }
@@ -91,7 +99,7 @@ const NotePage = ({ isModal }) => {
       setSaving(true);
       try {
         let encTitle = debouncedTitle;
-        let encContent = debouncedContent;
+        let encContent = sanitizeHtml(debouncedContent);
         let ivTitle = note.iv_title;
         let ivContent = note.iv_content;
 
@@ -100,7 +108,7 @@ const NotePage = ({ isModal }) => {
           encTitle = encT.ciphertext;
           ivTitle = encT.iv;
 
-          const encC = await encryptData(debouncedContent, cryptoKey);
+          const encC = await encryptHtml(debouncedContent, cryptoKey);
           encContent = encC.ciphertext;
           ivContent = encC.iv;
         }

@@ -9,7 +9,7 @@ import axiosInstance from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import ConfirmModal from "../components/ConfirmModal.jsx";
-import { decryptData } from "../lib/crypto.js";
+import { decryptData, decryptHtml } from "../lib/crypto.js";
 
 const RecycleBinPage = () => {
   const [deletedNotes, setDeletedNotes] = useState([]);
@@ -52,7 +52,7 @@ const RecycleBinPage = () => {
       const decrypted = await Promise.all(validNotes.map(async (note) => {
         try {
           const title = note.iv_title ? await decryptData(note.title, note.iv_title, cryptoKey) : note.title;
-          const content = note.iv_content ? await decryptData(note.content, note.iv_content, cryptoKey) : note.content;
+          const content = note.iv_content ? await decryptHtml(note.content, note.iv_content, cryptoKey) : note.content;
           return { ...note, title, content };
         } catch (err) {
           console.error(`Failed to decrypt deleted note ${note.id}`, err);

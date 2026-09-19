@@ -26,14 +26,13 @@ export default function Tiny({ value, onEditorChange, placeholder }) {
             "image",
             "link",
             "lists",
-            "media",
             "searchreplace",
             "table",
             "visualblocks",
             "wordcount",
           ],
           toolbar:
-            "undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image media table | align lineheight | numlist bullist indent outdent | emoticons charmap | removeformat",
+            "undo redo | blocks fontfamily fontsize | bold italic underline strikethrough | link image table | align lineheight | numlist bullist indent outdent | emoticons charmap | removeformat",
           content_style: `
             body { 
               background: transparent !important; 
@@ -48,6 +47,18 @@ export default function Tiny({ value, onEditorChange, placeholder }) {
               color: ${accentColor} !important;
             }
           `,
+          // Belt-and-braces: TinyMCE strips most of these itself, but an
+          // explicit policy means the editor and lib/sanitize.js cannot drift.
+          // The "media" plugin was removed above - it inserts <iframe>/<video>
+          // embeds that the sanitizer strips anyway, so it was a toolbar button
+          // that silently discarded the user's work.
+          invalid_elements: "script,style,iframe,object,embed,form,input,button",
+          extended_valid_elements: "",
+          allow_script_urls: false,
+          allow_html_in_named_anchor: false,
+          convert_unsafe_embeds: true,
+          sandbox_iframes: true,
+
           images_upload_handler: async (blobInfo) => {
             // Since the backend processes HTML base64 images during sync,
             // we just convert the image to base64 directly and insert it into the editor.

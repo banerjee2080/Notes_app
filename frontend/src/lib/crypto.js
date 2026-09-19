@@ -1,4 +1,5 @@
 // frontend/src/lib/crypto.js
+import { sanitizeHtml } from "./sanitize.js";
 
 const ITERATIONS = 300000; // High iteration count to strengthen the 6-digit PIN against brute-force
 
@@ -71,4 +72,26 @@ export async function decryptData(ciphertext, ivBase64, cryptoKey) {
   );
 
   return new TextDecoder().decode(decryptedBuffer);
+}
+
+/**
+ * Encrypt note HTML. Sanitizes first.
+ *
+ * The server cannot sanitize ciphertext without breaking zero-knowledge, so
+ * the client is the only place this can happen. Every note-body encryption
+ * must go through here, never through encryptData directly.
+ */
+export async function encryptHtml(html, cryptoKey) {
+  return encryptData(sanitizeHtml(html), cryptoKey);
+}
+
+/**
+ * Decrypt note HTML and re-sanitize on the way out.
+ *
+ * Defence in depth: notes encrypted before this change, or synced from a
+ * device running an older build, were never sanitized at write time.
+ */
+export async function decryptHtml(ciphertext, ivBase64, cryptoKey) {
+  const plain = await decryptData(ciphertext, ivBase64, cryptoKey);
+  return sanitizeHtml(plain);
 }

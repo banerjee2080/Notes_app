@@ -1,91 +1,7 @@
 import Note from "../models/note.model.js";
 import cloudinary from "../lib/cloudinary.js";
 import { processHtmlImages } from "../lib/cloudinary.js";
-
-const SANITIZE_CONFIG = {
-  ALLOWED_TAGS: [
-    "p",
-    "br",
-    "span",
-    "div",
-    "b",
-    "strong",
-    "i",
-    "em",
-    "u",
-    "s",
-    "strike",
-    "sub",
-    "sup",
-    "mark",
-    "h1",
-    "h2",
-    "h3",
-    "h4",
-    "h5",
-    "h6",
-    "ul",
-    "ol",
-    "li",
-    "blockquote",
-    "pre",
-    "code",
-    "hr",
-    "a",
-    "img",
-    "table",
-    "thead",
-    "tbody",
-    "tfoot",
-    "tr",
-    "th",
-    "td",
-    "caption",
-    "colgroup",
-    "col",
-  ],
-  ALLOWED_ATTR: [
-    "href",
-    "target",
-    "rel",
-    "src",
-    "alt",
-    "title",
-    "width",
-    "height",
-    "class",
-    "style",
-    "colspan",
-    "rowspan",
-    "align",
-  ],
-  ALLOWED_URI_REGEXP:
-    /^(?:https?:|mailto:|tel:|data:image\/(?:png|jpe?g|gif|webp);base64,)/i,
-  KEEP_CONTENT: true,
-};
-
-// isomorphic-dompurify pulls in jsdom, which is heavy and easy for a bundler
-// to mis-trace. Loading it on demand keeps a failure here scoped to note
-// syncing instead of stopping the whole API from booting.
-let purifierPromise = null;
-
-const getPurifier = () => {
-  if (!purifierPromise) {
-    purifierPromise = import("isomorphic-dompurify")
-      .then((module) => module.default)
-      .catch((error) => {
-        purifierPromise = null;
-        throw error;
-      });
-  }
-  return purifierPromise;
-};
-
-const sanitizeIfPlaintext = async (content, ivContent) => {
-  if (ivContent) return content;
-  const DOMPurify = await getPurifier();
-  return DOMPurify.sanitize(content || "", SANITIZE_CONFIG);
-};
+import { sanitizeIfPlaintext } from "../lib/sanitize.js";
 
 export const syncNotes = async (req, res) => {
   const userId = req.user._id;
@@ -227,8 +143,29 @@ export const upsertNote = async (req, res) => {
   const { id, title, content, iv_title, iv_content, updated_at, is_deleted } =
     req.body;
   const user_id = req.user._id;
+
   try {
-    const cleanContent = await processHtmlImages(content);
+    if (typeof id !== "string" || id.length === 0 || id.length > 64) {
+      return res.status(400).json({ message: "Invalid note id" });
+    }
+    if (isNaN(new Date(updated_at).getTime())) {
+      return res.status(400).json({ message: "Invalid updated_at" });
+    }
+
+    // Reject writes to a note owned by someone else. findOneAndUpdate with
+    // upsert:true and a user_id in the filter would otherwise silently CREATE
+    // a second document with the same _id on an ownership mismatch, which
+    // surfaces as a confusing 11000 rather than a 403.
+    const existing = await Note.findById(id).select("user_id").lean();
+    if (existing && String(existing.user_id) !== String(user_id)) {
+      return res.status(403).json({ message: "Note does not belong to you" });
+    }
+
+    // This was missing entirely: /notes/upsert is the path CreatePage takes
+    // for every new note, so it was an unsanitized write straight to the DB.
+    const safeContent = await sanitizeIfPlaintext(content, iv_content);
+    const cleanContent = await processHtmlImages(safeContent);
+
     const note = await Note.findOneAndUpdate(
       { _id: id, user_id: user_id },
       {
@@ -249,6 +186,9 @@ export const upsertNote = async (req, res) => {
 
     res.status(200).json(note);
   } catch (error) {
+    if (error.code === 11000) {
+      return res.status(403).json({ message: "Note does not belong to you" });
+    }
     console.error("Error in background sync upsert:", error);
     res.status(500).json({ message: "Server Error" });
   }

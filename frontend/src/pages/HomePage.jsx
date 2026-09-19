@@ -10,7 +10,8 @@ import NotesNotFound from "../components/NotesNotFound";
 import { localDB } from "../lib/db.js";
 import { useLiveQuery } from "dexie-react-hooks";
 import { useAuthStore } from "../stores/useAuthStore.js";
-import { decryptData } from "../lib/crypto.js";
+import { decryptData, decryptHtml } from "../lib/crypto.js";
+import { stripHtml } from "../lib/sanitize.js";
 
 const HomePage = () => {
   const { authUser, pin, checkPin, cryptoKey } = useAuthStore();
@@ -60,7 +61,7 @@ const HomePage = () => {
               ? await decryptData(note.title, note.iv_title, cryptoKey)
               : note.title;
             const content = note.iv_content
-              ? await decryptData(note.content, note.iv_content, cryptoKey)
+              ? await decryptHtml(note.content, note.iv_content, cryptoKey)
               : note.content;
 
             return { ...note, title, content };
@@ -107,7 +108,9 @@ const HomePage = () => {
       if (searchQuery.trim()) {
         const query = searchQuery.toLowerCase();
         const titleMatch = (note.title || "").toLowerCase().includes(query);
-        const rawContent = (note.content || "").replace(/<[^>]*>?/gm, "");
+        // A regex strip does not reliably handle `<img src=x onerror=...`;
+        // DOMPurify with an empty allowlist does.
+        const rawContent = stripHtml(note.content);
         const contentMatch = rawContent.toLowerCase().includes(query);
 
         if (!titleMatch && !contentMatch) {

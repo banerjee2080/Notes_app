@@ -32,6 +32,50 @@ app.use(express.json({ limit: "100mb" }));
 app.use(express.urlencoded({ limit: "100mb", extended: true }));
 app.use(cookieParser());
 
+// Content Security Policy for the app shell. Mirrors the vercel.json header
+// so a self-hosted run (where Express serves frontend/dist itself) gets the
+// same protection as the Vercel deployment.
+//
+// 'unsafe-inline' is required for style-src only: Tailwind v4, the TinyMCE
+// content_style block, and DOMPurify-allowed style="" attributes all need it.
+// Inline styles cannot execute JS; inline SCRIPTS are what matter, and
+// script-src does not allow them.
+const PAGE_CSP = [
+  "default-src 'self'",
+  "script-src 'self' https://accounts.google.com https://apis.google.com",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data: blob: https://res.cloudinary.com https://lh3.googleusercontent.com",
+  "font-src 'self' data:",
+  "connect-src 'self' https://accounts.google.com https://api.cloudinary.com",
+  "frame-src https://accounts.google.com",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'self'",
+  "frame-ancestors 'none'",
+].join("; ");
+
+// Headers that are safe on every response, document or JSON.
+app.use((req, res, next) => {
+  res.setHeader("X-Content-Type-Options", "nosniff");
+  res.setHeader("X-Frame-Options", "DENY");
+  res.setHeader("Referrer-Policy", "strict-origin-when-cross-origin");
+  next();
+});
+
+// Vercel's `headers` block in vercel.json applies to static assets, not to
+// @vercel/node function responses, so the API sets its own. API responses are
+// JSON and are never rendered as a document - but a browser that sniffs one
+// into HTML would execute it, so lock them all the way down. This must stay
+// scoped to /api: Express also serves frontend/dist below, and a blanket
+// default-src 'none' would break the app shell.
+app.use("/api", (req, res, next) => {
+  res.setHeader(
+    "Content-Security-Policy",
+    "default-src 'none'; frame-ancestors 'none'",
+  );
+  next();
+});
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -100,6 +144,13 @@ app.use("/api/otp", otpRoutes);
 
 // Serve the static files from the React frontend build
 if (!isProduction) {
+  // Report-Only first: load every page, check the console for violations,
+  // then rename this header to Content-Security-Policy to enforce.
+  app.use((req, res, next) => {
+    res.setHeader("Content-Security-Policy-Report-Only", PAGE_CSP);
+    next();
+  });
+
   app.use(express.static(path.join(__dirname, "../frontend/dist")));
 
   app.get(/(.*)/, (req, res) => {

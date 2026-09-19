@@ -5,7 +5,7 @@ import { ArrowLeftIcon, Undo2Icon } from "lucide-react";
 import { localDB } from "../lib/db.js";
 import { triggerSync } from "../lib/syncEngine.js";
 import { useAuthStore } from "../stores/useAuthStore.js";
-import { decryptData } from "../lib/crypto.js";
+import { decryptData, decryptHtml } from "../lib/crypto.js";
 import { sanitizeHtml } from "../lib/sanitize.js";
 
 const DelNotePage = ({ isModal }) => {
@@ -51,7 +51,7 @@ const DelNotePage = ({ isModal }) => {
                 ? await decryptData(res.title, res.iv_title, cryptoKey)
                 : res.title;
               const content = res.iv_content
-                ? await decryptData(res.content, res.iv_content, cryptoKey)
+                ? await decryptHtml(res.content, res.iv_content, cryptoKey)
                 : res.content;
               setNote({ ...res, title, content });
               setLoading(false);

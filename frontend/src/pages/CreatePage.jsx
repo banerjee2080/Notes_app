@@ -8,7 +8,7 @@ import { useDebounce } from "../hooks/useDebounce.js";
 import { v4 as uuidv4 } from "uuid";
 import { localDB } from "../lib/db";
 import { registerBackgroundSync } from "../lib/syncEngine.js";
-import { encryptData } from "../lib/crypto.js";
+import { encryptData, encryptHtml } from "../lib/crypto.js";
 import { useAuthStore } from "../stores/useAuthStore.js";
 
 const CreatePage = ({ isModal }) => {
@@ -61,7 +61,9 @@ const CreatePage = ({ isModal }) => {
           debouncedTitle,
           cryptoKey,
         );
-        const { ciphertext: encContent, iv: ivContent } = await encryptData(
+        // encryptHtml sanitizes before encrypting. The server cannot sanitize
+        // ciphertext, so this is the only place it can happen.
+        const { ciphertext: encContent, iv: ivContent } = await encryptHtml(
           debouncedContent,
           cryptoKey,
         );

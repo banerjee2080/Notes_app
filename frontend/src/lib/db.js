@@ -38,8 +38,28 @@ const VAULT_KEY_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 days
 
 const vaultKeyMetaKey = (userId) => `vaultKey_${userId}`;
 
+/**
+ * A key read back from IndexedDB is only trustworthy if it is what we put
+ * there: a real, non-extractable, AES-GCM CryptoKey. IndexedDB is same-origin
+ * writable, so an XSS could plant an extractable key of its own and have us
+ * encrypt every future note under a key it controls.
+ */
+const isTrustworthyVaultKey = (key) =>
+  typeof CryptoKey !== "undefined" &&
+  key instanceof CryptoKey &&
+  key.extractable === false &&
+  key.algorithm?.name === "AES-GCM" &&
+  key.usages?.includes("encrypt") &&
+  key.usages?.includes("decrypt");
+
 export const saveVaultKey = async (userId, cryptoKey, ttlMs = VAULT_KEY_TTL_MS) => {
   if (!userId || !cryptoKey) return;
+  if (!isTrustworthyVaultKey(cryptoKey)) {
+    console.error(
+      "Refusing to persist a key that is not a non-extractable AES-GCM CryptoKey",
+    );
+    return;
+  }
   await localDB.meta.put({
     key: vaultKeyMetaKey(userId),
     value: {
@@ -53,14 +73,21 @@ export const getVaultKey = async (userId) => {
   if (!userId) return null;
 
   const entry = await localDB.meta.get(vaultKeyMetaKey(userId));
-  if (!entry?.value?.cryptoKey) return null;
+  const stored = entry?.value?.cryptoKey;
+  if (!stored) return null;
 
   if (Date.now() > entry.value.expiry) {
     await localDB.meta.delete(vaultKeyMetaKey(userId));
     return null;
   }
 
-  return entry.value.cryptoKey;
+  if (!isTrustworthyVaultKey(stored)) {
+    console.error("Stored vault key failed integrity check - discarding");
+    await localDB.meta.delete(vaultKeyMetaKey(userId));
+    return null;
+  }
+
+  return stored;
 };
 
 export const clearVaultKey = async (userId) => {
