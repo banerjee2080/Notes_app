@@ -1,31 +1,35 @@
-import { NotebookIcon } from "lucide-react";
-import { Link } from "react-router";
+import { Link, useLocation } from "react-router";
+import { Plus } from "lucide-react";
 
+// Empty state: the notes array is literally empty.
 const NotesNotFound = () => {
+  const location = useLocation();
   return (
-    <div className="flex flex-col items-center justify-center py-20 px-4 space-y-8 max-w-md mx-auto text-center bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl shadow-2xl mt-10 theme-bg-glass">
-      <div 
-        className="rounded-full p-8 border border-white/10"
-        style={{ 
-          background: 'linear-gradient(to bottom right, color-mix(in srgb, var(--theme-main) 20%, transparent), color-mix(in srgb, var(--theme-accent) 5%, transparent))',
-          boxShadow: '0 0 30px color-mix(in srgb, var(--theme-main) 20%, transparent)'
-        }}
-      >
-        <NotebookIcon className="size-12 theme-text" />
+    <div className="max-w-lg mx-auto mt-10 ide-card !bg-[var(--panel)] overflow-hidden animate-slide-up">
+      <div className="px-4 py-2 border-b ide-divider text-[12px] tok-dim">notes.js</div>
+      <pre className="px-5 py-5 text-[13.5px] leading-7 whitespace-pre-wrap font-mono">
+        <span className="tok-kw">const</span> notes <span className="tok-punc">=</span> <span className="tok-punc">[];</span>
+        {"\n"}
+        <span className="tok-fn">console</span>
+        <span className="tok-punc">.</span>
+        <span className="tok-fn">log</span>
+        <span className="tok-punc">(</span>notes<span className="tok-punc">.</span>length<span className="tok-punc">);</span>{" "}
+        <span className="tok-com">// 0</span>
+        {"\n\n"}
+        <span className="tok-com">{"// Your vault is empty. Every great program starts with a blank file."}</span>
+      </pre>
+      <div className="px-5 pb-5">
+        <Link
+          to="/createNote"
+          state={{ backgroundLocation: location }}
+          className="ide-btn ide-btn-ok"
+        >
+          <Plus className="size-4" />
+          <span>
+            notes.push(<span className="tok-kw">new</span> Note())
+          </span>
+        </Link>
       </div>
-      <div className="space-y-3">
-        <h3 className="text-2xl font-bold text-white tracking-wide">No notes yet</h3>
-        <p className="text-white/60 leading-relaxed max-w-xs mx-auto">
-          Ready to organize your thoughts? Create your first note to get started
-          on your journey.
-        </p>
-      </div>
-      <Link 
-        to="/createNote" 
-        className="px-6 py-3 theme-button-accent rounded-xl transition-all duration-300 backdrop-blur-sm font-medium"
-      >
-        Create Your First Note
-      </Link>
     </div>
   );
 };

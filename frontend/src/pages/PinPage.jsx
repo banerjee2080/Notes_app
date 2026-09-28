@@ -3,7 +3,6 @@ import { useAuthStore } from "../stores/useAuthStore";
 import toast from "react-hot-toast";
 import { useNavigate, useLocation } from "react-router";
 import {
-  X,
   Lock,
   KeyRound,
   ShieldCheck,
@@ -21,11 +20,13 @@ import {
 import { triggerSync } from "../lib/syncEngine.js";
 import { useOnlineStatus } from "../hooks/useOnlineStatus.js";
 import api from "../lib/axios.js";
+import Dialog from "../components/ui/Dialog.jsx";
+import RememberToggle from "../components/ui/RememberToggle.jsx";
 
 const EMPTY_PIN = ["", "", "", "", "", ""];
 
 const PinPage = ({ isModal }) => {
-  const { authUser, themeMode } = useAuthStore();
+  const { authUser } = useAuthStore();
   const userId = authUser?._id || authUser?.id;
   const isOnline = useOnlineStatus();
 
@@ -50,13 +51,14 @@ const PinPage = ({ isModal }) => {
   const location = useLocation();
   const inputRefs = useRef([]);
   const otpInputRef = useRef(null);
-  const isDark = themeMode === "dark";
 
   useEffect(() => {
+    // vaultMode is a dependency so focus lands once the inputs stop being
+    // disabled (they're disabled while the vault state is "loading").
     if (step !== "otp" && inputRefs.current[0]) {
       inputRefs.current[0].focus();
     }
-  }, [step]);
+  }, [step, vaultMode]);
 
   useEffect(() => {
     if (step === "otp" && otpInputRef.current) {
@@ -317,18 +319,32 @@ const PinPage = ({ isModal }) => {
 
   const handleClose = goBack;
 
-  const titleText =
+  // Dialog title bar reads like a call; the heading underneath says it plainly.
+  const callText =
     step === "otp"
-      ? "Verify Your Email"
+      ? "await verify(otp)"
       : vaultMode === "loading"
-        ? "Checking Your Vault"
+        ? "await vault.status()"
         : vaultMode === "offline"
-          ? "Vault Unavailable Offline"
+          ? "NetworkError: vault unreachable"
           : isSetup
             ? step === "confirm"
-              ? "Confirm New PIN"
-              : "Set New PIN"
-            : "Unlock Vault";
+              ? "vault.setup(pin) // confirm"
+              : "vault.setup(pin)"
+            : "vault.unlock(pin)";
+
+  const titleText =
+    step === "otp"
+      ? "Verify your email"
+      : vaultMode === "loading"
+        ? "Checking your vault"
+        : vaultMode === "offline"
+          ? "Vault unavailable offline"
+          : isSetup
+            ? step === "confirm"
+              ? "Confirm new PIN"
+              : "Set a new PIN"
+            : "Unlock your vault";
 
   const subtitleText =
     step === "otp"
@@ -340,230 +356,166 @@ const PinPage = ({ isModal }) => {
           : isSetup
             ? step === "confirm"
               ? "Re-enter your PIN to confirm"
-              : "Create a 6-digit secure PIN for your vault"
-            : "Enter your 6-digit secure PIN to access your encrypted notes";
+              : "Create a 6-digit PIN. It derives the key that encrypts your notes."
+            : "Enter your 6-digit PIN to decrypt your notes";
 
   return (
-    <div
-      className={`fixed inset-0 z-50 flex items-center justify-center p-4 backdrop-blur-md ${isDark ? "bg-slate-900/60" : "bg-white/40"}`}
+    <Dialog
+      onClose={isModal ? handleClose : undefined}
+      closeOnBackdrop={false}
+      tone={vaultMode === "offline" && step !== "otp" ? "error" : "default"}
+      title={callText}
+      icon={
+        vaultMode === "offline" && step !== "otp" ? (
+          <WifiOff className="size-4 shrink-0" />
+        ) : step === "otp" ? (
+          <ShieldCheck className="size-4 shrink-0 tok-ok" />
+        ) : (
+          <Lock className="size-4 shrink-0 tok-kw" />
+        )
+      }
     >
-      <div
-        className={`relative w-full max-w-md p-8 rounded-3xl shadow-2xl overflow-hidden border ${isDark ? "bg-slate-800 border-slate-700/50" : "bg-white border-gray-200"}`}
-      >
-        <div className="absolute top-0 left-0 w-full h-full overflow-hidden pointer-events-none -z-10">
-          <div
-            className={`absolute -top-1/2 -left-1/2 w-full h-full rounded-full blur-3xl opacity-20 ${isDark ? "bg-[var(--theme-main)]" : "bg-[var(--theme-main)]"}`}
-          />
-          <div
-            className={`absolute -bottom-1/2 -right-1/2 w-full h-full rounded-full blur-3xl opacity-20 ${isDark ? "bg-[var(--theme-accent)]" : "bg-[var(--theme-accent)]"}`}
-          />
-        </div>
-
-        {isModal && (
-          <button
-            onClick={handleClose}
-            className={`absolute top-4 right-4 p-2 rounded-full transition-colors ${isDark ? "hover:bg-slate-700 text-slate-400" : "hover:bg-gray-100 text-gray-500"}`}
-          >
-            <X size={20} />
-          </button>
-        )}
-
-        <div className="flex flex-col items-center mb-8">
-          <div className="w-16 h-16 rounded-full theme-bg-glass flex items-center justify-center mb-4 shadow-lg border border-white/10">
+      <div className="flex flex-col items-center text-center mb-6">
+        <div className="relative mb-4">
+          <div className="size-14 rounded-xl border ide-divider bg-[var(--panel)] flex items-center justify-center">
             {step === "otp" ? (
-              <ShieldCheck className="w-8 h-8 text-white" />
+              <ShieldCheck className="size-7 tok-ok" />
             ) : (
-              <Lock className="w-8 h-8 text-white" />
+              <KeyRound className="size-7 tok-kw" />
             )}
           </div>
-          <h2
-            className={`text-2xl font-bold mb-2 ${isDark ? "text-white" : "text-gray-900"}`}
-          >
-            {titleText}
-          </h2>
-          <p
-            className={`text-sm text-center ${isDark ? "text-slate-400" : "text-gray-500"}`}
-          >
-            {subtitleText}
+          <span className="js-badge absolute -bottom-1.5 -right-1.5 w-6 h-6 text-[10px]">JS</span>
+        </div>
+        <h2 className="text-lg font-semibold text-[var(--fg)] mb-1">{titleText}</h2>
+        <p className="text-[12.5px] tok-com">{"// "}{subtitleText}</p>
+      </div>
+
+      {isSetup && step !== "otp" && (
+        <div className="ide-note is-warn mb-5 flex items-start gap-2 text-left">
+          <AlertTriangle size={16} className="shrink-0 mt-0.5 tok-warn" />
+          <p>
+            <span className="tok-warn font-semibold">WARNING:</span>{" "}
+            <span className="text-[var(--fg)]">
+              once set, this PIN can't be reset or recovered. Losing it means losing access to your
+              encrypted notes.
+            </span>
           </p>
         </div>
+      )}
 
-        {isSetup && step !== "otp" && (
-          <div
-            className={`flex items-start gap-3 mb-6 p-4 rounded-xl border ${
-              isDark
-                ? "bg-amber-500/10 border-amber-500/30 text-amber-300"
-                : "bg-amber-50 border-amber-300 text-amber-700"
-            }`}
+      {vaultMode === "offline" && step !== "otp" && (
+        <div className="ide-note is-err mb-5 flex items-start gap-2 text-left">
+          <WifiOff size={16} className="shrink-0 mt-0.5 tok-err" />
+          <p className="text-[var(--fg)]">
+            We need the internet once to check whether this account already has a PIN — guessing
+            could lock you out of your notes. This screen recovers on its own as soon as you're
+            back online.
+          </p>
+        </div>
+      )}
+
+      {step === "otp" ? (
+        <form onSubmit={handleVerifyOtp} className="flex flex-col items-center">
+          <input
+            ref={otpInputRef}
+            type="text"
+            inputMode="numeric"
+            autoComplete="one-time-code"
+            maxLength={6}
+            value={otp}
+            onChange={(e) => {
+              if (!isNaN(e.target.value)) setOtp(e.target.value.slice(0, 6));
+            }}
+            placeholder="000000"
+            aria-label="One-time code"
+            className="ide-input mb-5 text-center !text-2xl tracking-[0.5em] font-bold tok-str !py-3"
+          />
+
+          <button
+            type="submit"
+            disabled={isVerifyingOtp || otp.length !== 6}
+            className="ide-btn ide-btn-ok w-full justify-center !py-2.5"
           >
-            <AlertTriangle size={20} className="shrink-0 mt-0.5" />
-            <p className="text-sm leading-snug">
-              <span className="font-semibold">Warning:</span> once set, this PIN
-              cannot be reset or recovered. Losing it means losing access to
-              your encrypted notes. Please remember it carefully.
-            </p>
-          </div>
-        )}
+            <ShieldCheck size={16} />
+            {isVerifyingOtp ? "verifying…" : "verify(otp) && vault.lock();"}
+          </button>
 
-        {vaultMode === "offline" && step !== "otp" && (
-          <div
-            className={`flex items-start gap-3 mb-6 p-4 rounded-xl border ${
-              isDark
-                ? "bg-rose-500/10 border-rose-500/30 text-rose-300"
-                : "bg-rose-50 border-rose-300 text-rose-700"
-            }`}
-          >
-            <WifiOff size={20} className="shrink-0 mt-0.5" />
-            <p className="text-sm leading-snug">
-              We need the internet once to check whether this account already
-              has a PIN - guessing could lock you out of your notes. This screen
-              recovers on its own as soon as you're back online.
-            </p>
-          </div>
-        )}
-
-        {step === "otp" ? (
-          <form
-            onSubmit={handleVerifyOtp}
-            className="flex flex-col items-center"
-          >
-            <input
-              ref={otpInputRef}
-              type="text"
-              inputMode="numeric"
-              autoComplete="one-time-code"
-              maxLength={6}
-              value={otp}
-              onChange={(e) => {
-                if (!isNaN(e.target.value)) setOtp(e.target.value.slice(0, 6));
-              }}
-              placeholder="6-digit code"
-              className={`w-full mb-6 text-center text-2xl tracking-widest font-bold rounded-xl py-4 outline-none border-2 transition-all
-                ${isDark ? "bg-slate-900/50 text-white focus:border-[var(--theme-main)] border-slate-700 shadow-inner" : "bg-gray-50 text-gray-900 focus:border-[var(--theme-main)] border-gray-200 shadow-inner"}
-              `}
-            />
-
-            <button
-              type="submit"
-              disabled={isVerifyingOtp || otp.length !== 6}
-              className="w-full py-4 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95 theme-button disabled:opacity-60 disabled:pointer-events-none"
-            >
-              <ShieldCheck size={20} />
-              {isVerifyingOtp ? "Verifying..." : "Verify & Secure Vault"}
-            </button>
-
-            <div className="text-center mt-4 text-sm">
-              {resendTimer > 0 ? (
-                <p className={isDark ? "text-slate-400" : "text-gray-500"}>
-                  Resend OTP in{" "}
-                  <span className="font-medium theme-text">
-                    {Math.floor(resendTimer / 60)}:
-                    {(resendTimer % 60).toString().padStart(2, "0")}
-                  </span>
-                </p>
-              ) : (
-                <button
-                  type="button"
-                  onClick={handleResendOtp}
-                  disabled={isSendingOtp}
-                  className="theme-text font-medium disabled:opacity-50"
-                >
-                  {isSendingOtp ? "Sending..." : "Resend OTP"}
-                </button>
-              )}
-            </div>
-          </form>
-        ) : (
-          <form onSubmit={handleSubmit} className="flex flex-col items-center">
-            <div className="flex gap-2 sm:gap-3 mb-8 w-full justify-center">
-              {pinDigits.map((digit, index) => (
-                <input
-                  key={index}
-                  ref={(el) => (inputRefs.current[index] = el)}
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  value={digit}
-                  onChange={(e) => handleChange(index, e)}
-                  onKeyDown={(e) => handleKeyDown(index, e)}
-                  disabled={vaultMode === "loading" || isVerifying}
-                  className={`w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl font-bold rounded-xl transition-all outline-none border-2
-                    ${isDark ? "bg-slate-900/50 text-white focus:border-[var(--theme-main)] border-slate-700 shadow-inner" : "bg-gray-50 text-gray-900 focus:border-[var(--theme-main)] border-gray-200 shadow-inner"}
-                    ${digit ? "border-[var(--theme-main)] ring-2 ring-[var(--theme-main)]/20" : ""}
-                  `}
-                />
-              ))}
-            </div>
-
-            <div className="flex items-center justify-between w-full mb-8">
-              <label
-                className={`flex items-center gap-2 cursor-pointer select-none text-sm font-medium ${isDark ? "text-slate-300" : "text-gray-700"}`}
+          <div className="text-center mt-4 text-[12.5px]">
+            {resendTimer > 0 ? (
+              <p className="tok-dim">
+                <span className="tok-fn">setTimeout</span>
+                <span className="tok-punc">(</span>resend<span className="tok-punc">, </span>
+                <span className="tok-num">
+                  {Math.floor(resendTimer / 60)}:{(resendTimer % 60).toString().padStart(2, "0")}
+                </span>
+                <span className="tok-punc">)</span>
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                disabled={isSendingOtp}
+                className="tok-fn hover:underline disabled:opacity-50"
               >
-                <div className="relative flex items-center">
-                  <input
-                    type="checkbox"
-                    className="peer sr-only"
-                    checked={rememberMe}
-                    onChange={() => setRememberMe(!rememberMe)}
-                  />
-                  <div
-                    className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center
-                    ${rememberMe ? "border-[var(--theme-main)] bg-[var(--theme-main)]" : isDark ? "border-slate-600 bg-slate-900" : "border-gray-300 bg-white"}
-                  `}
-                  >
-                    {rememberMe && (
-                      <svg
-                        className="w-3.5 h-3.5 text-white"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                        strokeWidth={3}
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="M5 13l4 4L19 7"
-                        />
-                      </svg>
-                    )}
-                  </div>
-                </div>
-                Keep me unlocked for 7 days
-              </label>
-            </div>
+                {isSendingOtp ? "sending…" : "resendOtp()"}
+              </button>
+            )}
+          </div>
+        </form>
+      ) : (
+        <form onSubmit={handleSubmit} className="flex flex-col items-center">
+          <div className="flex gap-1.5 sm:gap-2 mb-6 w-full justify-center">
+            {pinDigits.map((digit, index) => (
+              <input
+                key={index}
+                ref={(el) => (inputRefs.current[index] = el)}
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                maxLength={6}
+                value={digit}
+                aria-label={`PIN digit ${index + 1}`}
+                onChange={(e) => handleChange(index, e)}
+                onKeyDown={(e) => handleKeyDown(index, e)}
+                disabled={vaultMode === "loading" || isVerifying}
+                className={`ide-digit ${digit ? "is-filled" : ""} disabled:opacity-50`}
+              />
+            ))}
+          </div>
 
-            <button
-              type="submit"
-              disabled={
-                isSendingOtp ||
-                isVerifying ||
-                vaultMode === "loading" ||
-                vaultMode === "offline"
-              }
-              className="w-full py-4 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95 theme-button disabled:opacity-60 disabled:pointer-events-none"
-            >
-              <KeyRound size={20} />
-              {vaultMode === "loading"
-                ? "Checking vault..."
-                : vaultMode === "offline"
-                  ? "Waiting for connection..."
-                  : isVerifying
-                    ? "Verifying..."
-                    : isSendingOtp
-                      ? "Sending code..."
-                      : isSetup
-                        ? step === "confirm"
-                          ? "Confirm & Secure"
-                          : "Continue"
-                        : "Unlock Now"}
-            </button>
-          </form>
-        )}
-      </div>
-    </div>
+          <div className="w-full mb-6 text-left">
+            <RememberToggle checked={rememberMe} onChange={() => setRememberMe(!rememberMe)} />
+          </div>
+
+          <button
+            type="submit"
+            disabled={
+              isSendingOtp ||
+              isVerifying ||
+              vaultMode === "loading" ||
+              vaultMode === "offline"
+            }
+            className="ide-btn ide-btn-solid w-full justify-center !py-2.5"
+          >
+            <KeyRound size={16} />
+            {vaultMode === "loading"
+              ? "checking vault…"
+              : vaultMode === "offline"
+                ? "await navigator.onLine…"
+                : isVerifying
+                  ? "deriving key…"
+                  : isSendingOtp
+                    ? "sending code…"
+                    : isSetup
+                      ? step === "confirm"
+                        ? "confirm & secure"
+                        : "continue()"
+                      : "vault.unlock(pin);"}
+          </button>
+        </form>
+      )}
+    </Dialog>
   );
 };
 
 export default PinPage;
-

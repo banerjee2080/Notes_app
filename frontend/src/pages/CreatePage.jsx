@@ -1,6 +1,9 @@
 import { ArrowLeftIcon } from "lucide-react";
+import CodeWindow from "../components/ui/CodeWindow.jsx";
+import SaveStatus from "../components/ui/SaveStatus.jsx";
+import EditorFooter from "../components/ui/EditorFooter.jsx";
+import { toFileName } from "../lib/utils.js";
 import { useEffect, useRef, useState } from "react";
-import toast from "react-hot-toast";
 import { Link, useNavigate, useLocation } from "react-router";
 import api from "../lib/axios.js";
 import Tiny from "../components/Tiny.jsx";
@@ -14,7 +17,6 @@ import { useAuthStore } from "../stores/useAuthStore.js";
 const CreatePage = ({ isModal }) => {
   const [title, setTitle] = useState("");
   const [content, setContent] = useState("");
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
 
   const navigate = useNavigate();
@@ -101,98 +103,57 @@ const CreatePage = ({ isModal }) => {
   }, [debouncedTitle, debouncedContent, noteId]);
 
   const containerClasses = isModal
-    ? "fixed inset-0 z-50 flex justify-center items-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto"
+    ? "fixed inset-0 z-50 flex justify-center items-start md:items-center ide-backdrop p-3 md:p-6 overflow-y-auto"
     : "min-h-screen py-10 px-4 flex justify-center items-center";
 
+  const close = () => navigate("/");
+
   return (
-    <div className={containerClasses} onClick={() => isModal && navigate("/")}>
-      <div
-        className="w-full max-w-2xl bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 md:p-12 shadow-[0_0_40px_rgba(0,0,0,0.3)] relative overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          className="absolute top-0 right-0 w-64 h-64 rounded-full blur-[80px] -z-10 opacity-30"
-          style={{ backgroundColor: "var(--theme-main)" }}
-        ></div>
-        <div
-          className="absolute bottom-0 left-0 w-64 h-64 rounded-full blur-[80px] -z-10 opacity-30"
-          style={{ backgroundColor: "var(--theme-accent)" }}
-        ></div>
-
-        <Link
-          to={"/"}
-          className="inline-flex items-center gap-2 text-white/60 hover:text-white mb-8 transition-colors group"
+    <div className={containerClasses} onClick={() => isModal && close()}>
+      <div className="w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
+        <CodeWindow
+          fileName={toFileName(title)}
+          status={<SaveStatus saving={saving} />}
+          onClose={close}
+          actions={
+            <Link to="/" className="ide-btn ide-btn-ghost !py-1 !px-2 text-xs">
+              <ArrowLeftIcon className="size-3.5" />
+              cd ..
+            </Link>
+          }
         >
-          <ArrowLeftIcon className="size-5 group-hover:-translate-x-1 transition-transform" />
-          <span className="font-medium">Go Home</span>
-        </Link>
-
-        <div className="flex justify-between items-center mb-8">
-          <h1 className="text-3xl font-bold text-white">Create New Note</h1>
-          <div className="h-6 flex items-center transition-all duration-300">
-            {saving === true && (
-              <span className="text-sm text-white/50 flex items-center gap-2 animate-pulse">
-                <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-white/50"></div>
-                Autosaving...
-              </span>
-            )}
-            {saving === "saved" && (
-              <span className="text-sm text-emerald-400/80 flex items-center gap-1 animate-in fade-in duration-300">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M5 13l4 4L19 7"
-                  ></path>
-                </svg>
-                Saved
-              </span>
-            )}
-            {saving === "Saving failed.." && (
-              <span className="text-sm text-red-400/80 flex items-center gap-1 animate-in fade-in duration-300">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  ></path>
-                </svg>
-                Save Failed
-              </span>
-            )}
-          </div>
-        </div>
-
-        <form className="space-y-6">
-          <div>
+          <p className="text-[12px] tok-com mb-4">
+            {"// new Note() — autosaves once it has a title and some content"}
+          </p>
+          <form className="space-y-5" onSubmit={(e) => e.preventDefault()}>
+          <label className="flex items-center gap-2 border-b ide-divider focus-within:border-[var(--kw)] transition-colors pb-2">
+            <span className="tok-kw text-[15px] shrink-0">const</span>
+            <span className="text-[var(--fg)] text-[15px] shrink-0">title</span>
+            <span className="tok-punc text-[15px] shrink-0">=</span>
+            <span className="flex items-center min-w-0">
+            <span className="tok-str text-lg shrink-0">"</span>
             <input
               type="text"
               value={title}
-              placeholder="Note Title..."
+              placeholder="Untitled note"
               onChange={(e) => setTitle(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 focus:border-blue-400/50 rounded-xl px-5 py-4 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition-all text-lg font-medium shadow-inner"
+              aria-label="Note title"
+              style={{ fieldSizing: "content" }}
+              className="min-w-[10ch] max-w-full bg-transparent outline-none text-lg md:text-xl font-semibold tok-str placeholder:text-[var(--fg-dim)] placeholder:font-normal"
             ></input>
-          </div>
-          <div>
+            <span className="tok-str text-lg shrink-0">"</span>
+            <span className="tok-punc text-[15px] shrink-0">;</span>
+            </span>
+            <span className="flex-1" />
+          </label>
             <Tiny
               value={content}
               onEditorChange={setContent}
-              placeholder="What's on your mind?"
+              placeholder="// start typing… encrypted before it's saved"
             />
-          </div>
-        </form>
+          </form>
+          <EditorFooter />
+        </CodeWindow>
       </div>
     </div>
   );

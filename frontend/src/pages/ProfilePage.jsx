@@ -1,23 +1,51 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { useAuthStore } from "../stores/useAuthStore.js";
-import {
-  Camera,
-  Mail,
-  User,
-  Loader2,
-  Calendar,
-  ArrowLeft,
-  Trash2Icon,
-} from "lucide-react";
+import { Camera, Loader2, Trash2, LogOut, Upload, Sun, Moon, Lock, LockOpen } from "lucide-react";
 import { useNavigate } from "react-router";
-import { compressImage } from "../lib/utils";
+import { compressImage, timeAgo } from "../lib/utils";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
+import { useDecryptedNotes } from "../hooks/useDecryptedNotes.js";
+import AppShell from "../components/shell/AppShell.jsx";
+import Navbar from "../components/Navbar.jsx";
+
+// Small, honest "achievements" based on how many notes you have.
+const ACHIEVEMENTS = [
+  { at: 1, name: "Hello, World", hint: "wrote your first note" },
+  { at: 5, name: "Hoisted", hint: "5 notes up top" },
+  { at: 10, name: "Callback Hell Survivor", hint: "10 notes deep" },
+  { at: 25, name: "Event Loop", hint: "25 notes and still spinning" },
+  { at: 50, name: "Full Stack", hint: "50 notes" },
+  { at: 100, name: "npm install brain", hint: "100 notes" },
+];
+
+// A line of the `const profile = { ... }` object literal.
+const Prop = ({ k, children, comment }) => (
+  <div className="py-1.5 pl-5 md:pl-8 border-l ide-divider break-words">
+    <span className="text-[var(--fg)]">{k}</span>
+    <span className="tok-punc">: </span>
+    {children}
+    <span className="tok-punc">,</span>
+    {comment && <span className="tok-com text-[12px]">{"  // "}{comment}</span>}
+  </div>
+);
 
 const ProfilePage = () => {
-  const { authUser, updateProfile, isUpdatingProfile } = useAuthStore();
+  const {
+    authUser,
+    updateProfile,
+    isUpdatingProfile,
+    themeMode,
+    toggleThemeMode,
+    setTheme,
+    isThemeChanging,
+    logout,
+    cryptoKey,
+  } = useAuthStore();
   const [selectedImage, setSelectedImage] = useState(null);
   const navigate = useNavigate();
   const isOnline = useOnlineStatus();
+  const { notes } = useDecryptedNotes();
+  const wallpaperRef = useRef(null);
 
   const handleImageUpload = async (e) => {
     const file = e.target.files[0];
@@ -28,39 +56,143 @@ const ProfilePage = () => {
     await updateProfile({ profilePic: base64Img });
   };
 
+  const handleWallpaper = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const base64Img = await compressImage(file, 1920, 0.7);
+    await setTheme({ backgroundImg: base64Img });
+    e.target.value = "";
+  };
+
+  const noteCount = notes?.length ?? 0;
+  const unlocked = ACHIEVEMENTS.filter((a) => noteCount >= a.at);
+  const nextUp = ACHIEVEMENTS.find((a) => noteCount < a.at);
+  const joined = authUser.createdAt?.split("T")[0];
+
   return (
-    <div className="flex-1 overflow-y-auto pt-20 pb-10 flex items-center justify-center p-4">
-      {/* Glassmorphic Container */}
-      <div className="w-full max-w-2xl bg-white/5 backdrop-blur-xl border border-white/10 p-8 sm:p-10 rounded-3xl relative overflow-hidden shadow-2xl shadow-black/50">
-        {/* Subtle background glow effect */}
-        <div className="absolute -top-20 -right-20 w-72 h-72 bg-blue-500/20 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
-        <div className="absolute -bottom-20 -left-20 w-72 h-72 bg-indigo-500/20 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
+    <AppShell toolbar={<Navbar crumb="profile.js" />}>
+      <div className="max-w-4xl mx-auto px-3 md:px-6 py-6 md:py-8">
+        <div className="flex flex-col-reverse md:flex-row gap-8 md:gap-10">
+          {/* Object literal */}
+          <div className="flex-1 min-w-0 text-[13.5px] leading-6">
+            <div className="text-base md:text-lg mb-2">
+              <span className="tok-kw">const</span> <span className="tok-fn">profile</span>{" "}
+              <span className="tok-punc">= {"{"}</span>
+            </div>
 
-        <div className="relative z-10">
-          <button
-            onClick={() => navigate("/")}
-            className="mb-4 flex items-center gap-2 text-white/60 hover:text-white transition-all duration-300 py-2 px-3 rounded-lg hover:bg-white/10 hover:shadow-[0_0_15px_var(--theme-main)]"
-          >
-            <ArrowLeft className="size-4" />
-            Back to Home
-          </button>
+            <Prop k="name">
+              <span className="tok-str">"{authUser.fullName}"</span>
+            </Prop>
+            <Prop k="email">
+              <span className="tok-str">"{authUser.email}"</span>
+            </Prop>
+            <Prop k="memberSince" comment={joined ? timeAgo(authUser.createdAt) : null}>
+              <span className="tok-kw">new</span> <span className="tok-fn">Date</span>
+              <span className="tok-punc">(</span>
+              <span className="tok-str">"{joined || "unknown"}"</span>
+              <span className="tok-punc">)</span>
+            </Prop>
+            <Prop k="status">
+              <span className="tok-str">"active"</span>
+              <span className="ml-2 inline-block size-2 rounded-full bg-[var(--ok)] align-middle" />
+            </Prop>
+            <Prop k="notes" comment="notes.length">
+              <span className="tok-num">{noteCount}</span>
+            </Prop>
+            <Prop k="vault" comment={cryptoKey ? "key in memory only" : "enter your PIN to unlock"}>
+              <span className="inline-flex items-center gap-1.5">
+                {cryptoKey ? <LockOpen className="size-3.5 tok-ok" /> : <Lock className="size-3.5 tok-warn" />}
+                <span className="tok-str">"{cryptoKey ? "unlocked" : "locked"}"</span>
+              </span>
+            </Prop>
 
-          <div className="text-center mb-10">
-            <h1 className="text-3xl font-semibold tracking-tight text-white mb-2">
-              Profile
-            </h1>
-            <p className="text-white/60 text-sm">
-              Manage your personal information
-            </p>
+            {/* theme sub-object */}
+            <div className="py-1.5 pl-5 md:pl-8 border-l ide-divider">
+              <span className="text-[var(--fg)]">theme</span>
+              <span className="tok-punc">: {"{"}</span>
+              <div className="pl-5 border-l ide-divider my-1 space-y-2 py-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[var(--fg)]">mode<span className="tok-punc">:</span></span>
+                  <span className="tok-str">'{themeMode === "dark" ? "dark" : "vibrant"}'</span>
+                  <span className="tok-punc">,</span>
+                  <button type="button" onClick={toggleThemeMode} className="ide-btn !py-0.5 !px-2 text-xs">
+                    {themeMode === "dark" ? <Sun className="size-3.5" /> : <Moon className="size-3.5" />}
+                    toggle()
+                  </button>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[var(--fg)]">palette<span className="tok-punc">:</span></span>
+                  <span className="tok-punc">[</span>
+                  <span className="size-4 rounded-sm border ide-divider" style={{ background: "var(--theme-main)" }} />
+                  <span className="size-4 rounded-sm border ide-divider" style={{ background: "var(--theme-accent)" }} />
+                  <span className="tok-punc">],</span>
+                  <span className="tok-com text-[12px]">{"// pulled from your wallpaper"}</span>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[var(--fg)]">wallpaper<span className="tok-punc">:</span></span>
+                  <span
+                    className="w-16 h-9 rounded border ide-divider bg-cover bg-center"
+                    style={{ backgroundImage: `url('${authUser.backgroundImg || "/bg.png"}')` }}
+                  />
+                  <input type="file" accept="image/*" ref={wallpaperRef} className="hidden" onChange={handleWallpaper} />
+                  <button
+                    type="button"
+                    disabled={!isOnline || isThemeChanging}
+                    onClick={() => wallpaperRef.current?.click()}
+                    className="ide-btn ide-btn-primary !py-0.5 !px-2 text-xs"
+                  >
+                    {isThemeChanging ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+                    {isThemeChanging ? "await…" : "upload()"}
+                  </button>
+                  {!isOnline && <span className="tok-com text-[12px]">{"// needs a connection"}</span>}
+                </div>
+              </div>
+              <span className="tok-punc">{"},"}</span>
+            </div>
+
+            {/* achievements */}
+            <div className="py-1.5 pl-5 md:pl-8 border-l ide-divider">
+              <span className="text-[var(--fg)]">achievements</span>
+              <span className="tok-punc">: [</span>
+              <div className="pl-5 flex flex-wrap gap-2 my-2">
+                {unlocked.length === 0 && <span className="tok-com text-[12px]">{"// write a note to unlock your first"}</span>}
+                {unlocked.map((a) => (
+                  <span key={a.name} className="ide-chip !text-[var(--fg)]" title={a.hint}>
+                    <span className="tok-js">★</span> {a.name}
+                  </span>
+                ))}
+                {nextUp && (
+                  <span className="ide-chip opacity-60" title={a11yNext(nextUp)}>
+                    ☆ ??? <span className="tok-com">{"// "}{nextUp.at - noteCount} to go</span>
+                  </span>
+                )}
+              </div>
+              <span className="tok-punc">],</span>
+            </div>
+
+            <div className="tok-punc text-base md:text-lg mb-5">{"};"}</div>
+
+            <div className="flex flex-wrap gap-3">
+              <button type="button" onClick={() => navigate("/recycleBin")} className="ide-btn">
+                <Trash2 className="size-4 tok-warn" />
+                <span>
+                  profile.<span className="tok-fn">recycleBin</span>()
+                </span>
+              </button>
+              <button type="button" onClick={logout} className="ide-btn ide-btn-danger">
+                <LogOut className="size-4" />
+                profile.logout()
+              </button>
+            </div>
           </div>
 
-          {/* Avatar Upload Section */}
-          <div className="flex flex-col items-center mb-10">
-            <div
-              className={`relative group ${!isOnline ? "cursor-not-allowed" : ""}`}
-            >
+          {/* Avatar */}
+          <div className="flex flex-col items-center md:w-56 shrink-0">
+            <div className={`relative group ${!isOnline ? "cursor-not-allowed" : ""}`}>
               <div
-                className={`w-32 h-32 rounded-full overflow-hidden border-4 border-white/10 shadow-xl shadow-black/20 relative z-10 transition-all duration-300 ${!isOnline ? "grayscale-[50%]" : "group-hover:scale-[1.02] group-hover:border-[var(--theme-main)] group-hover:shadow-[0_0_25px_var(--theme-main)]"}`}
+                className={`size-36 rounded-xl overflow-hidden border-2 ide-divider relative transition-all duration-300 ${
+                  !isOnline ? "grayscale-[50%]" : "group-hover:border-[var(--kw)]"
+                }`}
               >
                 <img
                   src={authUser.profilePic || selectedImage || "/avatar.png"}
@@ -68,29 +200,23 @@ const ProfilePage = () => {
                   className="w-full h-full object-cover"
                   referrerPolicy="no-referrer"
                 />
-
-                {/* Upload Overlay */}
                 <label
                   htmlFor={isOnline ? "avatar-upload" : ""}
-                  className={`absolute inset-0 flex items-center justify-center transition-all duration-300 backdrop-blur-sm rounded-full ${isOnline ? "bg-black/40 opacity-0 group-hover:opacity-100 cursor-pointer" : "bg-black/60 opacity-0 group-hover:opacity-100 cursor-not-allowed"} ${isUpdatingProfile ? "pointer-events-none" : ""}`}
+                  className={`absolute inset-0 flex flex-col items-center justify-center gap-1 transition-all duration-300 bg-black/55 opacity-0 group-hover:opacity-100 ${
+                    isOnline ? "cursor-pointer" : "cursor-not-allowed"
+                  } ${isUpdatingProfile ? "opacity-100 pointer-events-none" : ""}`}
                 >
                   {isUpdatingProfile ? (
-                    <Loader2 className="size-8 text-white animate-spin" />
+                    <Loader2 className="size-7 text-white animate-spin" />
                   ) : (
-                    <div className="flex flex-col items-center">
-                      <Camera
-                        className={`size-8 ${!isOnline ? "text-white/50" : "text-white"}`}
-                      />
-                      {!isOnline && (
-                        <span className="text-[10px] text-white/90 mt-1 font-medium bg-black/60 px-2 py-0.5 rounded backdrop-blur-md">
-                          Offline
-                        </span>
-                      )}
-                    </div>
+                    <>
+                      <Camera className={`size-7 ${isOnline ? "text-white" : "text-white/50"}`} />
+                      <span className="text-[11px] text-white/90">{isOnline ? "avatar = upload()" : "offline"}</span>
+                    </>
                   )}
                 </label>
               </div>
-
+              <span className="js-badge absolute -bottom-2 -right-2 w-8 h-8 text-sm shadow-lg">JS</span>
               <input
                 type="file"
                 id="avatar-upload"
@@ -100,80 +226,20 @@ const ProfilePage = () => {
                 disabled={isUpdatingProfile || !isOnline}
               />
             </div>
-            <p className="mt-4 text-sm text-white/60 font-medium">
+            <p className="mt-5 text-xs tok-com text-center">
               {!isOnline
-                ? "Profile updates unavailable offline"
+                ? "// profile updates unavailable offline"
                 : isUpdatingProfile
-                  ? "Uploading..."
-                  : "Click image to update"}
+                  ? "// uploading…"
+                  : "// click the image to update"}
             </p>
-          </div>
-
-          {/* Profile Details section */}
-          <div className="space-y-4">
-            <h2 className="text-lg font-semibold mb-4 text-white/80">
-              Account Details
-            </h2>
-
-            <div className="bg-white/5 backdrop-blur-md rounded-3xl p-4 border border-white/10 flex items-center gap-4 transition-all duration-300 hover:bg-white/10">
-              <div className="w-10 h-10 rounded-2xl bg-blue-500/20 flex items-center justify-center text-blue-400">
-                <User className="size-5" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-white/50 uppercase font-semibold tracking-wider">
-                  Full Name
-                </p>
-                <p className="text-sm font-medium mt-0.5 text-white">
-                  {authUser.fullName}
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white/5 backdrop-blur-md rounded-3xl p-4 border border-white/10 flex items-center gap-4 transition-all duration-300 hover:bg-white/10">
-              <div className="w-10 h-10 rounded-2xl bg-purple-500/20 flex items-center justify-center text-purple-400">
-                <Mail className="size-5" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-white/50 uppercase font-semibold tracking-wider">
-                  Email
-                </p>
-                <p className="text-sm font-medium mt-0.5 text-white">
-                  {authUser.email}
-                </p>
-              </div>
-            </div>
-
-            <div className="bg-white/5 backdrop-blur-md rounded-3xl p-4 border border-white/10 flex items-center gap-4 transition-all duration-300 hover:bg-white/10">
-              <div className="w-10 h-10 rounded-2xl bg-emerald-500/20 flex items-center justify-center text-emerald-400">
-                <Calendar className="size-5" />
-              </div>
-              <div className="flex-1">
-                <p className="text-xs text-white/50 uppercase font-semibold tracking-wider">
-                  Member Since
-                </p>
-                <p className="text-sm font-medium mt-0.5 text-white">
-                  {authUser.createdAt?.split("T")[0] || "Unknown"}
-                </p>
-              </div>
-              <div className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400 text-xs font-semibold shadow-sm shadow-black/10">
-                Active
-              </div>
-            </div>
-          </div>
-          
-          <div className="mt-6">
-            <button
-              onClick={() => navigate("/recycleBin")}
-              className="w-full bg-red-500/10 hover:bg-red-500/20 backdrop-blur-md rounded-3xl p-4 border border-red-500/20 flex items-center justify-center gap-3 transition-all duration-300 group"
-            >
-              <Trash2Icon className="size-5 text-red-400 group-hover:scale-110 transition-transform" />
-              <span className="font-semibold text-red-400">Recycle Bin</span>
-            </button>
           </div>
         </div>
       </div>
-    </div>
+    </AppShell>
   );
 };
+
+const a11yNext = (a) => `Next: ${a.hint}`;
 
 export default ProfilePage;

@@ -7,6 +7,10 @@ import { triggerSync } from "../lib/syncEngine.js";
 import { useAuthStore } from "../stores/useAuthStore.js";
 import { decryptData, decryptHtml } from "../lib/crypto.js";
 import { sanitizeHtml } from "../lib/sanitize.js";
+import CodeWindow from "../components/ui/CodeWindow.jsx";
+import CodeSpinner from "../components/ui/CodeSpinner.jsx";
+import EditorFooter from "../components/ui/EditorFooter.jsx";
+import { toFileName } from "../lib/utils.js";
 
 const DelNotePage = ({ isModal }) => {
   const [note, setNote] = useState({});
@@ -95,7 +99,7 @@ const DelNotePage = ({ isModal }) => {
   };
 
   const containerClasses = isModal
-    ? "fixed inset-0 z-50 flex justify-center items-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto"
+    ? "fixed inset-0 z-50 flex justify-center items-start md:items-center ide-backdrop p-3 md:p-6 overflow-y-auto"
     : "min-h-screen py-10 px-4 flex justify-center items-center";
 
   const closePage = () => {
@@ -107,68 +111,56 @@ const DelNotePage = ({ isModal }) => {
       <div
         className={
           isModal
-            ? "fixed inset-0 z-50 flex justify-center items-center bg-black/40 backdrop-blur-sm"
+            ? "fixed inset-0 z-50 flex justify-center items-center ide-backdrop"
             : "min-h-screen flex justify-center items-center"
         }
       >
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-400"></div>
+        <CodeSpinner label="Decrypting with AES-GCM…" />
       </div>
     );
   }
 
   return (
     <div className={containerClasses} onClick={() => isModal && closePage()}>
-      <div
-        className="w-full max-w-2xl bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 md:p-12 shadow-[0_0_40px_rgba(0,0,0,0.3)] relative overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          className="absolute top-0 right-0 w-64 h-64 rounded-full blur-[80px] -z-10 opacity-30"
-          style={{ backgroundColor: "var(--theme-main)" }}
-        ></div>
-        <div
-          className="absolute bottom-0 left-0 w-64 h-64 rounded-full blur-[80px] -z-10 opacity-30"
-          style={{ backgroundColor: "var(--theme-accent)" }}
-        ></div>
-
-        <div className="flex justify-between items-center mb-8">
-          <button
-            onClick={closePage}
-            className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors group"
-          >
-            <ArrowLeftIcon className="size-5 group-hover:-translate-x-1 transition-transform" />
-            <span className="font-medium">Go Back</span>
-          </button>
-
-          <button
-            onClick={handleRestore}
-            className="inline-flex items-center gap-2 px-4 py-2 rounded-xl transition-all duration-300 border hover:brightness-125 hover:scale-[1.02]"
-            style={{
-              backgroundColor:
-                "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
-              borderColor:
-                "color-mix(in srgb, var(--theme-accent) 30%, transparent)",
-              color: "var(--theme-accent)",
-            }}
-          >
-            <Undo2Icon className="size-4" />
-            <span className="font-medium text-sm">Restore</span>
-          </button>
-        </div>
-
-        <div className="space-y-6">
-          <div>
-            <div className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white text-lg font-medium shadow-inner opacity-70">
-              {note.title || "Untitled Note"}
-            </div>
+      <div className="w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
+        <CodeWindow
+          fileName={toFileName(note.title)}
+          status={<span className="ml-1 ide-chip !py-0 !text-[10.5px] tok-warn">read-only</span>}
+          onClose={closePage}
+          actions={
+            <>
+              <button type="button" onClick={closePage} className="ide-btn ide-btn-ghost !py-1 !px-2 text-xs">
+                <ArrowLeftIcon className="size-3.5" />
+                <span className="hidden sm:inline">cd ..</span>
+              </button>
+              <button type="button" onClick={handleRestore} className="ide-btn ide-btn-ok !py-1 !px-2 text-xs">
+                <Undo2Icon className="size-3.5" />
+                restore()
+              </button>
+            </>
+          }
+        >
+          <div className="ide-note is-warn mb-5">
+            <span className="tok-warn">{"// This note is in RecycleBin()."}</span>{" "}
+            <span className="tok-com">
+              {"It will be garbage-collected 30 days after deletion unless you restore() it."}
+            </span>
           </div>
-          <div>
-            <div
-              className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white opacity-70 min-h-[200px]"
-              dangerouslySetInnerHTML={{ __html: safeContent }}
-            />
+
+          <div className="flex items-center gap-2 border-b ide-divider pb-2 mb-4 text-lg">
+            <span className="tok-kw text-[15px]">const</span>
+            <span className="text-[15px] text-[var(--fg)]">title</span>
+            <span className="tok-punc text-[15px]">=</span>
+            <span className="tok-str font-semibold truncate opacity-80">"{note.title || "Untitled Note"}"</span>
+            <span className="tok-punc text-[15px]">;</span>
           </div>
-        </div>
+
+          <div
+            className="note-prose rounded-md border ide-divider px-5 py-4 min-h-[200px] opacity-80 bg-[color-mix(in_srgb,var(--bg)_40%,var(--win))]"
+            dangerouslySetInnerHTML={{ __html: safeContent }}
+          />
+          <EditorFooter readOnly />
+        </CodeWindow>
       </div>
     </div>
   );

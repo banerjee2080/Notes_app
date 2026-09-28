@@ -30,10 +30,10 @@ export default defineConfig({
         type: "module",
       },
       manifest: {
-        name: "Enterprise Notes",
-        short_name: "Notes",
-        theme_color: "#000000", // Matches a dark mode / modern aesthetic
-        background_color: "#000000",
+        name: "Note.js",
+        short_name: "Note.js",
+        theme_color: "#1a1d23", // IDE window colour
+        background_color: "#0f1115",
         display: "standalone", // Makes it look like a native app (removes browser URL bar)
         icons: [
           {

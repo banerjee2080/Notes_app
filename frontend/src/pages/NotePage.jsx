@@ -4,6 +4,11 @@ import ConfirmModal from "../components/ConfirmModal.jsx";
 import toast from "react-hot-toast";
 import { ArrowLeftIcon, Trash2Icon } from "lucide-react";
 import Tiny from "../components/Tiny.jsx";
+import CodeWindow from "../components/ui/CodeWindow.jsx";
+import SaveStatus from "../components/ui/SaveStatus.jsx";
+import EditorFooter from "../components/ui/EditorFooter.jsx";
+import CodeSpinner from "../components/ui/CodeSpinner.jsx";
+import { toFileName, timeAgo } from "../lib/utils.js";
 import { useDebounce } from "../hooks/useDebounce.js";
 import { localDB } from "../lib/db.js";
 import api from "../lib/axios.js";
@@ -173,122 +178,88 @@ const NotePage = ({ isModal }) => {
   };
 
   const containerClasses = isModal
-    ? "fixed inset-0 z-50 flex justify-center items-center bg-black/40 backdrop-blur-sm p-4 overflow-y-auto"
+    ? "fixed inset-0 z-50 flex justify-center items-start md:items-center ide-backdrop p-3 md:p-6 overflow-y-auto"
     : "min-h-screen py-10 px-4 flex justify-center items-center";
+
+  const close = () => navigate("/");
 
   if (loading) {
     return (
       <div
         className={
           isModal
-            ? "fixed inset-0 z-50 flex justify-center items-center bg-black/40 backdrop-blur-sm"
+            ? "fixed inset-0 z-50 flex justify-center items-center ide-backdrop"
             : "min-h-screen flex justify-center items-center"
         }
       >
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-400"></div>
+        <CodeSpinner label="Decrypting with AES-GCM…" />
       </div>
     );
   }
   return (
-    <div className={containerClasses} onClick={() => isModal && navigate("/")}>
-      <div
-        className="w-full max-w-2xl bg-white/5 backdrop-blur-xl border border-white/10 rounded-3xl p-8 md:p-12 shadow-[0_0_40px_rgba(0,0,0,0.3)] relative overflow-hidden"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          className="absolute top-0 right-0 w-64 h-64 rounded-full blur-[80px] -z-10 opacity-30"
-          style={{ backgroundColor: "var(--theme-main)" }}
-        ></div>
-        <div
-          className="absolute bottom-0 left-0 w-64 h-64 rounded-full blur-[80px] -z-10 opacity-30"
-          style={{ backgroundColor: "var(--theme-accent)" }}
-        ></div>
-
-        <div className="flex justify-between items-center mb-8">
-          <Link
-            to={"/"}
-            className="inline-flex items-center gap-2 text-white/60 hover:text-white transition-colors group"
-          >
-            <ArrowLeftIcon className="size-5 group-hover:-translate-x-1 transition-transform" />
-            <span className="font-medium">Go Back</span>
-          </Link>
-
-          <div className="h-6 flex items-center transition-all duration-300">
-            {saving === true && (
-              <span className="text-sm text-white/50 flex items-center gap-2 animate-pulse">
-                <div className="animate-spin rounded-full h-3 w-3 border-t-2 border-b-2 border-white/50"></div>
-                Autosaving...
-              </span>
-            )}
-            {saving === "saved" && (
-              <span className="text-sm text-emerald-400/80 flex items-center gap-1 animate-in fade-in duration-300">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M5 13l4 4L19 7"
-                  ></path>
-                </svg>
-                Saved
-              </span>
-            )}
-            {saving === "Saving failed.." && (
-              <span className="text-sm text-red-400/80 flex items-center gap-1 animate-in fade-in duration-300">
-                <svg
-                  className="w-4 h-4"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth="2"
-                    d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
-                  ></path>
-                </svg>
-                Save Failed
-              </span>
-            )}
-          </div>
-
-          <button
-            onClick={requestDelete}
-            className="inline-flex items-center gap-2 px-4 py-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl transition-colors"
-          >
-            <Trash2Icon className="size-4" />
-            <span className="font-medium text-sm">Delete</span>
-          </button>
-        </div>
-
-        <div className="space-y-6">
-          <div>
+    <div className={containerClasses} onClick={() => isModal && close()}>
+      <div className="w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
+        <CodeWindow
+          fileName={toFileName(note.title)}
+          status={<SaveStatus saving={saving} />}
+          onClose={close}
+          actions={
+            <>
+              <Link to="/" className="ide-btn ide-btn-ghost !py-1 !px-2 text-xs">
+                <ArrowLeftIcon className="size-3.5" />
+                <span className="hidden sm:inline">cd ..</span>
+              </Link>
+              <button
+                type="button"
+                onClick={requestDelete}
+                className="ide-btn ide-btn-danger !py-1 !px-2 text-xs"
+              >
+                <Trash2Icon className="size-3.5" />
+                <span>
+                  <span className="tok-kw">delete</span> note
+                </span>
+              </button>
+            </>
+          }
+        >
+          <p className="text-[12px] tok-com mb-4">
+            {"// last modified "}
+            {timeAgo(note.updated_at)}
+            {" · autosaves as you type"}
+          </p>
+          <div className="space-y-5">
+          <label className="flex items-center gap-2 border-b ide-divider focus-within:border-[var(--kw)] transition-colors pb-2">
+            <span className="tok-kw text-[15px] shrink-0">const</span>
+            <span className="text-[var(--fg)] text-[15px] shrink-0">title</span>
+            <span className="tok-punc text-[15px] shrink-0">=</span>
+            <span className="flex items-center min-w-0">
+            <span className="tok-str text-lg shrink-0">"</span>
             <input
               type="text"
               value={note.title || ""}
-              placeholder="Note Title..."
+              placeholder="Untitled note"
               onChange={(e) => {
                 setNote({ ...note, title: e.target.value });
               }}
-              className="w-full bg-white/5 border border-white/10 focus:border-blue-400/50 rounded-xl px-5 py-4 text-white placeholder-white/40 focus:outline-none focus:ring-2 focus:ring-blue-400/20 transition-all text-lg font-medium shadow-inner"
+              aria-label="Note title"
+              style={{ fieldSizing: "content" }}
+              className="min-w-[10ch] max-w-full bg-transparent outline-none text-lg md:text-xl font-semibold tok-str placeholder:text-[var(--fg-dim)] placeholder:font-normal"
             ></input>
-          </div>
-          <div>
+            <span className="tok-str text-lg shrink-0">"</span>
+            <span className="tok-punc text-[15px] shrink-0">;</span>
+            </span>
+            <span className="flex-1" />
+          </label>
             <Tiny
               value={note.content || ""}
               onEditorChange={(newContent) => {
                 setNote({ ...note, content: newContent });
               }}
-              placeholder="What's on your mind?"
+              placeholder="// start typing… encrypted before it's saved"
             />
           </div>
-        </div>
+          <EditorFooter />
+        </CodeWindow>
       </div>
 
       <ConfirmModal
@@ -296,7 +267,7 @@ const NotePage = ({ isModal }) => {
         onClose={() => setIsConfirmModalOpen(false)}
         onConfirm={executeDelete}
         title="Delete Note"
-        message="Are you sure you want to delete this note? It will be moved to the recycle bin."
+        message="This note moves to RecycleBin() and is garbage-collected after 30 days. Continue?"
         confirmText="Delete"
         isDestructive={true}
       />

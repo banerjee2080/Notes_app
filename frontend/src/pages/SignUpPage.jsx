@@ -13,6 +13,8 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useGoogleLogin } from "@react-oauth/google";
+import AuthFrame, { CodeField, GoogleGlyph } from "../components/ui/AuthFrame.jsx";
+import RememberToggle from "../components/ui/RememberToggle.jsx";
 import api from "../lib/axios.js";
 
 const SignUpPage = () => {
@@ -51,9 +53,7 @@ const SignUpPage = () => {
     googleLogin,
     finalizeGoogleSignup,
     pendingGoogleUser,
-    themeMode,
   } = useAuthStore();
-  const isDark = themeMode === "dark";
 
   useEffect(() => {
     let interval;
@@ -263,413 +263,277 @@ const SignUpPage = () => {
     }
   };
 
+  const pinRow = (digits, refs, isConfirm) => (
+    <div className="flex gap-1.5 sm:gap-2 justify-center">
+      {digits.map((digit, index) => (
+        <input
+          key={index}
+          ref={(el) => (refs.current[index] = el)}
+          type="text"
+          inputMode="numeric"
+          autoComplete="one-time-code"
+          maxLength={6}
+          value={digit}
+          aria-label={`${isConfirm ? "Confirm PIN" : "PIN"} digit ${index + 1}`}
+          onChange={(e) => handlePinChange(index, e, isConfirm)}
+          onKeyDown={(e) => handlePinKeyDown(index, e, isConfirm)}
+          className={`ide-digit ${digit ? "is-filled" : ""}`}
+        />
+      ))}
+    </div>
+  );
+
+  const passwordInput = (value, key, show, setShow, placeholder, autoComplete) => (
+    <div className="relative">
+      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--fg-dim)]" />
+      <input
+        type={show ? "text" : "password"}
+        placeholder={placeholder}
+        className="ide-input !pl-9 !pr-10"
+        value={value}
+        autoComplete={autoComplete}
+        onChange={(e) => setFromData({ ...formData, [key]: e.target.value })}
+      />
+      <button
+        type="button"
+        className="absolute right-3 top-1/2 -translate-y-1/2 text-[var(--fg-dim)] hover:text-[var(--fg)]"
+        onClick={() => setShow(!show)}
+        aria-label={show ? "Hide password" : "Show password"}
+      >
+        {show ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+      </button>
+    </div>
+  );
+
   return (
-    <div className="flex-1 overflow-y-auto pt-20 pb-10 flex items-center justify-center p-4">
-      {/* Glassmorphic Container */}
-      <div className="w-full max-w-md bg-white/5 backdrop-blur-xl border border-white/10 p-8 sm:p-10 rounded-3xl relative overflow-hidden shadow-2xl shadow-black/50">
-        {/* Subtle background glow effect */}
-        <div className="absolute -top-20 -left-20 w-64 h-64 bg-blue-500/20 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
-        <div className="absolute -bottom-20 -right-20 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl opacity-50 pointer-events-none"></div>
+    <AuthFrame fileName={takePin ? "vault.js" : takeOtp ? "verify.js" : "signup.js"}>
+      {!takeOtp && !takePin ? (
+        <>
+          <h1 className="text-xl mb-1">
+            <span className="tok-kw">async function</span> <span className="tok-fn">signup</span>
+            <span className="tok-punc">() {"{"}</span>
+          </h1>
+          <p className="text-[12.5px] tok-com mb-6">{"// create an account — your notes are encrypted on this device"}</p>
 
-        <div className="relative z-10">
-          {!takeOtp && !takePin ? (
-            <div className="text-center mb-10">
-              <h1 className="text-3xl font-semibold tracking-tight text-white mb-2">
-                Create Account
-              </h1>
-              <p className="text-white/60 text-sm">Join us to get started</p>
-            </div>
-          ) : takeOtp && !takePin ? (
-            <div className="text-center mb-10 relative">
-              <div className="mx-auto w-16 h-16 bg-blue-500/20 rounded-full flex items-center justify-center mb-4 relative before:absolute before:inset-0 before:bg-blue-500/20 before:rounded-full before:animate-ping">
-                <Mail className="size-8 text-blue-400 relative z-10" />
+          <button
+            type="button"
+            onClick={() => handleGoogleLogin()}
+            className="ide-btn w-full justify-center !py-2.5 mb-5"
+          >
+            <GoogleGlyph />
+            <span>
+              <span className="tok-fn">signUpWith</span>
+              <span className="tok-punc">(</span>Google<span className="tok-punc">)</span>
+            </span>
+          </button>
+
+          <div className="flex items-center gap-3 mb-5 text-[11px] tok-dim">
+            <span className="flex-1 border-t ide-divider" />
+            {"// or"}
+            <span className="flex-1 border-t ide-divider" />
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <CodeField kw="let" name="fullName">
+              <div className="relative">
+                <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--fg-dim)]" />
+                <input
+                  type="text"
+                  placeholder="'Ada Lovelace'"
+                  className="ide-input !pl-9"
+                  autoComplete="name"
+                  value={formData.fullName}
+                  onChange={(e) => setFromData({ ...formData, fullName: e.target.value })}
+                />
               </div>
-              <h1 className="text-3xl font-semibold tracking-tight text-white mb-2">
-                Check your email
-              </h1>
-              <p className="text-white/60 text-sm">
-                We've sent a 6-digit code to <br />
-                <span className="font-medium text-blue-400">
-                  {formData.email}
-                </span>
-              </p>
-            </div>
-          ) : (
-            <div className="text-center mb-8 relative">
-              <div className="mx-auto w-16 h-16 bg-emerald-500/20 rounded-full flex items-center justify-center mb-4 border border-emerald-500/30 shadow-[0_0_15px_rgba(16,185,129,0.2)]">
-                <ShieldCheck className="size-8 text-emerald-400" />
+            </CodeField>
+
+            <CodeField kw="let" name="email">
+              <div className="relative">
+                <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--fg-dim)]" />
+                <input
+                  type="email"
+                  placeholder="'you@example.com'"
+                  className="ide-input !pl-9"
+                  autoComplete="email"
+                  value={formData.email}
+                  onChange={(e) => setFromData({ ...formData, email: e.target.value })}
+                />
               </div>
-              <h1 className="text-3xl font-semibold tracking-tight text-white mb-2">
-                Secure Your Vault
-              </h1>
-              <p className="text-red-400 text-sm font-medium mt-3 bg-red-500/10 py-2 px-3 rounded-xl border border-red-500/20 shadow-sm inline-block">
-                Warning: Once your PIN is set, it cannot be reset. <br />
-                You must remember it to access your notes!
-              </p>
-            </div>
-          )}
+            </CodeField>
 
-          {!takeOtp && !takePin && (
-            <div className="flex justify-center mb-6">
-              <button
-                type="button"
-                onClick={() => handleGoogleLogin()}
-                className="relative w-full py-3 px-4 rounded-full bg-white/5 hover:bg-white/10 border border-white/10 shadow-[0_8px_32px_0_rgba(31,38,135,0.37)] backdrop-blur-xl text-white font-medium text-base transition-all duration-500 ease-out flex items-center justify-center group overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[150%] group-hover:translate-x-[150%] transition-transform duration-1000 ease-in-out"></div>
-                <svg
-                  className="w-5 h-5 mr-3 drop-shadow-md relative z-10"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  xmlns="http://www.w3.org/2000/svg"
-                >
-                  <path
-                    d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
-                    fill="#4285F4"
-                  />
-                  <path
-                    d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"
-                    fill="#34A853"
-                  />
-                  <path
-                    d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"
-                    fill="#FBBC05"
-                  />
-                  <path
-                    d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
-                    fill="#EA4335"
-                  />
-                </svg>
-                <span className="relative z-10 drop-shadow-md">
-                  Sign up with Google
-                </span>
-              </button>
-            </div>
-          )}
+            <CodeField kw="let" name="password">
+              {passwordInput(formData.password, "password", showPassword, setShowPassword, "'at least 6 chars'", "new-password")}
+            </CodeField>
 
-          {!takeOtp && !takePin ? (
-            <form onSubmit={handleSubmit} className="space-y-5">
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-white/80">
-                  Full Name
-                </label>
-                <div className="relative flex items-center">
-                  <div className="absolute left-4 text-white/40">
-                    <User className="size-5" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="John Doe"
-                    className="w-full pl-12 pr-4 py-3 rounded-full bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 transition-all duration-300"
-                    value={formData.fullName}
-                    onChange={(e) =>
-                      setFromData({ ...formData, fullName: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
+            <CodeField kw="let" name="confirmPassword">
+              {passwordInput(
+                formData.confirmPassword,
+                "confirmPassword",
+                showConfirmPassword,
+                setShowConfirmPassword,
+                "'same again'",
+                "new-password",
+              )}
+            </CodeField>
 
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-white/80">
-                  Email
-                </label>
-                <div className="relative flex items-center">
-                  <div className="absolute left-4 text-white/40">
-                    <Mail className="size-5" />
-                  </div>
-                  <input
-                    type="email"
-                    placeholder="you@example.com"
-                    className="w-full pl-12 pr-4 py-3 rounded-full bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 transition-all duration-300"
-                    value={formData.email}
-                    onChange={(e) =>
-                      setFromData({ ...formData, email: e.target.value })
-                    }
-                  />
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-white/80">
-                  Password
-                </label>
-                <div className="relative flex items-center">
-                  <div className="absolute left-4 text-white/40">
-                    <Lock className="size-5" />
-                  </div>
-                  <input
-                    type={showPassword ? "text" : "password"}
-                    placeholder="Create a password"
-                    className="w-full pl-12 pr-12 py-3 rounded-full bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 transition-all duration-300"
-                    value={formData.password}
-                    onChange={(e) =>
-                      setFromData({ ...formData, password: e.target.value })
-                    }
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-4 text-white/40 hover:text-white/80 transition-colors"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? (
-                      <EyeOff className="size-5" />
-                    ) : (
-                      <Eye className="size-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-white/80">
-                  Confirm Password
-                </label>
-                <div className="relative flex items-center">
-                  <div className="absolute left-4 text-white/40">
-                    <Lock className="size-5" />
-                  </div>
-                  <input
-                    type={showConfirmPassword ? "text" : "password"}
-                    placeholder="Confirm your password"
-                    className="w-full pl-12 pr-12 py-3 rounded-full bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 transition-all duration-300"
-                    value={formData.confirmPassword}
-                    onChange={(e) =>
-                      setFromData({
-                        ...formData,
-                        confirmPassword: e.target.value,
-                      })
-                    }
-                  />
-                  <button
-                    type="button"
-                    className="absolute right-4 text-white/40 hover:text-white/80 transition-colors"
-                    onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                  >
-                    {showConfirmPassword ? (
-                      <EyeOff className="size-5" />
-                    ) : (
-                      <Eye className="size-5" />
-                    )}
-                  </button>
-                </div>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 px-4 rounded-full mt-8 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-all duration-300 transform active:scale-[0.98] flex items-center justify-center disabled:opacity-70 disabled:pointer-events-none"
-                disabled={isSendingOtp}
-              >
-                {isSendingOtp ? (
-                  <>
-                    <Loader2 className="size-5 animate-spin mr-2" />
-                    Sending OTP...
-                  </>
-                ) : (
-                  "Sign Up"
-                )}
-              </button>
-            </form>
-          ) : takeOtp && !takePin ? (
-            <form onSubmit={verifyOtp} className="space-y-5">
-              <button
-                type="button"
-                onClick={() => setTakeOtp(false)}
-                className="flex items-center text-sm text-blue-400 hover:text-blue-300 transition-colors mb-4"
-              >
-                <ArrowLeft className="size-4 mr-1" />
-                Back to Sign Up
-              </button>
-
-              <div className="flex flex-col gap-2">
-                <label className="text-sm font-medium text-white/80">
-                  Enter OTP
-                </label>
-                <div className="relative flex items-center">
-                  <div className="absolute left-4 text-white/40">
-                    <ShieldCheck className="size-5" />
-                  </div>
-                  <input
-                    type="text"
-                    placeholder="6-digit code"
-                    maxLength={6}
-                    className="w-full pl-12 pr-4 py-3 rounded-full bg-white/5 border border-white/10 text-white placeholder-white/30 focus:outline-none focus:border-blue-400 focus:ring-1 focus:ring-blue-400/50 transition-all duration-300 text-center tracking-widest text-lg font-medium"
-                    onChange={(e) => setOtp(e.target.value)}
-                    value={otp}
-                  />
-                </div>
-              </div>
-              <button
-                type="submit"
-                className="w-full py-3 px-4 rounded-full mt-4 bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white font-medium shadow-lg shadow-blue-500/20 hover:shadow-blue-500/40 transition-all duration-300 transform active:scale-[0.98] flex items-center justify-center disabled:opacity-70 disabled:pointer-events-none"
-                disabled={isVerifyingOtp || otp.length < 6}
-              >
-                {isVerifyingOtp ? (
-                  <>
-                    <Loader2 className="size-5 animate-spin mr-2" />
-                    Verifying...
-                  </>
-                ) : (
-                  "Verify OTP"
-                )}
-              </button>
-
-              <div className="text-center mt-4 text-sm">
-                {resendTimer > 0 ? (
-                  <p className="text-white/60">
-                    Resend OTP in{" "}
-                    <span className="text-blue-400 font-medium">
-                      {Math.floor(resendTimer / 60)}:
-                      {(resendTimer % 60).toString().padStart(2, "0")}
-                    </span>
-                  </p>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleResendOtp}
-                    disabled={isSendingOtp}
-                    className="text-blue-400 hover:text-blue-300 transition-colors font-medium disabled:opacity-50"
-                  >
-                    {isSendingOtp ? "Sending..." : "Resend OTP"}
-                  </button>
-                )}
-              </div>
-            </form>
-          ) : (
-            <form
-              onSubmit={handlePinSubmit}
-              className="flex flex-col items-center w-full"
+            <button
+              type="submit"
+              className="ide-btn ide-btn-solid w-full justify-center !py-2.5 mt-2"
+              disabled={isSendingOtp}
             >
-              <div className="w-full mb-6">
-                <label className="text-sm font-medium text-white/80 block text-center mb-4">
-                  Create 6-Digit PIN
-                </label>
-                <div className="flex gap-2 sm:gap-3 w-full justify-center">
-                  {pinDigits.map((digit, index) => (
-                    <input
-                      key={index}
-                      ref={(el) => (createPinRefs.current[index] = el)}
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      maxLength={6}
-                      value={digit}
-                      onChange={(e) => handlePinChange(index, e, false)}
-                      onKeyDown={(e) => handlePinKeyDown(index, e, false)}
-                      className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold rounded-xl transition-all outline-none border-2 
-                        ${
-                          isDark
-                            ? "bg-white/5 text-white focus:border-[var(--theme-main)] border-white/10 shadow-inner"
-                            : "bg-white text-gray-900 focus:border-[var(--theme-main)] border-gray-200 shadow-inner"
-                        }
-                        ${digit ? "border-[var(--theme-main)] ring-2 ring-[var(--theme-main)]/20 bg-white/10" : ""}
-                      `}
-                    />
-                  ))}
-                </div>
-              </div>
+              {isSendingOtp ? (
+                <>
+                  <Loader2 className="size-4 animate-spin" />
+                  await sendOtp(email)…
+                </>
+              ) : (
+                "await sendOtp(email);"
+              )}
+            </button>
+          </form>
+        </>
+      ) : takeOtp && !takePin ? (
+        <form onSubmit={verifyOtp} className="space-y-5">
+          <button
+            type="button"
+            onClick={() => setTakeOtp(false)}
+            className="ide-btn ide-btn-ghost !px-2 !py-1 text-xs -ml-2"
+          >
+            <ArrowLeft className="size-3.5" />
+            history.back()
+          </button>
 
-              <div className="w-full mb-8">
-                <label className="text-sm font-medium text-white/80 block text-center mb-4">
-                  Confirm 6-Digit PIN
-                </label>
-                <div className="flex gap-2 sm:gap-3 w-full justify-center">
-                  {confirmPinDigits.map((digit, index) => (
-                    <input
-                      key={index}
-                      ref={(el) => (confirmPinRefs.current[index] = el)}
-                      type="text"
-                      inputMode="numeric"
-                      autoComplete="one-time-code"
-                      maxLength={6}
-                      value={digit}
-                      onChange={(e) => handlePinChange(index, e, true)}
-                      onKeyDown={(e) => handlePinKeyDown(index, e, true)}
-                      className={`w-10 h-12 sm:w-12 sm:h-14 text-center text-xl font-bold rounded-xl transition-all outline-none border-2 
-                        ${
-                          isDark
-                            ? "bg-white/5 text-white focus:border-[var(--theme-main)] border-white/10 shadow-inner"
-                            : "bg-white text-gray-900 focus:border-[var(--theme-main)] border-gray-200 shadow-inner"
-                        }
-                        ${digit ? "border-[var(--theme-main)] ring-2 ring-[var(--theme-main)]/20 bg-white/10" : ""}
-                      `}
-                    />
-                  ))}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between w-full mb-8">
-                <label className="flex items-center gap-2 cursor-pointer select-none text-sm font-medium text-white/80">
-                  <div className="relative flex items-center">
-                    <input
-                      type="checkbox"
-                      className="peer sr-only"
-                      checked={rememberMe}
-                      onChange={() => setRememberMe(!rememberMe)}
-                    />
-                    <div
-                      className={`w-5 h-5 rounded border-2 transition-all flex items-center justify-center
-                      ${rememberMe ? "border-emerald-500 bg-emerald-500" : "border-white/20 bg-white/5"}
-                    `}
-                    >
-                      {rememberMe && (
-                        <svg
-                          className="w-3.5 h-3.5 text-white"
-                          fill="none"
-                          viewBox="0 0 24 24"
-                          stroke="currentColor"
-                          strokeWidth={3}
-                        >
-                          <path
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                            d="M5 13l4 4L19 7"
-                          />
-                        </svg>
-                      )}
-                    </div>
-                  </div>
-                  Keep me unlocked for 7 days
-                </label>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-3 px-4 rounded-full bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-medium shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all duration-300 transform active:scale-[0.98] flex items-center justify-center disabled:opacity-70 disabled:pointer-events-none"
-                disabled={
-                  isSigningUp ||
-                  pinDigits.join("").length < 6 ||
-                  confirmPinDigits.join("").length < 6
-                }
-              >
-                {isSigningUp ? (
-                  <>
-                    <Loader2 className="size-5 animate-spin mr-2" />
-                    Creating account...
-                  </>
-                ) : (
-                  <>
-                    <ShieldCheck className="size-5 mr-2" />
-                    Complete Sign Up
-                  </>
-                )}
-              </button>
-            </form>
-          )}
-
-          <div className="text-center mt-8">
-            <p className="text-sm text-white/60">
-              Already have an account?{" "}
-              <Link
-                to="/login"
-                className="text-blue-400 font-medium hover:text-blue-300 hover:underline transition-colors"
-              >
-                Sign in
-              </Link>
+          <div>
+            <h1 className="text-xl mb-1">
+              <span className="tok-kw">await</span> <span className="tok-fn">verify</span>
+              <span className="tok-punc">(</span>otp<span className="tok-punc">)</span>
+            </h1>
+            <p className="text-[12.5px] tok-com">
+              {"// we sent a 6-digit code to "}
+              <span className="tok-str not-italic">"{formData.email}"</span>
             </p>
           </div>
-        </div>
-      </div>
-    </div>
+
+          <CodeField kw="const" name="otp">
+            <div className="relative">
+              <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--fg-dim)]" />
+              <input
+                type="text"
+                inputMode="numeric"
+                autoComplete="one-time-code"
+                placeholder="000000"
+                maxLength={6}
+                className="ide-input !pl-9 text-center tracking-[0.5em] !text-lg tok-str"
+                onChange={(e) => setOtp(e.target.value)}
+                value={otp}
+              />
+            </div>
+          </CodeField>
+
+          <button
+            type="submit"
+            className="ide-btn ide-btn-solid w-full justify-center !py-2.5"
+            disabled={isVerifyingOtp || otp.length < 6}
+          >
+            {isVerifyingOtp ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                verifying…
+              </>
+            ) : (
+              "verify(otp);"
+            )}
+          </button>
+
+          <div className="text-center text-[12.5px]">
+            {resendTimer > 0 ? (
+              <p className="tok-dim">
+                <span className="tok-fn">setTimeout</span>
+                <span className="tok-punc">(</span>resend<span className="tok-punc">, </span>
+                <span className="tok-num">
+                  {Math.floor(resendTimer / 60)}:{(resendTimer % 60).toString().padStart(2, "0")}
+                </span>
+                <span className="tok-punc">)</span>
+              </p>
+            ) : (
+              <button
+                type="button"
+                onClick={handleResendOtp}
+                disabled={isSendingOtp}
+                className="tok-fn hover:underline disabled:opacity-50"
+              >
+                {isSendingOtp ? "sending…" : "resendOtp()"}
+              </button>
+            )}
+          </div>
+        </form>
+      ) : (
+        <form onSubmit={handlePinSubmit} className="flex flex-col w-full">
+          <h1 className="text-xl mb-1">
+            <span className="tok-kw">new</span> <span className="tok-fn">Vault</span>
+            <span className="tok-punc">(</span>pin<span className="tok-punc">)</span>
+          </h1>
+          <p className="text-[12.5px] tok-com mb-4">{"// a 6-digit PIN derives the key that encrypts every note"}</p>
+
+          <div className="ide-note is-err mb-6">
+            <span className="tok-err font-semibold">WARNING:</span>{" "}
+            <span className="text-[var(--fg)]">
+              once set, your PIN can't be reset or recovered. Lose it and your notes stay encrypted forever.
+            </span>
+          </div>
+
+          <div className="mb-5">
+            <p className="text-[12.5px] mb-2">
+              <span className="tok-kw">const</span> pin <span className="tok-punc">=</span>
+            </p>
+            {pinRow(pinDigits, createPinRefs, false)}
+          </div>
+
+          <div className="mb-6">
+            <p className="text-[12.5px] mb-2">
+              <span className="tok-kw">const</span> confirmPin <span className="tok-punc">=</span>
+            </p>
+            {pinRow(confirmPinDigits, confirmPinRefs, true)}
+          </div>
+
+          <div className="mb-6">
+            <RememberToggle checked={rememberMe} onChange={() => setRememberMe(!rememberMe)} />
+          </div>
+
+          <button
+            type="submit"
+            className="ide-btn ide-btn-ok w-full justify-center !py-2.5"
+            disabled={
+              isSigningUp ||
+              pinDigits.join("").length < 6 ||
+              confirmPinDigits.join("").length < 6
+            }
+          >
+            {isSigningUp ? (
+              <>
+                <Loader2 className="size-4 animate-spin" />
+                creating account…
+              </>
+            ) : (
+              <>
+                <ShieldCheck className="size-4" />
+                vault.lock(pin);
+              </>
+            )}
+          </button>
+        </form>
+      )}
+
+      {!takeOtp && !takePin && <p className="text-lg tok-punc mt-5">{"}"}</p>}
+
+      <p className="text-[12.5px] text-center mt-4 tok-dim">
+        {"// already have an account? "}
+        <Link to="/login" className="tok-fn hover:underline">
+          login()
+        </Link>
+      </p>
+    </AuthFrame>
   );
 };
 

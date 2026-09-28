@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate, useLocation } from "react-router";
+import { useNavigate, useLocation } from "react-router";
 import { localDB } from "../lib/db.js";
 import { useAuthStore } from "../stores/useAuthStore";
 import NoteCard from "../components/NoteCard.jsx";
 import { triggerSync } from "../lib/syncEngine";
-import { ArrowLeftIcon, Trash2Icon } from "lucide-react";
+import { Trash2Icon, Recycle } from "lucide-react";
+import AppShell from "../components/shell/AppShell.jsx";
+import Navbar from "../components/Navbar.jsx";
 import axiosInstance from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
@@ -76,7 +78,8 @@ const RecycleBinPage = () => {
     window.addEventListener("note-restored", handleNoteRestored);
     return () =>
       window.removeEventListener("note-restored", handleNoteRestored);
-  }, []);
+    // Re-run once the vault key is loaded, otherwise the bin shows ciphertext.
+  }, [authUser?._id, cryptoKey]);
 
   useEffect(() => {
     if (authUser && authUser._id) {
@@ -119,68 +122,79 @@ const RecycleBinPage = () => {
   };
 
   return (
-    <div className="min-h-screen py-10 px-4 md:px-8 max-w-7xl mx-auto">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-10 gap-4">
-        <div className="flex items-center gap-4">
-          <Link
-            to="/profile"
-            className="p-2 bg-white/5 hover:bg-white/10 rounded-xl transition-colors text-white/60 hover:text-white"
-          >
-            <ArrowLeftIcon className="size-5" />
-          </Link>
-          <h1 className="text-3xl font-bold text-white tracking-wide">
-            Recycle Bin
+    <AppShell toolbar={<Navbar crumb="RecycleBin.js" />}>
+      <div className="max-w-6xl mx-auto px-3 md:px-6 py-5 md:py-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
+          <h1 className="text-lg md:text-xl">
+            <span className="tok-kw">function</span>{" "}
+            <span className="tok-fn">RecycleBin</span>
+            <span className="tok-punc">() {"{"}</span>
           </h1>
+
+          {deletedNotes.length > 0 && (
+            <button
+              type="button"
+              disabled={!isOnline}
+              onClick={handleClear}
+              className="ide-btn ide-btn-danger self-start"
+              title={isOnline ? "Permanently delete everything" : "Needs a connection"}
+            >
+              <Trash2Icon className="size-4" />
+              <span>
+                globalThis.<span className="tok-fn">gc</span>()
+              </span>
+            </button>
+          )}
         </div>
 
-        {deletedNotes.length > 0 && (
-          <button
-            disabled={!isOnline}
-            onClick={handleClear}
-            className="flex items-center gap-2 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl px-5 py-2.5 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            <Trash2Icon className="size-4" />
-            <span className="font-semibold">Empty Bin</span>
-          </button>
+        <p className="ide-note mb-6 tok-com">
+          {"// Deleted notes wait here for 30 days, then they're garbage-collected for good."}
+          {!isOnline && deletedNotes.length > 0 && (
+            <span className="tok-warn"> {"// emptying the bin needs a connection"}</span>
+          )}
+        </p>
+
+        {deletedNotes.length === 0 ? (
+          <div className="max-w-md mx-auto mt-8 ide-card !bg-[var(--panel)] px-6 py-8 text-center animate-slide-up">
+            <Recycle className="size-10 mx-auto mb-4 tok-ok opacity-80" />
+            <p className="text-[13.5px]">
+              <span className="tok-kw">return</span> <span className="tok-punc">[];</span>
+            </p>
+            <p className="text-xs tok-com mt-2">{"// heap is clean — nothing to collect"}</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+            {deletedNotes.map((deletedNote) => {
+              const daysPassed = Math.floor(
+                (Date.now() - new Date(deletedNote.updated_at).getTime()) / (1000 * 60 * 60 * 24),
+              );
+              const daysLeft = Math.max(0, 30 - daysPassed);
+              return (
+                <div key={deletedNote.id} className="flex flex-col gap-1.5 animate-slide-up">
+                  <NoteCard mode="delete" note={deletedNote} />
+                  <span className={`text-[11.5px] text-center ${daysLeft <= 3 ? "tok-err" : "tok-com"}`}>
+                    {"// GC in "}
+                    {daysLeft} {daysLeft === 1 ? "day" : "days"}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
         )}
+
+        <div className="mt-6 text-lg tok-punc">{"}"}</div>
       </div>
-
-      <p className="text-sm text-white/60 mb-8 text-center bg-white/5 py-3 px-4 rounded-xl border border-white/10 w-full">
-        Items in the recycle bin will be permanently deleted after 30 days.
-      </p>
-
-      {deletedNotes.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 text-white/40">
-          <Trash2Icon className="size-16 mb-4 opacity-20" />
-          <p className="text-lg">No deleted notes found.</p>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {deletedNotes.map((deletedNote) => {
-            const daysPassed = Math.floor((Date.now() - new Date(deletedNote.updated_at).getTime()) / (1000 * 60 * 60 * 24));
-            const daysLeft = Math.max(0, 30 - daysPassed);
-            return (
-              <div key={deletedNote.id} className="flex flex-col gap-2">
-                <NoteCard mode="delete" note={deletedNote} />
-                <span className="text-xs text-white/50 text-center font-medium">
-                  {daysLeft} {daysLeft === 1 ? 'day' : 'days'} left to restore
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
 
       <ConfirmModal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
         onConfirm={confirmClear}
         title="Empty Recycle Bin"
-        message="Are you sure you want to permanently delete all notes in the recycle bin? This action cannot be undone."
+        message="This permanently deletes every note in the bin, on this device and in the cloud. There is no undo()."
         confirmText="Empty Bin"
         isDestructive={true}
       />
-    </div>
+    </AppShell>
   );
 };
 

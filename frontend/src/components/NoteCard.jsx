@@ -1,10 +1,9 @@
 import { useState, useMemo } from "react";
-import { PenSquareIcon, Trash2Icon, Undo2Icon } from "lucide-react";
+import { PenLine, Trash2, Undo2, FileCode2 } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import ConfirmModal from "./ConfirmModal.jsx";
-import api from "../lib/axios.js";
 import toast from "react-hot-toast";
-import { formatDate } from "../lib/utils.js";
+import { formatDate, timeAgo, toFileName } from "../lib/utils.js";
 import { useAuthStore } from "../stores/useAuthStore.js";
 import { localDB } from "../lib/db.js";
 import { triggerSync } from "../lib/syncEngine.js";
@@ -68,73 +67,70 @@ const NoteCard = ({ note, mode }) => {
     }
   };
 
-  return (
-    <div className="relative group theme-bg-glass backdrop-blur-lg border rounded-2xl p-6 transition-all duration-300 overflow-hidden h-full flex flex-col hover:-translate-y-1 hover:shadow-xl hover:shadow-white/5">
-      <div
-        className="absolute inset-0 opacity-0 group-hover:opacity-20 transition-opacity duration-300 -z-10 pointer-events-none"
-        style={{
-          background:
-            "radial-gradient(circle at top right, var(--theme-main), transparent 70%)",
-        }}
-      ></div>
-      <div
-        className="absolute top-0 left-0 w-full h-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-        style={{
-          background:
-            "linear-gradient(to right, var(--theme-main), var(--theme-accent))",
-        }}
-      ></div>
+  const isBin = mode === "delete";
 
+  return (
+    <div className="relative group ide-card h-full flex flex-col overflow-hidden">
       <Link
-        to={mode !== "delete" ? `/note/${note.id}` : `/delNote/${note.id}`}
+        to={!isBin ? `/note/${note.id}` : `/delNote/${note.id}`}
         state={{ backgroundLocation: location }}
         className="flex flex-col flex-1 cursor-pointer"
       >
-        <h2 className="text-xl font-semibold mb-3 text-white tracking-wide line-clamp-1">
-          {note.title}
-        </h2>
-        <div
-          className="text-white/95 mb-6 line-clamp-3 leading-relaxed [&>p]:m-0 [&>p]:inline"
-          dangerouslySetInnerHTML={{ __html: safeContent }}
-        />
-
-        <div className="flex items-center justify-between mt-auto pt-4 border-t border-white/5">
-          <span className="text-xs text-white/50 font-medium">
-            {formatDate(note.createdAt || note.updated_at)}
+        {/* file header */}
+        <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 text-[12px]">
+          <span className="flex items-center gap-1.5 min-w-0 tok-dim">
+            <FileCode2 className="size-3.5 tok-js shrink-0" />
+            <span className="truncate">{toFileName(note.title)}</span>
           </span>
-          <div className="flex items-center gap-2">
+          <span className="tok-com shrink-0" title={formatDate(note.createdAt || note.updated_at)}>
+            {"// "}
+            {timeAgo(note.updated_at || note.createdAt)}
+          </span>
+        </div>
+
+        {/* code body with a line-number gutter */}
+        <div className="flex flex-1 px-4 pb-3 gap-3">
+          <div className="gutter text-[12px] leading-6 pt-px">
+            1<br />2<br />3<br />4
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-[15px] leading-6 font-semibold text-[var(--fg)] line-clamp-1">
+              {note.title || <span className="tok-kw">undefined</span>}
+            </h2>
             <div
-              hidden={mode === "delete"}
-              className="p-2 bg-white/5 hover:bg-white/20 rounded-lg transition-colors border border-transparent hover:border-white/10 text-white/70 hover:text-white"
-            >
-              <PenSquareIcon className="size-4" />
-            </div>
+              className="note-prose !text-[13px] !leading-6 text-[var(--fg-muted)] line-clamp-3 [&>*]:m-0 [&>p]:inline [&_img]:hidden"
+              dangerouslySetInnerHTML={{ __html: safeContent }}
+            />
+          </div>
+        </div>
+
+        <div className="flex items-center justify-between px-4 py-2 border-t ide-divider bg-[color-mix(in_srgb,var(--bg)_25%,transparent)]">
+          <span className="text-[11px] tok-dim">
+            {isBin ? (
+              <span className="tok-warn">{"// awaiting garbage collection"}</span>
+            ) : (
+              <>
+                <span className="tok-kw">await</span> <span className="tok-fn">decrypt</span>
+                <span className="tok-punc">()</span> <span className="tok-ok">✓</span>
+              </>
+            )}
+          </span>
+          <div className="flex items-center gap-1">
+            {!isBin && (
+              <span className="ide-icon-btn !w-7 !h-7" title="edit()">
+                <PenLine className="size-3.5" />
+              </span>
+            )}
             <button
+              type="button"
               onClick={(e) => {
-                mode === "delete"
-                  ? requestAction(e, "restore")
-                  : requestAction(e, "delete");
+                isBin ? requestAction(e, "restore") : requestAction(e, "delete");
               }}
-              className={
-                mode === "delete"
-                  ? "p-2 rounded-lg transition-all border border-transparent hover:brightness-125 z-10 relative"
-                  : "p-2 bg-white/5 hover:bg-red-500/20 rounded-lg transition-colors border border-transparent hover:border-red-500/30 text-white/70 hover:text-red-400 z-10 relative"
-              }
-              style={
-                mode === "delete"
-                  ? {
-                      backgroundColor:
-                        "color-mix(in srgb, var(--theme-accent) 15%, transparent)",
-                      color: "var(--theme-accent)",
-                    }
-                  : {}
-              }
+              className={`ide-icon-btn !w-7 !h-7 relative z-10 ${isBin ? "!text-[var(--ok)]" : "is-danger"}`}
+              title={isBin ? "restore()" : "delete note"}
+              aria-label={isBin ? "Restore note" : "Delete note"}
             >
-              {mode === "delete" ? (
-                <Undo2Icon className="size-4" />
-              ) : (
-                <Trash2Icon className="size-4" />
-              )}
+              {isBin ? <Undo2 className="size-3.5" /> : <Trash2 className="size-3.5" />}
             </button>
           </div>
         </div>
@@ -147,7 +143,7 @@ const NoteCard = ({ note, mode }) => {
         title={actionType === "delete" ? "Delete Note" : "Restore Note"}
         message={
           actionType === "delete"
-            ? "Are you sure you want to delete this note? It will be moved to the recycle bin."
+            ? "This note moves to RecycleBin() and is garbage-collected after 30 days. Continue?"
             : "Are you sure you want to restore this note?"
         }
         confirmText={actionType === "delete" ? "Delete" : "Restore"}
