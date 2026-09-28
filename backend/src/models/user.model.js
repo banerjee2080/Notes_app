@@ -1,5 +1,13 @@
 import mongoose from "mongoose";
 
+const vaultCheckSchema = new mongoose.Schema(
+  {
+    ciphertext: { type: String, required: true },
+    iv: { type: String, required: true },
+  },
+  { _id: false },
+);
+
 const userSchema = new mongoose.Schema(
   {
     email: {
@@ -40,6 +48,10 @@ const userSchema = new mongoose.Schema(
     accent_colour2: {
       type: String,
       default: "",
+    },
+    vaultCheck: {
+      type: vaultCheckSchema,
+      default: null,
     },
   },
   { timestamps: true },

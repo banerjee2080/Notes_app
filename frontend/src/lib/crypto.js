@@ -95,3 +95,33 @@ export async function decryptHtml(ciphertext, ivBase64, cryptoKey) {
   const plain = await decryptData(ciphertext, ivBase64, cryptoKey);
   return sanitizeHtml(plain);
 }
+
+const VAULT_CHECK_PLAINTEXT = "notejs-vault-check-v1";
+
+/**
+ * Encrypts the known phrase with the vault key. Stored once, at PIN setup.
+ */
+export async function createVaultCheck(cryptoKey) {
+  const { ciphertext, iv } = await encryptData(
+    VAULT_CHECK_PLAINTEXT,
+    cryptoKey,
+  );
+  return { ciphertext, iv };
+}
+
+/**
+ * Returns true only if `cryptoKey` is the key that created `vaultCheck`.
+ */
+export async function verifyVaultCheck(vaultCheck, cryptoKey) {
+  if (!vaultCheck?.ciphertext || !vaultCheck?.iv || !cryptoKey) return false;
+  try {
+    const plain = await decryptData(
+      vaultCheck.ciphertext,
+      vaultCheck.iv,
+      cryptoKey,
+    );
+    return plain === VAULT_CHECK_PLAINTEXT;
+  } catch {
+    return false;
+  }
+}

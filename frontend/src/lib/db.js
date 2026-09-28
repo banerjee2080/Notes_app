@@ -8,7 +8,7 @@ localDB.version(2).stores({
 
 export const clearLocalDB = async () => {
   try {
-    await Promise.all(localDB.tables.map(table => table.clear()));
+    await Promise.all(localDB.tables.map((table) => table.clear()));
     console.log("Local IndexedDB cleared.");
   } catch (error) {
     console.error("Failed to clear local IndexedDB:", error);
@@ -52,7 +52,11 @@ const isTrustworthyVaultKey = (key) =>
   key.usages?.includes("encrypt") &&
   key.usages?.includes("decrypt");
 
-export const saveVaultKey = async (userId, cryptoKey, ttlMs = VAULT_KEY_TTL_MS) => {
+export const saveVaultKey = async (
+  userId,
+  cryptoKey,
+  ttlMs = VAULT_KEY_TTL_MS,
+) => {
   if (!userId || !cryptoKey) return;
   if (!isTrustworthyVaultKey(cryptoKey)) {
     console.error(
@@ -93,4 +97,26 @@ export const getVaultKey = async (userId) => {
 export const clearVaultKey = async (userId) => {
   if (!userId) return;
   await localDB.meta.delete(vaultKeyMetaKey(userId));
+};
+
+// ── Vault check cache ───────────────────────────────────────────────────
+// Local copy of the server's vault check, so the PIN can be verified offline.
+// Not secret: it is ciphertext that only the correct key can open.
+
+const vaultCheckMetaKey = (userId) => `vaultCheck_${userId}`;
+
+export const getLocalVaultCheck = async (userId) => {
+  if (!userId) return null;
+  const entry = await localDB.meta.get(vaultCheckMetaKey(userId));
+  const value = entry?.value;
+  if (!value?.ciphertext || !value?.iv) return null;
+  return value;
+};
+
+export const saveLocalVaultCheck = async (userId, vaultCheck) => {
+  if (!userId || !vaultCheck?.ciphertext || !vaultCheck?.iv) return;
+  await localDB.meta.put({
+    key: vaultCheckMetaKey(userId),
+    value: { ciphertext: vaultCheck.ciphertext, iv: vaultCheck.iv },
+  });
 };

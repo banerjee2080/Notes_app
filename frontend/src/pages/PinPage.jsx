@@ -2,22 +2,41 @@ import { useState, useRef, useEffect } from "react";
 import { useAuthStore } from "../stores/useAuthStore";
 import toast from "react-hot-toast";
 import { useNavigate, useLocation } from "react-router";
-import { X, Lock, KeyRound, ShieldCheck, AlertTriangle } from "lucide-react";
 import {
-  localDB,
-  isPinConfigured,
-  markPinConfigured,
-  saveVaultKey,
-} from "../lib/db.js";
-import { decryptData } from "../lib/crypto.js";
+  X,
+  Lock,
+  KeyRound,
+  ShieldCheck,
+  AlertTriangle,
+  WifiOff,
+} from "lucide-react";
+import { markPinConfigured, saveVaultKey } from "../lib/db.js";
+import { deriveKeyFromPin } from "../lib/crypto.js";
+import {
+  getVaultMode,
+  verifyPinKey,
+  establishVaultCheck,
+  VaultAlreadySetError,
+} from "../lib/vault.js";
+import { triggerSync } from "../lib/syncEngine.js";
+import { useOnlineStatus } from "../hooks/useOnlineStatus.js";
 import api from "../lib/axios.js";
 
+const EMPTY_PIN = ["", "", "", "", "", ""];
+
 const PinPage = ({ isModal }) => {
-  const { authUser, initCryptoKey, themeMode } = useAuthStore();
-  const [pinDigits, setPinDigits] = useState(["", "", "", "", "", ""]);
+  const { authUser, themeMode } = useAuthStore();
+  const userId = authUser?._id || authUser?.id;
+  const isOnline = useOnlineStatus();
+
+  const [pinDigits, setPinDigits] = useState(EMPTY_PIN);
   const [rememberMe, setRememberMe] = useState(false);
 
-  const [isSetup, setIsSetup] = useState(false);
+  // "loading" | "setup" | "unlock" | "offline"
+  const [vaultMode, setVaultMode] = useState("loading");
+  const isSetup = vaultMode === "setup";
+  const [isVerifying, setIsVerifying] = useState(false);
+
   const [step, setStep] = useState("enter"); // enter -> confirm -> otp (setup only)
   const [firstPin, setFirstPin] = useState("");
 
@@ -53,40 +72,42 @@ const PinPage = ({ isModal }) => {
     return () => clearInterval(interval);
   }, [resendTimer]);
 
+  // Decide setup vs unlock from positive evidence only (see lib/vault.js).
+  // Re-runs when connectivity changes, so an "offline" screen recovers by itself.
   useEffect(() => {
-    // Determine whether this user has ever completed PIN setup on this device.
-    // We rely on a locally persisted flag rather than the presence of an
-    // encrypted note, because that flag survives reloads/tab closes even
-    // before any note has been created or synced locally - avoiding a false
-    // "first time setup" prompt that would silently derive a new, mismatched
-    // encryption key.
-    const checkSetup = async () => {
-      const userId = authUser?._id || authUser?.id;
-      if (!userId) return;
+    if (!userId) return;
+    let cancelled = false;
 
-      const configured = await isPinConfigured(userId);
-      if (configured) {
-        setIsSetup(false);
-        return;
-      }
+    setVaultMode("loading");
+    getVaultMode(userId)
+      .then((mode) => {
+        if (!cancelled) setVaultMode(mode);
+      })
+      .catch((err) => {
+        console.error("Could not determine vault state", err);
+        if (!cancelled) setVaultMode("offline");
+      });
 
-      // Fallback for a fresh device/browser: if an encrypted note has already
-      // synced down from the server, a PIN was clearly set elsewhere.
-      const notes = await localDB.notes
-        .where("user_id")
-        .equals(userId)
-        .toArray();
-      const validNote = notes.find((n) => !!n.iv_content);
-      if (validNote) {
-        await markPinConfigured(userId);
-        setIsSetup(false);
-        return;
-      }
-
-      setIsSetup(true);
+    return () => {
+      cancelled = true;
     };
-    checkSetup();
-  }, [authUser]);
+  }, [userId, isOnline]);
+
+  const resetPinEntry = () => {
+    setPinDigits(EMPTY_PIN);
+    inputRefs.current[0]?.focus();
+  };
+
+  const goBack = () => {
+    const bgLocation = isModal ? location.state?.backgroundLocation : null;
+    if (bgLocation) {
+      navigate(bgLocation.pathname + (bgLocation.search || ""), {
+        replace: true,
+      });
+    } else {
+      navigate("/");
+    }
+  };
 
   const handleChange = (index, e) => {
     const value = e.target.value;
@@ -129,42 +150,34 @@ const PinPage = ({ isModal }) => {
     }
   };
 
-  const finalizePin = async (pinToUse, userId) => {
+  const finalizePin = async (pinToUse, uid) => {
     try {
-      const key = await initCryptoKey(pinToUse, userId);
+      const key = await deriveKeyFromPin(pinToUse, uid);
+      await establishVaultCheck(uid, key);
 
-      if (!key) {
-        toast.error("Failed to initialize encryption key. Incorrect PIN?");
-        setPinDigits(["", "", "", "", "", ""]);
-        setStep("enter");
-        setFirstPin("");
-        if (inputRefs.current[0]) inputRefs.current[0].focus();
-        return;
-      }
-
-      await markPinConfigured(userId);
-
+      useAuthStore.setState({ cryptoKey: key });
+      await markPinConfigured(uid);
       if (rememberMe) {
-        await saveVaultKey(userId, key);
+        await saveVaultKey(uid, key);
       }
 
       toast.success("PIN Set Successfully!");
-
-      if (isModal) {
-        const bgLocation = location.state?.backgroundLocation;
-        if (bgLocation) {
-          navigate(bgLocation.pathname + (bgLocation.search || ""), {
-            replace: true,
-          });
-        } else {
-          navigate("/");
-        }
-      } else {
-        navigate("/");
-      }
+      goBack();
     } catch (err) {
-      console.error("Error finalizing PIN setup", err);
-      toast.error("Something went wrong");
+      if (err instanceof VaultAlreadySetError) {
+        toast.error(
+          "A PIN was already set for this account. Enter that PIN to unlock.",
+        );
+        setVaultMode("unlock");
+      } else {
+        console.error("Error finalizing PIN setup", err);
+        toast.error(
+          "Couldn't save your PIN. Check your connection and try again.",
+        );
+      }
+      setStep("enter");
+      setFirstPin("");
+      resetPinEntry();
     }
   };
 
@@ -206,7 +219,6 @@ const PinPage = ({ isModal }) => {
 
   const handleVerifyOtp = async (e) => {
     e?.preventDefault();
-    const userId = authUser?._id || authUser?.id;
     if (!userId) return toast.error("Please login first");
     if (otp.length !== 6 || isNaN(otp)) {
       return toast.error("Please enter a valid 6-digit OTP");
@@ -229,11 +241,18 @@ const PinPage = ({ isModal }) => {
 
   const handleSubmit = async (e) => {
     e?.preventDefault();
+
+    if (vaultMode === "loading" || isVerifying) return;
+    if (vaultMode === "offline") {
+      return toast.error(
+        "Connect to the internet once so we can verify your vault.",
+      );
+    }
+
     const enteredPin = pinDigits.join("");
     if (enteredPin.length !== 6 || isNaN(enteredPin)) {
       return toast.error("Please enter a valid 6-digit numerical PIN");
     }
-    const userId = authUser?._id || authUser?.id;
     if (!userId) {
       return toast.error("Please login first");
     }
@@ -243,16 +262,14 @@ const PinPage = ({ isModal }) => {
       if (step === "enter") {
         setFirstPin(enteredPin);
         setStep("confirm");
-        setPinDigits(["", "", "", "", "", ""]);
-        if (inputRefs.current[0]) inputRefs.current[0].focus();
+        resetPinEntry();
         return;
       } else if (step === "confirm") {
         if (enteredPin !== firstPin) {
           toast.error("PINs do not match. Please try again.");
           setStep("enter");
           setFirstPin("");
-          setPinDigits(["", "", "", "", "", ""]);
-          if (inputRefs.current[0]) inputRefs.current[0].focus();
+          resetPinEntry();
           return;
         }
         // PINs match - verify email ownership via OTP before securing the vault.
@@ -261,91 +278,70 @@ const PinPage = ({ isModal }) => {
       }
     }
 
+    // Unlock: derive, PROVE, and only then install the key.
+    setIsVerifying(true);
     try {
-      const key = await initCryptoKey(enteredPin, userId);
+      const key = await deriveKeyFromPin(enteredPin, userId);
+      const result = await verifyPinKey(userId, key);
 
-      if (key) {
-        // Client-side verification against an existing note
-        const notes = await localDB.notes
-          .where("user_id")
-          .equals(userId)
-          .toArray();
-        const noteToVerify = notes.find((n) => !!n.iv_content);
-
-        if (noteToVerify) {
-          try {
-            await decryptData(
-              noteToVerify.content,
-              noteToVerify.iv_content,
-              key,
-            );
-          } catch (err) {
-            console.error("PIN verification failed", err);
-            toast.error("Incorrect PIN");
-            setPinDigits(["", "", "", "", "", ""]);
-            if (inputRefs.current[0]) inputRefs.current[0].focus();
-            useAuthStore.setState({ cryptoKey: null, pin: null });
-            return;
-          }
-        }
-
-        if (rememberMe) {
-          await saveVaultKey(userId, key);
-        }
-
-        toast.success("Vault Unlocked!");
-
-        if (isModal) {
-          const bgLocation = location.state?.backgroundLocation;
-          if (bgLocation) {
-            navigate(bgLocation.pathname + (bgLocation.search || ""), {
-              replace: true,
-            });
-          } else {
-            navigate("/");
-          }
+      if (!result.ok) {
+        if (result.reason === "wrong_pin") {
+          toast.error("Incorrect PIN");
+        } else if (navigator.onLine) {
+          toast.error("Your notes are still syncing. Try again in a moment.");
+          triggerSync(userId);
         } else {
-          navigate("/");
+          toast.error(
+            "Connect to the internet once so we can verify your PIN.",
+          );
         }
-      } else {
-        toast.error("Failed to initialize encryption key. Incorrect PIN?");
-        setPinDigits(["", "", "", "", "", ""]);
-        if (inputRefs.current[0]) inputRefs.current[0].focus();
+        resetPinEntry();
+        return;
       }
+
+      useAuthStore.setState({ cryptoKey: key });
+      await markPinConfigured(userId);
+      if (rememberMe) {
+        await saveVaultKey(userId, key);
+      }
+
+      toast.success("Vault Unlocked!");
+      goBack();
     } catch (err) {
       console.error("Error in handleSubmit", err);
       toast.error("Something went wrong");
+    } finally {
+      setIsVerifying(false);
     }
   };
 
-  const handleClose = () => {
-    const bgLocation = location.state?.backgroundLocation;
-    if (bgLocation) {
-      navigate(bgLocation.pathname + (bgLocation.search || ""), {
-        replace: true,
-      });
-    } else {
-      navigate("/");
-    }
-  };
+  const handleClose = goBack;
 
   const titleText =
     step === "otp"
       ? "Verify Your Email"
-      : isSetup
-        ? step === "confirm"
-          ? "Confirm New PIN"
-          : "Set New PIN"
-        : "Unlock Vault";
+      : vaultMode === "loading"
+        ? "Checking Your Vault"
+        : vaultMode === "offline"
+          ? "Vault Unavailable Offline"
+          : isSetup
+            ? step === "confirm"
+              ? "Confirm New PIN"
+              : "Set New PIN"
+            : "Unlock Vault";
 
   const subtitleText =
     step === "otp"
       ? `Enter the 6-digit code sent to ${authUser?.email || "your email"}`
-      : isSetup
-        ? step === "confirm"
-          ? "Re-enter your PIN to confirm"
-          : "Create a 6-digit secure PIN for your vault"
-        : "Enter your 6-digit secure PIN to access your encrypted notes";
+      : vaultMode === "loading"
+        ? "One moment while we check this account for an existing vault"
+        : vaultMode === "offline"
+          ? "We can't confirm your vault state while you're offline"
+          : isSetup
+            ? step === "confirm"
+              ? "Re-enter your PIN to confirm"
+              : "Create a 6-digit secure PIN for your vault"
+            : "Enter your 6-digit secure PIN to access your encrypted notes";
 
   return (
     <div
@@ -405,6 +401,23 @@ const PinPage = ({ isModal }) => {
               <span className="font-semibold">Warning:</span> once set, this PIN
               cannot be reset or recovered. Losing it means losing access to
               your encrypted notes. Please remember it carefully.
+            </p>
+          </div>
+        )}
+
+        {vaultMode === "offline" && step !== "otp" && (
+          <div
+            className={`flex items-start gap-3 mb-6 p-4 rounded-xl border ${
+              isDark
+                ? "bg-rose-500/10 border-rose-500/30 text-rose-300"
+                : "bg-rose-50 border-rose-300 text-rose-700"
+            }`}
+          >
+            <WifiOff size={20} className="shrink-0 mt-0.5" />
+            <p className="text-sm leading-snug">
+              We need the internet once to check whether this account already
+              has a PIN - guessing could lock you out of your notes. This screen
+              recovers on its own as soon as you're back online.
             </p>
           </div>
         )}
@@ -474,6 +487,7 @@ const PinPage = ({ isModal }) => {
                   value={digit}
                   onChange={(e) => handleChange(index, e)}
                   onKeyDown={(e) => handleKeyDown(index, e)}
+                  disabled={vaultMode === "loading" || isVerifying}
                   className={`w-12 h-14 sm:w-14 sm:h-16 text-center text-2xl font-bold rounded-xl transition-all outline-none border-2
                     ${isDark ? "bg-slate-900/50 text-white focus:border-[var(--theme-main)] border-slate-700 shadow-inner" : "bg-gray-50 text-gray-900 focus:border-[var(--theme-main)] border-gray-200 shadow-inner"}
                     ${digit ? "border-[var(--theme-main)] ring-2 ring-[var(--theme-main)]/20" : ""}
@@ -521,17 +535,28 @@ const PinPage = ({ isModal }) => {
 
             <button
               type="submit"
-              disabled={isSendingOtp}
+              disabled={
+                isSendingOtp ||
+                isVerifying ||
+                vaultMode === "loading" ||
+                vaultMode === "offline"
+              }
               className="w-full py-4 rounded-2xl font-bold text-white shadow-lg flex items-center justify-center gap-2 transition-all hover:scale-[1.02] active:scale-95 theme-button disabled:opacity-60 disabled:pointer-events-none"
             >
               <KeyRound size={20} />
-              {isSendingOtp
-                ? "Sending code..."
-                : isSetup
-                  ? step === "confirm"
-                    ? "Confirm & Secure"
-                    : "Continue"
-                  : "Unlock Now"}
+              {vaultMode === "loading"
+                ? "Checking vault..."
+                : vaultMode === "offline"
+                  ? "Waiting for connection..."
+                  : isVerifying
+                    ? "Verifying..."
+                    : isSendingOtp
+                      ? "Sending code..."
+                      : isSetup
+                        ? step === "confirm"
+                          ? "Confirm & Secure"
+                          : "Continue"
+                        : "Unlock Now"}
             </button>
           </form>
         )}
@@ -541,3 +566,4 @@ const PinPage = ({ isModal }) => {
 };
 
 export default PinPage;
+

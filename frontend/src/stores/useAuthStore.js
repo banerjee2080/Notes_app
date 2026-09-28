@@ -6,12 +6,16 @@ import { triggerSync } from "../lib/syncEngine.js";
 import {
   clearLocalDB,
   markPinConfigured,
-  localDB,
   saveVaultKey,
   getVaultKey,
   clearVaultKey,
 } from "../lib/db.js";
-import { deriveKeyFromPin, decryptData } from "../lib/crypto.js";
+import { deriveKeyFromPin } from "../lib/crypto.js";
+import {
+  verifyPinKey,
+  establishVaultCheck,
+  VaultAlreadySetError,
+} from "../lib/vault.js";
 
 const SESSION_TTL_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
 
@@ -50,29 +54,18 @@ export const useAuthStore = create(
         const key = await getVaultKey(userId);
         if (!key) return false;
 
-        try {
-          const notes = await localDB.notes
-            .where("user_id")
-            .equals(userId)
-            .toArray();
-
-          const noteToVerify = notes.find((n) => !!n.iv_content);
-          if (noteToVerify) {
-            await decryptData(
-              noteToVerify.content,
-              noteToVerify.iv_content,
-              key,
-            );
-          }
-
+        const result = await verifyPinKey(userId, key);
+        if (result.ok) {
           set({ cryptoKey: key });
           return true;
-        } catch (e) {
-          console.error("Stored vault key failed verification", e);
-          await clearVaultKey(userId);
-          set({ cryptoKey: null });
-          return false;
         }
+
+        if (result.reason === "wrong_pin") {
+          console.error("Stored vault key failed verification");
+          await clearVaultKey(userId);
+        }
+        set({ cryptoKey: null });
+        return false;
       },
 
       setHasHydrated: (state) => {
@@ -179,10 +172,19 @@ export const useAuthStore = create(
 
           if (pin) {
             const userId = res.data._id || res.data.id;
-            const key = await get().initCryptoKey(pin, userId);
-            await markPinConfigured(userId);
-            if (rememberMe && key) {
-              await saveVaultKey(userId, key);
+            try {
+              const key = await deriveKeyFromPin(pin, userId);
+              await establishVaultCheck(userId, key);
+              await markPinConfigured(userId);
+              if (rememberMe) {
+                await saveVaultKey(userId, key);
+              }
+              set({ cryptoKey: key });
+            } catch (vaultErr) {
+              console.error("Vault setup failed after signup", vaultErr);
+              toast.error(
+                "Account created, but your PIN couldn't be saved. You'll be asked to set it again.",
+              );
             }
           }
 
@@ -271,30 +273,38 @@ export const useAuthStore = create(
         if (!pendingGoogleUser) return;
 
         set({ isSigningUp: true });
+        const userId = pendingGoogleUser._id || pendingGoogleUser.id;
         try {
-          const userId = pendingGoogleUser._id || pendingGoogleUser.id;
-          const key = await get().initCryptoKey(pin, userId);
+          const key = await deriveKeyFromPin(pin, userId);
+          await establishVaultCheck(userId, key);
           await markPinConfigured(userId);
-          await get().initCryptoKey(
-            pin,
-            pendingGoogleUser._id || pendingGoogleUser.id,
-          );
-          await markPinConfigured(
-            pendingGoogleUser._id || pendingGoogleUser.id,
-          );
-          if (rememberMe && key) {
+          if (rememberMe) {
             await saveVaultKey(userId, key);
           }
           set({
             authUser: pendingGoogleUser,
             _cachedAt: Date.now(),
             pendingGoogleUser: null,
+            cryptoKey: key,
           });
-          triggerSync(pendingGoogleUser._id);
+          triggerSync(userId);
           toast.success("Vault secured. Welcome!");
         } catch (error) {
-          console.error("Error finalizing Google signup", error);
-          toast.error("Failed to secure vault.");
+          if (error instanceof VaultAlreadySetError) {
+            set({
+              authUser: pendingGoogleUser,
+              _cachedAt: Date.now(),
+              pendingGoogleUser: null,
+              cryptoKey: null,
+            });
+            triggerSync(userId);
+            toast.error(
+              "This account already has a PIN. Please unlock with your existing PIN.",
+            );
+          } else {
+            console.error("Error finalizing Google signup", error);
+            toast.error("Failed to secure vault. Please try again.");
+          }
         } finally {
           set({ isSigningUp: false });
         }
