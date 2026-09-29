@@ -128,6 +128,16 @@ export const useAuthStore = create(
         }
       },
 
+      // Lock without logging out: forget the vault key everywhere it lives
+      // (memory + the "keep me unlocked" copy in IndexedDB). Notes stay
+      // encrypted on disk; the PIN is needed to read them again.
+      lockVault: async () => {
+        const state = get();
+        const userId = state.authUser?._id || state.authUser?.id;
+        if (userId) await clearVaultKey(userId);
+        set({ cryptoKey: null });
+      },
+
       logout: async () => {
         const state = get();
         const userId = state.authUser?._id || state.authUser?.id;

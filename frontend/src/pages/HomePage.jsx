@@ -6,6 +6,7 @@ import RateLimitedUI from "../components/RateLimitedUI";
 import NoteCard from "../components/NoteCard";
 import NotesNotFound from "../components/NotesNotFound";
 import CodeSpinner from "../components/ui/CodeSpinner.jsx";
+import { Lock, KeyRound } from "lucide-react";
 import { useAuthStore } from "../stores/useAuthStore.js";
 import { useDecryptedNotes } from "../hooks/useDecryptedNotes.js";
 import { stripHtml } from "../lib/sanitize.js";
@@ -17,7 +18,9 @@ const HomePage = () => {
   const [dateFilter, setDateFilter] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
-  const { notes, decryptedNotes, loading } = useDecryptedNotes();
+  const { notes, decryptedNotes, loading, isUnlocked } = useDecryptedNotes();
+  // While the vault is locked, never render cards (they'd show ciphertext).
+  const locked = !isUnlocked && !loading && notes.length > 0;
 
   const hasNavigated = useRef(false);
   useEffect(() => {
@@ -114,7 +117,29 @@ const HomePage = () => {
 
         {!loading && notes.length === 0 && !isRateLimited && <NotesNotFound />}
 
-        {!loading && filteredNotes.length === 0 && notes.length !== 0 && !isRateLimited && (
+        {locked && (
+          <div className="max-w-md mx-auto mt-10 ide-card !bg-[var(--panel)] px-6 py-8 text-center animate-slide-up">
+            <Lock className="size-9 mx-auto mb-4 tok-warn" />
+            <p className="text-[13.5px]">
+              <span className="tok-kw">await</span> vault<span className="tok-punc">.</span>
+              <span className="tok-fn">unlock</span>
+              <span className="tok-punc">(</span>pin<span className="tok-punc">);</span>
+            </p>
+            <p className="text-xs tok-com mt-2 mb-5">
+              {"// "}{notes.length} encrypted {notes.length === 1 ? "note" : "notes"} — enter your PIN to read them
+            </p>
+            <button
+              type="button"
+              onClick={() => navigate("/pin", { state: { backgroundLocation: location } })}
+              className="ide-btn ide-btn-primary"
+            >
+              <KeyRound className="size-4" />
+              unlock()
+            </button>
+          </div>
+        )}
+
+        {!locked && !loading && filteredNotes.length === 0 && notes.length !== 0 && !isRateLimited && (
           <div className="max-w-lg mx-auto mt-10 ide-card !bg-[var(--panel)] overflow-hidden animate-slide-up">
             <pre className="px-5 py-5 text-[13px] leading-7 whitespace-pre-wrap font-mono">
               <span className="tok-fn">notes</span>
@@ -158,7 +183,7 @@ const HomePage = () => {
           </div>
         )}
 
-        {!loading && filteredNotes.length !== 0 && !isRateLimited && (
+        {!locked && !loading && filteredNotes.length !== 0 && !isRateLimited && (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {filteredNotes.map((note, index) => (
               <div

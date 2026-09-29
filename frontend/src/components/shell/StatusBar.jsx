@@ -93,7 +93,7 @@ const StatusBar = () => {
 const ConsoleDrawer = ({ onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { authUser, toggleThemeMode } = useAuthStore();
+  const { authUser, toggleThemeMode, lockVault } = useAuthStore();
   const [lines, setLines] = useState(WELCOME);
   const [input, setInput] = useState("");
   const [history, setHistory] = useState([]);
@@ -134,6 +134,11 @@ const ConsoleDrawer = ({ onClose }) => {
     } else if (key === "theme") {
       toggleThemeMode();
       out.push({ t: "ok", v: "✓ theme toggled" });
+    } else if (key === "lock" || key === "vault.lock()") {
+      lockVault().then(() =>
+        navigate("/pin", { state: { backgroundLocation: location } }),
+      );
+      out.push({ t: "ok", v: "✓ vault locked — key wiped from memory" });
     } else if (key === "whoami") {
       out.push({ t: "str", v: `'${authUser?.fullName || "anonymous"}'` });
       out.push({ t: "com", v: `// ${authUser?.email || ""}` });

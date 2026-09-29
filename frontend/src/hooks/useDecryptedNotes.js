@@ -9,7 +9,9 @@ import { decryptData, decryptHtml } from "../lib/crypto.js";
 // sidebar's "Hoisted Notes" can show real titles too.
 export function useDecryptedNotes() {
   const { authUser, cryptoKey } = useAuthStore();
-  const [decryptedNotes, setDecryptedNotes] = useState([]);
+  // Tagged with the key that produced it, so after lockVault() (key -> null)
+  // the old plaintext is no longer returned to any component.
+  const [decrypted, setDecrypted] = useState({ key: null, list: [] });
 
   const notes = useLiveQuery(
     () =>
@@ -50,7 +52,7 @@ export function useDecryptedNotes() {
           }
         }),
       );
-      if (isMounted) setDecryptedNotes(list);
+      if (isMounted) setDecrypted({ key: cryptoKey, list });
     };
 
     decryptAll();
@@ -61,7 +63,7 @@ export function useDecryptedNotes() {
 
   return {
     notes,
-    decryptedNotes,
+    decryptedNotes: cryptoKey && decrypted.key === cryptoKey ? decrypted.list : [],
     isUnlocked: Boolean(cryptoKey),
     loading: notes === undefined,
   };

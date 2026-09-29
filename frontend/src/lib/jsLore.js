@@ -63,6 +63,7 @@ export const CONSOLE_HELP = [
   ["history", "open the timeline"],
   ["new", "create a note"],
   ["theme", "toggle dark / vibrant"],
+  ["lock", "lock the vault (same as the ✕ button)"],
   ["whoami", "who's logged in"],
   ["clear", "clear the console"],
 ];
