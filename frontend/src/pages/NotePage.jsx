@@ -10,6 +10,7 @@ import EditorFooter from "../components/ui/EditorFooter.jsx";
 import CodeSpinner from "../components/ui/CodeSpinner.jsx";
 import { toFileName, timeAgo } from "../lib/utils.js";
 import { useDebounce } from "../hooks/useDebounce.js";
+import { useCloseShortcut } from "../hooks/useCloseShortcut.js";
 import { localDB } from "../lib/db.js";
 import api from "../lib/axios.js";
 import { useAuthStore } from "../stores/useAuthStore.js";
@@ -139,7 +140,17 @@ const NotePage = ({ isModal }) => {
             });
             await localDB.notes.update(note.id, { sync_status: "synced" });
           } catch (e) {
-            console.log("Offline: Note edit queued for background sync");
+            // A response means the server answered with an error; no response
+            // means the network is actually down.
+            const status = e.response?.status;
+            if (status === 429) {
+              const wait = e.response.headers?.["retry-after"] ?? "a few";
+              console.warn(`Server is rate-limiting saves - retrying in ${wait}s via background sync`);
+            } else if (status) {
+              console.warn(`Save failed (HTTP ${status}) - queued for background sync`);
+            } else {
+              console.log("Offline: Note edit queued for background sync");
+            }
             registerBackgroundSync(authUser._id || authUser.id);
           }
         }
@@ -182,6 +193,7 @@ const NotePage = ({ isModal }) => {
     : "min-h-screen py-10 px-4 flex justify-center items-center";
 
   const close = () => navigate("/");
+  useCloseShortcut(close); // Ctrl+Shift+X
 
   if (loading) {
     return (
@@ -256,6 +268,7 @@ const NotePage = ({ isModal }) => {
                 setNote({ ...note, content: newContent });
               }}
               placeholder="// start typing… encrypted before it's saved"
+              onCloseShortcut={close}
             />
           </div>
           <EditorFooter />

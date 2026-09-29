@@ -40,17 +40,17 @@ export async function listNotes(userId, cryptoKey, { deleted = false } = {}) {
  * Resolve what the user typed to exactly one live note.
  * Accepts the full uuid or any unique prefix of at least 4 characters.
  */
-export async function resolveNote(userId, idOrPrefix) {
+export async function resolveNote(userId, idOrPrefix, cmdName = "rm") {
   const q = idOrPrefix.toLowerCase();
-  if (q.length < 4) return { error: "id too short — use at least 4 characters (see `ls`)" };
+  if (q.length < 4) return { error: `${cmdName}: id too short — use at least 4 characters (see \`ls\`)` };
   const matches = await localDB.notes
     .where("user_id")
     .equals(userId)
     .filter((n) => n.is_deleted === false && n.id.toLowerCase().startsWith(q))
     .toArray();
-  if (matches.length === 0) return { error: `rm: '${idOrPrefix}': no such note` };
+  if (matches.length === 0) return { error: `${cmdName}: '${idOrPrefix}': no such note` };
   if (matches.length > 1)
-    return { error: `rm: '${idOrPrefix}' is ambiguous (${matches.length} notes) — type more of the id` };
+    return { error: `${cmdName}: '${idOrPrefix}' is ambiguous (${matches.length} notes) — type more of the id` };
   return { note: matches[0] };
 }
 

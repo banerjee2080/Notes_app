@@ -1,0 +1,97 @@
+/* frontend/src/components/code/codeEditor.css
+   Layout for the code editor dialog. Colours come from index.css tokens. */
+
+.ce-overlay {
+  position: fixed; inset: 0; z-index: 1400; /* above TinyMCE's menus (1300) */
+  display: flex; align-items: center; justify-content: center;
+  padding: 12px;
+}
+.ce-dialog {
+  position: relative; display: flex; flex-direction: column;
+  width: 100%; max-width: 1200px; height: min(860px, 100%);
+  overflow: hidden;
+}
+.ce-head, .ce-foot {
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+  padding: 8px 12px; border-color: var(--line); background: var(--panel);
+}
+.ce-head { border-bottom: 1px solid var(--line); }
+.ce-foot { border-top: 1px solid var(--line); }
+
+.ce-select {
+  font-family: var(--font-mono); font-size: 13px;
+  background: var(--win); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 4px 8px;
+}
+.ce-select:focus-visible { outline: 2px solid var(--kw); outline-offset: 1px; }
+
+.ce-body {
+  flex: 1; min-height: 0; display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 36%);
+}
+@media (max-width: 767px) {
+  .ce-overlay { padding: 0; }
+  .ce-dialog { height: 100%; border-radius: 0; }
+  .ce-body { grid-template-columns: 1fr; grid-template-rows: minmax(0, 3fr) minmax(0, 2fr); }
+}
+
+.ce-editor { min-height: 0; overflow: hidden; background: var(--win); }
+.ce-editor .cm-editor { height: 100%; }
+
+.ce-io {
+  display: flex; flex-direction: column; min-height: 0;
+  border-left: 1px solid var(--line); background: var(--panel);
+}
+@media (max-width: 767px) { .ce-io { border-left: 0; border-top: 1px solid var(--line); } }
+
+.ce-tabs { display: flex; gap: 2px; padding: 6px 8px 0; border-bottom: 1px solid var(--line); }
+.ce-tab {
+  font-family: var(--font-mono); font-size: 12px; color: var(--fg-muted);
+  padding: 5px 10px; border-radius: 6px 6px 0 0; border: 1px solid transparent; border-bottom: 0;
+  margin-bottom: -1px;
+}
+.ce-tab:hover { color: var(--fg); }
+.ce-tab.is-active { color: var(--fg); background: var(--win); border-color: var(--line); }
+.ce-tab.has-errors { color: var(--err); }
+
+.ce-stdin, .ce-output, .ce-problems, .ce-preview, .ce-empty {
+  flex: 1; min-height: 0; margin: 0; background: var(--win);
+}
+.ce-stdin {
+  resize: none; border: 0; outline: none; padding: 10px 12px;
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.55; color: var(--fg);
+}
+.ce-stdin::placeholder { color: var(--fg-dim); }
+.ce-output {
+  overflow: auto; padding: 10px 12px; white-space: pre-wrap; word-break: break-word;
+  font-family: var(--font-mono); font-size: 13px; line-height: 1.55; color: var(--fg);
+}
+.ce-err { color: var(--err); }
+.ce-preview { border: 0; width: 100%; background: #fff; }
+.ce-empty { display: grid; place-items: center; color: var(--fg-dim); font-family: var(--font-mono); font-size: 12.5px; }
+
+.ce-problems { overflow: auto; list-style: none; padding: 4px 0; font-family: var(--font-mono); font-size: 12.5px; }
+.ce-problems button {
+  display: flex; gap: 8px; width: 100%; text-align: left; padding: 5px 12px; color: var(--fg);
+}
+.ce-problems button:hover { background: var(--panel-2); }
+
+.ce-status {
+  flex: 1; min-width: 0; display: flex; align-items: center; gap: 6px;
+  font-family: var(--font-mono); font-size: 12px; color: var(--fg-muted);
+}
+.ce-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--font-mono); font-size: 11.5px; color: var(--fg-muted);
+  border: 1px dashed var(--line); border-radius: 999px; padding: 2px 9px;
+}
+button.ce-chip:hover { color: var(--fg); border-color: var(--kw); }
+.ce-chip.is-ok { color: var(--ok); border-style: solid; border-color: color-mix(in srgb, var(--ok) 45%, var(--line)); }
+
+.ce-spinner {
+  width: 12px; height: 12px; border-radius: 50%;
+  border: 2px solid color-mix(in srgb, var(--kw) 30%, transparent); border-top-color: var(--kw);
+  animation: ce-spin .8s linear infinite;
+}
+@keyframes ce-spin { to { transform: rotate(360deg); } }
+@media (prefers-reduced-motion: reduce) { .ce-spinner { animation-duration: 2.4s; } }

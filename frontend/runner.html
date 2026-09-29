@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Note.js · code runner</title>
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <style>
+      :root { color-scheme: dark light; }
+      body {
+        margin: 0; min-height: 100vh; display: grid; place-items: center;
+        background: #0f1115; color: #d8dce3;
+        font: 13px/1.6 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+      }
+      @media (prefers-color-scheme: light) { body { background: #e9ecf1; color: #22272e; } }
+      main { max-width: 360px; padding: 16px; text-align: center; }
+      b { color: #f7df1e; background: #1a1a1a; padding: 0 4px; border-radius: 3px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <p><b>JS</b> Note.js code runner</p>
+      <p id="status">Starting…</p>
+    </main>
+    <script type="module" src="/src/runner/runner.js"></script>
+  </body>
+</html>

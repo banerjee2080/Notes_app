@@ -42,16 +42,32 @@ app.use(cookieParser());
 // script-src does not allow them.
 const PAGE_CSP = [
   "default-src 'self'",
-  "script-src 'self' https://accounts.google.com https://apis.google.com",
+  "script-src 'self' 'wasm-unsafe-eval' https://accounts.google.com https://apis.google.com",
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob: https://res.cloudinary.com https://lh3.googleusercontent.com",
   "font-src 'self' data:",
   "connect-src 'self' https://accounts.google.com https://api.cloudinary.com",
-  "frame-src https://accounts.google.com",
+  "frame-src 'self' https://accounts.google.com",
+  "worker-src 'self' blob:",
   "object-src 'none'",
   "base-uri 'self'",
   "form-action 'self'",
   "frame-ancestors 'none'",
+].join("; ");
+
+// The isolated code-runner page: no Google scripts, may only be framed by
+// the app itself, and needs WebAssembly + blob: Workers.
+const RUNNER_CSP = [
+  "default-src 'self'",
+  "script-src 'self' 'wasm-unsafe-eval'",
+  "worker-src 'self' blob:",
+  "style-src 'self' 'unsafe-inline'",
+  "img-src 'self' data:",
+  "connect-src 'self'",
+  "object-src 'none'",
+  "base-uri 'self'",
+  "form-action 'none'",
+  "frame-ancestors 'self'",
 ].join("; ");
 
 // Headers that are safe on every response, document or JSON.
@@ -127,7 +143,8 @@ app.get("/api/health", (req, res) => {
 // Every route below needs the database, and on a cold start the connection
 // does not exist yet. Awaiting it here avoids Mongoose buffering timeouts and
 // turns an unreachable database into a clear 503 instead of a crash.
-app.use(async (req, res, next) => {
+// Scoped to /api so static files (JS, fonts, TinyMCE) never wait on MongoDB.
+app.use("/api", async (req, res, next) => {
   try {
     await connectdb();
     next();
@@ -137,7 +154,9 @@ app.use(async (req, res, next) => {
   }
 });
 
-app.use(rateLimiter);
+// Only API calls count toward the limit. Mounted globally, every JS chunk,
+// font and service-worker precache request used up the 100/min budget.
+app.use("/api", rateLimiter);
 app.use("/api/notes", notesRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/otp", otpRoutes);
@@ -148,6 +167,24 @@ if (!isProduction) {
   // then rename this header to Content-Security-Policy to enforce.
   app.use((req, res, next) => {
     res.setHeader("Content-Security-Policy-Report-Only", PAGE_CSP);
+    next();
+  });
+
+  // The code runner page (frontend/runner.html) compiles code with
+  // WebAssembly toolchains that need SharedArrayBuffer, so it - and only
+  // it - is cross-origin isolated. Mirrors the runner rules in vercel.json.
+  app.use((req, res, next) => {
+    if (req.path === "/runner.html") {
+      res.setHeader("Cross-Origin-Opener-Policy", "same-origin");
+      res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+      res.setHeader("Document-Isolation-Policy", "isolate-and-require-corp");
+      res.setHeader("X-Frame-Options", "SAMEORIGIN"); // the app embeds it in a hidden iframe
+      res.setHeader("Content-Security-Policy-Report-Only", RUNNER_CSP);
+    } else if (req.path.startsWith("/assets/") || req.path.startsWith("/toolchains/")) {
+      // Resources an isolated page (and its Workers) may load.
+      res.setHeader("Cross-Origin-Resource-Policy", "same-origin");
+      res.setHeader("Cross-Origin-Embedder-Policy", "require-corp");
+    }
     next();
   });
 

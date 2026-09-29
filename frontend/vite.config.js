@@ -2,9 +2,33 @@ import { defineConfig } from "vite";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
+import codeRuntimes from "./vite-plugins/codeRuntimes.js";
 
 // https://vite.dev/config/
 export default defineConfig({
+  build: {
+    rollupOptions: {
+      // Two pages: the app, and the isolated page that compiles/runs code.
+      input: {
+        main: "index.html",
+        runner: "runner.html",
+      },
+    },
+  },
+  // The runner engine finds its Workers and .wasm files relative to its own
+  // module URL; Vite's dependency pre-bundling would move the module and
+  // break those paths, so serve these packages as-is in dev.
+  optimizeDeps: {
+    exclude: [
+      "@wasm-oj/browser",
+      "@wasm-oj/core",
+      "@wasm-oj/contracts",
+      "@wasm-fmt/clang-format",
+      "@wasm-fmt/gofmt",
+      "@wasm-fmt/ruff_fmt",
+    ],
+  },
+  worker: { format: "es" },
   server: {
     headers: {
       "Cross-Origin-Opener-Policy": "same-origin-allow-popups",
@@ -19,6 +43,7 @@ export default defineConfig({
   plugins: [
     tailwindcss(),
     react(),
+    codeRuntimes(),
     VitePWA({
       strategies: "injectManifest",
       srcDir: "src/serviceWorker",
@@ -49,7 +74,17 @@ export default defineConfig({
         ],
       },
       injectManifest: {
-        globPatterns: ["**/*.{js,css,html,ico,png,svg,webp}"],
+        // "wasm" = the formatters (clang-format, gofmt, ruff), so Format works
+        // offline from the first visit. The big compiler files are NOT
+        // precached (that would be ~150 MB for every user); the service worker
+        // caches them the first time a language is run or made offline.
+        globPatterns: ["**/*.{js,mjs,css,html,ico,png,svg,webp,wasm,woff2}"],
+        globIgnores: [
+          "toolchains/**",
+          "**/runtime-core_bg-*.wasm",
+          "**/wasmer_js_bg-*.wasm",
+          "**/rustc-stage.worker-*.js",
+        ],
         maximumFileSizeToCacheInBytes: 5000000,
         rollupFormat: 'iife',
       },

@@ -11,6 +11,7 @@ import CodeWindow from "../components/ui/CodeWindow.jsx";
 import CodeSpinner from "../components/ui/CodeSpinner.jsx";
 import EditorFooter from "../components/ui/EditorFooter.jsx";
 import { toFileName } from "../lib/utils.js";
+import { useCloseShortcut } from "../hooks/useCloseShortcut.js";
 
 const DelNotePage = ({ isModal }) => {
   const [note, setNote] = useState({});
@@ -105,6 +106,7 @@ const DelNotePage = ({ isModal }) => {
   const closePage = () => {
     navigate("/recycleBin");
   };
+  useCloseShortcut(closePage); // Ctrl+Shift+X
 
   if (loading) {
     return (

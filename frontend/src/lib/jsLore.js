@@ -62,6 +62,7 @@ export const CONSOLE_HELP = [
   ["nan === nan", "is it though?"],
   ["ls", "list notes with their ids"],
   ["ls bin", "list the recycle bin"],
+  ["touch <id>", "open a note in the editor"],
   ["rm <id>", "move a note to the recycle bin"],
   ["rm recycle bin", "empty the bin for good (online only)"],
   ["history", "open the timeline"],

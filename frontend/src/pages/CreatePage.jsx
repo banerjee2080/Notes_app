@@ -8,6 +8,7 @@ import { Link, useNavigate, useLocation } from "react-router";
 import api from "../lib/axios.js";
 import Tiny from "../components/Tiny.jsx";
 import { useDebounce } from "../hooks/useDebounce.js";
+import { useCloseShortcut } from "../hooks/useCloseShortcut.js";
 import { v4 as uuidv4 } from "uuid";
 import { localDB } from "../lib/db";
 import { registerBackgroundSync } from "../lib/syncEngine.js";
@@ -107,6 +108,7 @@ const CreatePage = ({ isModal }) => {
     : "min-h-screen py-10 px-4 flex justify-center items-center";
 
   const close = () => navigate("/");
+  useCloseShortcut(close); // Ctrl+Shift+X
 
   return (
     <div className={containerClasses} onClick={() => isModal && close()}>
@@ -150,6 +152,7 @@ const CreatePage = ({ isModal }) => {
               value={content}
               onEditorChange={setContent}
               placeholder="// start typing… encrypted before it's saved"
+              onCloseShortcut={close}
             />
           </form>
           <EditorFooter />

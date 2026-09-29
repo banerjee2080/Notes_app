@@ -190,6 +190,33 @@ const ConsoleDrawer = ({ onClose }) => {
     }
   };
 
+  // touch <id>  -> open that note in the editor (same modal as clicking its card)
+  const runTouch = async (args) => {
+    if (args.length === 0) {
+      print([{ t: "err", v: "touch: missing operand — usage: touch <id>  (ids come from `ls`)" }]);
+      return;
+    }
+    if (args.length > 1) {
+      print([{ t: "err", v: "touch: one note at a time — usage: touch <id>" }]);
+      return;
+    }
+    const { note, error } = await resolveNote(userId, args[0], "touch");
+    if (error) {
+      print([{ t: "err", v: error }]);
+      return;
+    }
+    const title = await titleOf(note, cryptoKey);
+    print([
+      {
+        t: "ok",
+        v: `✓ opening ${title ? `'${title}'` : "note"} (${note.id.slice(0, SHORT_ID)})`,
+        sensitive: Boolean(title),
+      },
+    ]);
+    onClose(); // the editor opens as a modal on top; get the drawer out of the way
+    navigate(`/note/${note.id}`, { state: { backgroundLocation: location } });
+  };
+
   const run = (raw) => {
     const cmd = raw.trim();
     if (!cmd) return;
@@ -231,6 +258,8 @@ const ConsoleDrawer = ({ onClose }) => {
       out.push(...CONSOLE_ANSWERS[key]);
     } else if (/^ls(\s|$)/.test(key)) {
       after = () => runLs(key.split(/\s+/).slice(1));
+    } else if (/^touch(\s|$)/.test(key)) {
+      after = () => runTouch(cmd.split(/\s+/).slice(1));
     } else if (/^rm(\s|$)/.test(key)) {
       after = () => runRm(cmd.split(/\s+/).slice(1));
     } else {

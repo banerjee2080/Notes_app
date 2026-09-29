@@ -1,4 +1,5 @@
 import { FileCode2, X } from "lucide-react";
+import { CLOSE_SHORTCUT_LABEL } from "../../hooks/useCloseShortcut.js";
 
 // A floating editor window: tab strip with a file name, optional status
 // (unsaved dot / saved tick), actions on the right, content below.
@@ -26,6 +27,7 @@ const CodeWindow = ({
                 type="button"
                 onClick={onClose}
                 aria-label="Close"
+                title={`Close (${CLOSE_SHORTCUT_LABEL})`}
                 className="ml-1 rounded p-0.5 text-[var(--fg-dim)] hover:text-[var(--fg)] hover:bg-[var(--panel-2)]"
               >
                 <X className="size-3.5" />
