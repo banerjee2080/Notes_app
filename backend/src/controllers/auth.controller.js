@@ -4,7 +4,8 @@ import User from "../models/user.model.js";
 import cloudinary from "../lib/cloudinary.js";
 import { Vibrant } from "node-vibrant/node";
 import { OAuth2Client } from "google-auth-library";
-import BlockedCookie from "../models/blockedCookies.model.js";
+import jwt from "jsonwebtoken";
+import { revokeToken } from "../lib/tokenBlacklist.js";
 import {
   normalizeEmail,
   consumeVerificationToken,
@@ -187,7 +188,13 @@ export const logout = async (req, res) => {
   try {
     const token = req.cookies.jwt;
     if (token) {
-      await BlockedCookie.create({ token });
+      let payload = null;
+      try {
+        payload = jwt.verify(token, process.env.JWT_SECRET);
+      } catch {
+        // Invalid or expired: it can't authenticate anything, so skip revoking.
+      }
+      if (payload) await revokeToken(token, payload);
     }
 
     res.cookie("jwt", "", {

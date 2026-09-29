@@ -7,11 +7,11 @@ import { triggerSync } from "../lib/syncEngine";
 import { Trash2Icon, Recycle } from "lucide-react";
 import AppShell from "../components/shell/AppShell.jsx";
 import Navbar from "../components/Navbar.jsx";
-import axiosInstance from "../lib/axios.js";
 import toast from "react-hot-toast";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import ConfirmModal from "../components/ConfirmModal.jsx";
 import { decryptData, decryptHtml } from "../lib/crypto.js";
+import { emptyBin } from "../lib/noteCommands.js";
 
 const RecycleBinPage = () => {
   const [deletedNotes, setDeletedNotes] = useState([]);
@@ -34,9 +34,20 @@ const RecycleBinPage = () => {
   }, [checkPin, navigate, location]);
 
   useEffect(() => {
+    const userId = authUser?._id;
+    if (!userId) return;
+
+    // Each run gets a fresh token; a slower, older pass (e.g. one that started
+    // before the vault key arrived) must not overwrite a newer result.
+    let runId = 0;
+    let cancelled = false;
+
     const fetchDeletedNotes = async () => {
+      const myRun = ++runId;
+      const isStale = () => cancelled || myRun !== runId;
+
       const notes = await localDB.notes
-        .filter((note) => note.is_deleted === true && note.user_id === authUser?._id)
+        .filter((note) => note.is_deleted === true && note.user_id === userId)
         .toArray();
 
       const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
@@ -47,7 +58,7 @@ const RecycleBinPage = () => {
       });
 
       if (!cryptoKey) {
-        setDeletedNotes(validNotes);
+        if (!isStale()) setDeletedNotes(validNotes);
         return;
       }
 
@@ -65,8 +76,8 @@ const RecycleBinPage = () => {
           };
         }
       }));
-      
-      setDeletedNotes(decrypted);
+
+      if (!isStale()) setDeletedNotes(decrypted);
     };
     fetchDeletedNotes();
 
@@ -79,6 +90,7 @@ const RecycleBinPage = () => {
     // The console's `rm` / `rm recycle bin` announce changes this way.
     window.addEventListener("notes-changed", fetchDeletedNotes);
     return () => {
+      cancelled = true;
       window.removeEventListener("note-restored", handleNoteRestored);
       window.removeEventListener("notes-changed", fetchDeletedNotes);
     };
@@ -115,8 +127,10 @@ const RecycleBinPage = () => {
 
   const confirmClear = async () => {
     try {
-      await axiosInstance.delete("/notes/clear-recycle-bin");
-      await localDB.notes.filter((note) => note.is_deleted === true).delete();
+      if (!authUser?._id) return;
+      // Scoped to the signed-in user: on a shared browser, other accounts'
+      // binned notes in IndexedDB must survive.
+      await emptyBin(authUser._id);
       setDeletedNotes([]);
       toast.success("Recycle bin cleared successfully.");
     } catch (error) {

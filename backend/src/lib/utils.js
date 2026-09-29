@@ -1,9 +1,11 @@
+import crypto from "crypto";
 import jwt from "jsonwebtoken";
 import { isProduction } from "./env.js";
 
 export const generateToken = (userId, res) => {
   const token = jwt.sign({ userId }, process.env.JWT_SECRET, {
     expiresIn: "7d",
+    jwtid: crypto.randomUUID(), // unique id so the token can be revoked on logout
   });
 
   res.cookie("jwt", token, {

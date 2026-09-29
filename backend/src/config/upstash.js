@@ -37,4 +37,6 @@ export const globalLimiter = createLimiter(100, "rl:global");
 // Login / signup: much tighter, 10 per minute, per IP.
 export const authLimiter = createLimiter(10, "rl:auth");
 
+export { redis };
+
 export default globalLimiter;
