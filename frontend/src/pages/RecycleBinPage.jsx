@@ -76,8 +76,12 @@ const RecycleBinPage = () => {
     };
 
     window.addEventListener("note-restored", handleNoteRestored);
-    return () =>
+    // The console's `rm` / `rm recycle bin` announce changes this way.
+    window.addEventListener("notes-changed", fetchDeletedNotes);
+    return () => {
       window.removeEventListener("note-restored", handleNoteRestored);
+      window.removeEventListener("notes-changed", fetchDeletedNotes);
+    };
     // Re-run once the vault key is loaded, otherwise the bin shows ciphertext.
   }, [authUser?._id, cryptoKey]);
 

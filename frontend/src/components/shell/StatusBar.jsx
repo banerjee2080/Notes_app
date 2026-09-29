@@ -11,6 +11,17 @@ import {
   CONSOLE_ANSWERS,
   GOTCHAS,
 } from "../../lib/jsLore.js";
+import {
+  listNotes,
+  resolveNote,
+  moveToBin,
+  emptyBin,
+  titleOf,
+  SHORT_ID,
+} from "../../lib/noteCommands.js";
+import { timeAgo } from "../../lib/utils.js";
+
+const BIN_WORDS = ["bin", "recycle bin", "recyclebin", "recycle-bin", "recycle_bin"];
 
 const WELCOME = [
   { t: "com", v: "// Note.js console — a safe playground. Nothing typed here is executed." },
@@ -93,7 +104,8 @@ const StatusBar = () => {
 const ConsoleDrawer = ({ onClose }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { authUser, toggleThemeMode, lockVault } = useAuthStore();
+  const { authUser, toggleThemeMode, lockVault, cryptoKey } = useAuthStore();
+  const userId = authUser?._id || authUser?.id;
   const [lines, setLines] = useState(WELCOME);
   const [input, setInput] = useState("");
   const [history, setHistory] = useState([]);
@@ -109,11 +121,81 @@ const ConsoleDrawer = ({ onClose }) => {
     scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight });
   }, [lines]);
 
+  // Async commands print after the fact; the "> cmd" echo is already on screen.
+  const print = (more) => setLines((l) => [...l, ...more]);
+
+  // ls            -> notes    |  ls bin -> recycle bin contents
+  const runLs = async (args) => {
+    const target = args.join(" ");
+    const inBin = BIN_WORDS.includes(target);
+    if (target && !inBin) {
+      print([{ t: "err", v: `ls: cannot access '${target}': try \`ls\` or \`ls bin\`` }]);
+      return;
+    }
+    const rows = await listNotes(userId, cryptoKey, { deleted: inBin });
+    if (rows.length === 0) {
+      print([{ t: "com", v: inBin ? "// RecycleBin() is empty" : "// no notes yet — try `new`" }]);
+      return;
+    }
+    print([
+      { t: "com", v: `// ${rows.length} ${inBin ? "in RecycleBin()" : rows.length === 1 ? "note" : "notes"}` +
+          (inBin ? " — `rm recycle bin` empties it (online only)" : " — `rm <id>` moves one to the bin") },
+      ...rows.map((r) => ({
+        t: "row",
+        id: r.id.slice(0, SHORT_ID),
+        fullId: r.id,
+        title: r.title, // null when locked -> rendered as 🔒
+        when: timeAgo(r.updated_at),
+        sensitive: true,
+      })),
+    ]);
+  };
+
+  // rm <id> [<id> ...]  -> soft delete  |  rm recycle bin -> empty the bin
+  const runRm = async (args) => {
+    const operands = args.filter((a) => !/^-[rf]+$/.test(a)); // ignore -r / -f / -rf
+    const joined = operands.join(" ").toLowerCase();
+
+    if (operands.length === 0) {
+      print([{ t: "err", v: "rm: missing operand — usage: rm <id> | rm recycle bin" }]);
+      return;
+    }
+
+    if (BIN_WORDS.includes(joined)) {
+      try {
+        const n = await emptyBin(userId);
+        print([{ t: "ok", v: `✓ RecycleBin() emptied — ${n} ${n === 1 ? "note" : "notes"} permanently deleted` }]);
+      } catch (err) {
+        const msg = err.response?.data?.message || err.message;
+        print([{ t: "err", v: `rm: cannot empty RecycleBin(): ${msg}` }]);
+      }
+      return;
+    }
+
+    for (const idArg of operands) {
+      const { note, error } = await resolveNote(userId, idArg);
+      if (error) {
+        print([{ t: "err", v: error }]);
+        continue;
+      }
+      await moveToBin(userId, note.id);
+      const title = await titleOf(note, cryptoKey);
+      print([
+        {
+          t: "ok",
+          v: `✓ moved ${title ? `'${title}'` : "note"} (${note.id.slice(0, SHORT_ID)}) to RecycleBin()`,
+          sensitive: Boolean(title),
+        },
+      ]);
+    }
+  };
+
   const run = (raw) => {
     const cmd = raw.trim();
     if (!cmd) return;
     const key = cmd.toLowerCase().replace(/;$/, "");
     const out = [{ t: "in", v: cmd }];
+    let after = null; // async command to start once the "> cmd" echo is printed
 
     if (key === "clear" || key === "console.clear()") {
       setLines([]);
@@ -147,11 +229,16 @@ const ConsoleDrawer = ({ onClose }) => {
       return;
     } else if (CONSOLE_ANSWERS[key]) {
       out.push(...CONSOLE_ANSWERS[key]);
+    } else if (/^ls(\s|$)/.test(key)) {
+      after = () => runLs(key.split(/\s+/).slice(1));
+    } else if (/^rm(\s|$)/.test(key)) {
+      after = () => runRm(cmd.split(/\s+/).slice(1));
     } else {
       const ident = cmd.split(/[^\w$]/)[0] || cmd;
       out.push({ t: "err", v: `Uncaught ReferenceError: ${ident} is not defined` });
     }
     setLines((l) => [...l, ...out]);
+    after?.();
   };
 
   const onKeyDown = (e) => {
@@ -194,7 +281,7 @@ const ConsoleDrawer = ({ onClose }) => {
         onClick={() => inputRef.current?.focus()}
       >
         {lines.map((l, i) => (
-          <ConsoleLine key={i} line={l} />
+          <ConsoleLine key={i} line={l} locked={!cryptoKey} />
         ))}
         <div className="flex items-center gap-2">
           <span className="tok-fn">{">"}</span>
@@ -215,7 +302,20 @@ const ConsoleDrawer = ({ onClose }) => {
   );
 };
 
-const ConsoleLine = ({ line }) => {
+const ConsoleLine = ({ line, locked }) => {
+  // Anything that printed a decrypted title is hidden again once the vault locks.
+  if (line.sensitive && locked && line.t !== "row")
+    return <div className="pl-4 tok-com">{"< // hidden — vault locked"}</div>;
+  if (line.t === "row")
+    return (
+      <div className="pl-4 flex gap-3 min-w-0" title={line.fullId}>
+        <span className="tok-num shrink-0 tabular-nums">{line.id}</span>
+        <span className="truncate text-[var(--fg)] min-w-0">
+          {line.title === null || locked ? <span className="tok-warn">🔒 encrypted</span> : line.title}
+        </span>
+        <span className="tok-com shrink-0 ml-auto">{"// "}{line.when}</span>
+      </div>
+    );
   if (line.t === "in")
     return (
       <div className="text-[var(--fg)]">
