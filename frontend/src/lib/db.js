@@ -6,12 +6,35 @@ localDB.version(2).stores({
   meta: "key, value",
 });
 
-export const clearLocalDB = async () => {
+// How many of this user's notes the server has NOT confirmed yet.
+// "synced" is the only state that means "safe to delete locally".
+export const countUnsyncedNotes = async (userId) => {
+  if (!userId) return 0;
+  return localDB.notes
+    .where("sync_status")
+    .notEqual("synced")
+    .and((note) => note.user_id === userId)
+    .count();
+};
+
+// keepUnsynced: true  -> delete synced notes + all meta, KEEP unsynced notes
+// keepUnsynced: false -> delete everything (only after the user chose to discard)
+export const clearLocalDB = async ({ keepUnsynced = false } = {}) => {
   try {
-    await Promise.all(localDB.tables.map((table) => table.clear()));
-    console.log("Local IndexedDB cleared.");
+    if (keepUnsynced) {
+      await localDB.transaction("rw", localDB.notes, localDB.meta, async () => {
+        await localDB.notes.where("sync_status").equals("synced").delete();
+        await localDB.meta.clear();
+      });
+      console.log("Local IndexedDB cleared (unsynced notes kept).");
+    } else {
+      await Promise.all(localDB.tables.map((table) => table.clear()));
+      console.log("Local IndexedDB cleared.");
+    }
+    return true;
   } catch (error) {
     console.error("Failed to clear local IndexedDB:", error);
+    return false;
   }
 };
 

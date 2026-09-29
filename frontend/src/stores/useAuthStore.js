@@ -5,6 +5,7 @@ import toast from "react-hot-toast";
 import { triggerSync } from "../lib/syncEngine.js";
 import {
   clearLocalDB,
+  countUnsyncedNotes,
   markPinConfigured,
   saveVaultKey,
   getVaultKey,
@@ -32,6 +33,10 @@ export const useAuthStore = create(
       _hasHydrated: false,
       _cachedAt: null,
       cryptoKey: null,
+
+      // Logout guard state
+      isLoggingOut: false,
+      logoutWarning: null, // null, or { count } when unsynced notes block logout
 
       initCryptoKey: async (pinValue, userId) => {
         if (!pinValue || !userId) return null;
@@ -138,20 +143,81 @@ export const useAuthStore = create(
         set({ cryptoKey: null });
       },
 
+      // Step 1 of logout: never wipe anything the server hasn't confirmed.
+      // Try one last sync; if notes are still pending, stop and ask.
       logout: async () => {
-        const state = get();
-        const userId = state.authUser?._id || state.authUser?.id;
+        if (get().isLoggingOut) return;
+
+        const { authUser } = get();
+        const userId = authUser?._id || authUser?.id;
+        set({ isLoggingOut: true });
+
+        try {
+          if (userId) await triggerSync(userId);
+
+          const unsynced = await countUnsyncedNotes(userId);
+          if (unsynced > 0) {
+            set({ logoutWarning: { count: unsynced } });
+            return;
+          }
+
+          set({ logoutWarning: null });
+          await get()._finishLogout({ discardUnsynced: false });
+        } finally {
+          set({ isLoggingOut: false });
+        }
+      },
+
+      cancelLogout: () => set({ logoutWarning: null }),
+
+      // The user saw the warning and explicitly chose to throw the notes away.
+      confirmLogoutDiscard: async () => {
+        if (get().isLoggingOut) return;
+        set({ isLoggingOut: true });
+        try {
+          const done = await get()._finishLogout({ discardUnsynced: true });
+          if (done) set({ logoutWarning: null });
+        } finally {
+          set({ isLoggingOut: false });
+        }
+      },
+
+      // Step 2 of logout: end the server session, then clean up locally.
+      _finishLogout: async ({ discardUnsynced }) => {
+        const { authUser } = get();
+        const userId = authUser?._id || authUser?.id;
+
         try {
           await axiosInstance.post("/auth/logout");
-          await clearVaultKey(userId);
-          localStorage.removeItem("pin"); // legacy cleanup, safe to keep for a while
-          set({ authUser: null, _cachedAt: null, cryptoKey: null });
-          clearLocalDB();
-          toast.success("Logout Successful");
         } catch (error) {
-          console.log("Error in logout: ", error);
-          toast.error(error.response?.data?.message || error.message);
+          // 401 = the server session is already gone, so we're logged out anyway.
+          if (error.response?.status !== 401) {
+            console.log("Error in logout: ", error);
+            toast.error(error.response?.data?.message || error.message);
+            return false;
+          }
         }
+
+        await clearVaultKey(userId);
+        localStorage.removeItem("pin"); // legacy cleanup, safe to keep for a while
+
+        // An edit could have landed (e.g. from another tab) after the check in
+        // logout(). If so, keep those notes instead of silently deleting them.
+        const lateEdits = discardUnsynced
+          ? 0
+          : await countUnsyncedNotes(userId);
+        await clearLocalDB({ keepUnsynced: lateEdits > 0 });
+
+        set({ authUser: null, _cachedAt: null, cryptoKey: null });
+
+        if (lateEdits > 0) {
+          toast.success(
+            `Logged out. ${lateEdits} late edit(s) kept on this device - they'll sync when you sign back in.`,
+          );
+        } else {
+          toast.success("Logout Successful");
+        }
+        return true;
       },
 
       login: async (formData) => {
@@ -330,7 +396,9 @@ export const useAuthStore = create(
       onRehydrateStorage: () => (state) => {
         state?.setHasHydrated(true);
         if (state && !state.authUser) {
-          clearLocalDB();
+          // Signed out without going through logout() (e.g. session expired).
+          // Clear everything except notes the server has never seen.
+          clearLocalDB({ keepUnsynced: true });
         }
       },
     },

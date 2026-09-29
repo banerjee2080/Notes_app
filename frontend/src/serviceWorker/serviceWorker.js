@@ -40,6 +40,9 @@ self.addEventListener("activate", (event) => {
   event.waitUntil(self.clients.claim());
 });
 
+// Turns an ISO date string (or Date) into milliseconds so two times can be compared.
+const toMs = (value) => new Date(value).getTime();
+
 // Listen for background sync events
 self.addEventListener("sync", (event) => {
   if (event.tag.startsWith("sync-notes-")) {
@@ -50,8 +53,8 @@ self.addEventListener("sync", (event) => {
 
 async function syncNotesBackground(userId) {
   try {
-    // 1. Fetch pending changes from IndexedDB
-    let localChanges = await localDB.notes
+    // 1. Fetch pending changes from IndexedDB, exactly as they were saved
+    const localChanges = await localDB.notes
       .where("sync_status")
       .notEqual("synced")
       .and((note) => note.user_id === userId)
@@ -59,11 +62,10 @@ async function syncNotesBackground(userId) {
 
     if (localChanges.length === 0) return;
 
-    const currentSyncTime = new Date().toISOString();
-    localChanges = localChanges.map((note) => ({
-      ...note,
-      updated_at: currentSyncTime,
-    }));
+    // Remember which version of each note we are sending (its real edit time)
+    const sentVersions = new Map(
+      localChanges.map((note) => [note.id, note.updated_at]),
+    );
 
     // 2. Fetch lastSyncedAt from IndexedDB meta table
     const metaEntry = await localDB.meta.get(`lastSyncedAt_${userId}`);
@@ -91,20 +93,33 @@ async function syncNotesBackground(userId) {
 
     // 4. Update IndexedDB with the results
     await localDB.transaction("rw", localDB.notes, localDB.meta, async () => {
-      // Apply server changes
-      if (serverChanges && serverChanges.length > 0) {
-        for (const serverNote of serverChanges) {
-          await localDB.notes.put({
-            ...serverNote,
-            sync_status: "synced",
-          });
-        }
+      // Apply server changes, unless this device holds a newer unsent edit
+      for (const serverNote of serverChanges ?? []) {
+        const localNote = await localDB.notes.get(serverNote.id);
+
+        const localHasNewerPendingEdit =
+          localNote &&
+          localNote.sync_status !== "synced" &&
+          toMs(localNote.updated_at) > toMs(serverNote.updated_at);
+
+        if (localHasNewerPendingEdit) continue;
+
+        await localDB.notes.put({
+          ...serverNote,
+          sync_status: "synced",
+        });
       }
 
-      // Mark local changes as synced
-      if (localChanges.length > 0) {
-        for (const localNote of localChanges) {
-          await localDB.notes.update(localNote.id, { sync_status: "synced" });
+      // Mark a note synced only if it is still the exact version we sent
+      for (const [id, sentUpdatedAt] of sentVersions) {
+        const current = await localDB.notes.get(id);
+
+        if (
+          current &&
+          current.sync_status !== "synced" &&
+          current.updated_at === sentUpdatedAt
+        ) {
+          await localDB.notes.update(id, { sync_status: "synced" });
         }
       }
 

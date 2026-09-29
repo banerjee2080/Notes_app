@@ -16,6 +16,7 @@ import PinPage from "./pages/PinPage.jsx";
 import HistoryPage from "./pages/HistoryPage.jsx";
 import NotFoundPage from "./pages/NotFoundPage.jsx";
 import CodeSpinner from "./components/ui/CodeSpinner.jsx";
+import LogoutGuard from "./components/LogoutGuard.jsx";
 
 const App = () => {
   const location = useLocation();
@@ -193,6 +194,7 @@ const App = () => {
         </Routes>
       )}
 
+      <LogoutGuard />
     </div>
   );
 };
