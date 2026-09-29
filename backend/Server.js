@@ -10,7 +10,6 @@ import dotenv from "dotenv";
 import cors from "cors";
 import path from "path";
 import { fileURLToPath } from "url";
-import { startCronJobs } from "./src/services/cron.service.js";
 import { isProduction, isServerless } from "./src/lib/env.js";
 
 dotenv.config();
@@ -202,11 +201,10 @@ app.use((error, req, res, next) => {
   res.status(500).json({ message: "Internal server error" });
 });
 
-// node-cron keeps no state between serverless invocations, and binding a port
-// inside a serverless function crashes it, so both are for long-lived servers.
+// Binding a port inside a serverless function crashes it, so this is only for
+// long-lived servers. Trash cleanup needs no scheduler here: a TTL index on the
+// Note model (see note.model.js) makes MongoDB purge old trashed notes itself.
 if (!isServerless) {
-  startCronJobs();
-
   connectdb().catch((error) => {
     console.error("Initial database connection failed:", error);
   });
