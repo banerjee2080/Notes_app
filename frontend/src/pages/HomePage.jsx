@@ -30,7 +30,10 @@ const HomePage = () => {
       if (!isValid && isMounted && !hasNavigated.current) {
         hasNavigated.current = true;
         console.log("PIN is not set or expired");
-        navigate("/pin", { state: { backgroundLocation: location }, replace: true });
+        navigate("/pin", {
+          state: { backgroundLocation: location },
+          replace: true,
+        });
       }
     };
     verifyPin();
@@ -39,37 +42,51 @@ const HomePage = () => {
     };
   }, [checkPin, navigate, location]);
 
-  // Search runs over the *decrypted* title/content (falls back to the raw
-  // record while decryption is still in flight).
-  const filteredNotes = useMemo(() => {
-    if (!notes) return [];
-    const byId = new Map(decryptedNotes.map((n) => [n.id, n]));
-
-    return notes
-      .map((note) => byId.get(note.id) || note)
-      .filter((note) => {
-        // Date Filter Logic (YYYY-MM)
-        if (dateFilter) {
-          const noteDate = new Date(note.updated_at || note.createdAt || note.created_at);
-          if (!isNaN(noteDate.getTime())) {
-            const noteMonthYear = `${noteDate.getFullYear()}-${String(noteDate.getMonth() + 1).padStart(2, "0")}`;
-            if (noteMonthYear !== dateFilter) return false;
-          }
-        }
-
-        // Text Search Logic
-        if (searchQuery.trim()) {
-          const query = searchQuery.toLowerCase();
-          const titleMatch = (note.title || "").toLowerCase().includes(query);
-          // A regex strip does not reliably handle `<img src=x onerror=...`;
-          // DOMPurify with an empty allowlist does.
-          const contentMatch = stripHtml(note.content).toLowerCase().includes(query);
-          if (!titleMatch && !contentMatch) return false;
-        }
-
-        return true;
+  // Build a plaintext search index once per decryption pass, not per keystroke.
+  const searchIndex = useMemo(() => {
+    const index = new Map();
+    for (const note of decryptedNotes) {
+      index.set(note.id, {
+        note,
+        title: note.decryptFailed ? "" : (note.title || "").toLowerCase(),
+        body: note.decryptFailed ? "" : stripHtml(note.content).toLowerCase(),
       });
-  }, [notes, decryptedNotes, searchQuery, dateFilter]);
+    }
+    return index;
+  }, [decryptedNotes]);
+
+  // Unlocked, notes exist, but the first decryption pass hasn't finished yet.
+  const decrypting =
+    isUnlocked && notes?.length > 0 && decryptedNotes.length === 0;
+
+  const filteredNotes = useMemo(() => {
+    if (!notes || !isUnlocked) return [];
+    const query = searchQuery.trim().toLowerCase();
+
+    const result = [];
+    for (const raw of notes) {
+      const entry = searchIndex.get(raw.id);
+      if (!entry) continue; // not decrypted yet — never search or show ciphertext
+
+      // Date filter (YYYY-MM). Timestamps aren't encrypted, so read them from the raw record.
+      if (dateFilter) {
+        const noteDate = new Date(
+          raw.updated_at || raw.createdAt || raw.created_at,
+        );
+        if (!isNaN(noteDate.getTime())) {
+          const noteMonthYear = `${noteDate.getFullYear()}-${String(noteDate.getMonth() + 1).padStart(2, "0")}`;
+          if (noteMonthYear !== dateFilter) continue;
+        }
+      }
+
+      // Text search, against the plaintext index only.
+      if (query && !entry.title.includes(query) && !entry.body.includes(query))
+        continue;
+
+      result.push(entry.note);
+    }
+    return result;
+  }, [notes, isUnlocked, searchIndex, searchQuery, dateFilter]);
 
   const monthLabel = dateFilter
     ? (() => {
@@ -93,7 +110,7 @@ const HomePage = () => {
       }
     >
       <div className="max-w-6xl mx-auto px-3 md:px-6 py-5 md:py-6">
-        {!loading && notes.length > 0 && (
+        {!locked && !loading && notes.length > 0 && (
           <div className="flex items-baseline justify-between gap-3 mb-4 text-[12.5px]">
             <div>
               <span className="tok-kw">class</span>{" "}
@@ -111,93 +128,121 @@ const HomePage = () => {
           </div>
         )}
 
-        {loading && <CodeSpinner className="py-24" />}
+        {(loading || decrypting) && <CodeSpinner className="py-24" />}
 
         {isRateLimited && <RateLimitedUI />}
 
         {!loading && notes.length === 0 && !isRateLimited && <NotesNotFound />}
 
         {locked && (
-          <div className="max-w-md mx-auto mt-10 ide-card !bg-[var(--panel)] px-6 py-8 text-center animate-slide-up">
-            <Lock className="size-9 mx-auto mb-4 tok-warn" />
-            <p className="text-[13.5px]">
-              <span className="tok-kw">await</span> vault<span className="tok-punc">.</span>
-              <span className="tok-fn">unlock</span>
-              <span className="tok-punc">(</span>pin<span className="tok-punc">);</span>
-            </p>
-            <p className="text-xs tok-com mt-2 mb-5">
-              {"// "}{notes.length} encrypted {notes.length === 1 ? "note" : "notes"} — enter your PIN to read them
-            </p>
-            <button
-              type="button"
-              onClick={() => navigate("/pin", { state: { backgroundLocation: location } })}
-              className="ide-btn ide-btn-primary"
-            >
-              <KeyRound className="size-4" />
-              unlock()
-            </button>
-          </div>
-        )}
-
-        {!locked && !loading && filteredNotes.length === 0 && notes.length !== 0 && !isRateLimited && (
-          <div className="max-w-lg mx-auto mt-10 ide-card !bg-[var(--panel)] overflow-hidden animate-slide-up">
-            <pre className="px-5 py-5 text-[13px] leading-7 whitespace-pre-wrap font-mono">
-              <span className="tok-fn">notes</span>
-              <span className="tok-punc">.</span>
-              <span className="tok-fn">filter</span>
-              <span className="tok-punc">(</span>n <span className="tok-kw">{"=>"}</span>{" "}
-              {searchQuery && (
-                <>
-                  n.includes(<span className="tok-str">"{searchQuery}"</span>)
-                </>
-              )}
-              {searchQuery && dateFilter && <span className="tok-kw"> && </span>}
-              {dateFilter && (
-                <>
-                  n.month <span className="tok-kw">===</span>{" "}
-                  <span className="tok-str">"{monthLabel}"</span>
-                </>
-              )}
-              <span className="tok-punc">);</span>
-              {"\n"}
-              <span className="tok-dim">{"< "}</span>
-              <span className="tok-punc">[]</span>{" "}
-              <span className="tok-com">// no matches found</span>
-            </pre>
-            <div className="px-5 pb-5 flex flex-wrap gap-2">
-              {searchQuery && (
-                <button type="button" onClick={() => setSearchQuery("")} className="ide-btn">
-                  <span>
-                    query <span className="tok-kw">=</span> <span className="tok-str">""</span>
-                  </span>
-                </button>
-              )}
-              {dateFilter && (
-                <button type="button" onClick={() => setDateFilter("")} className="ide-btn">
-                  <span>
-                    date <span className="tok-kw">=</span> <span className="tok-kw">null</span>
-                  </span>
-                </button>
-              )}
-            </div>
-          </div>
-        )}
-
-        {!locked && !loading && filteredNotes.length !== 0 && !isRateLimited && (
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-            {filteredNotes.map((note, index) => (
-              <div
-                key={note.id}
-                className="animate-slide-up opacity-0"
-                style={{ animationDelay: `${Math.min(index, 12) * 50}ms` }}
+            <div className="max-w-md mx-auto mt-10 ide-card !bg-[var(--panel)] px-6 py-8 text-center animate-slide-up">
+              <Lock className="size-9 mx-auto mb-4 tok-warn" />
+              <p className="text-[13.5px]">
+                <span className="tok-kw">await</span> vault
+                <span className="tok-punc">.</span>
+                <span className="tok-fn">unlock</span>
+                <span className="tok-punc">(</span>pin
+                <span className="tok-punc">);</span>
+              </p>
+              <p className="text-xs tok-com mt-2 mb-5">
+                {"// "}
+                {notes.length} encrypted {notes.length === 1 ? "note" : "notes"}{" "}
+                — enter your PIN to read them
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  navigate("/pin", { state: { backgroundLocation: location } })
+                }
+                className="ide-btn ide-btn-primary"
               >
-                <NoteCard note={note} />
-              </div>
-            ))}
-          </div>
-        )}
+                <KeyRound className="size-4" />
+                unlock()
+              </button>
+            </div>
+          )}
 
-        {!loading && notes.length > 0 && (
+        {!locked &&
+          !loading &&
+          !decrypting &&
+          filteredNotes.length === 0 &&
+          notes.length !== 0 &&
+          !isRateLimited && (
+            <div className="max-w-lg mx-auto mt-10 ide-card !bg-[var(--panel)] overflow-hidden animate-slide-up">
+              <pre className="px-5 py-5 text-[13px] leading-7 whitespace-pre-wrap font-mono">
+                <span className="tok-fn">notes</span>
+                <span className="tok-punc">.</span>
+                <span className="tok-fn">filter</span>
+                <span className="tok-punc">(</span>n{" "}
+                <span className="tok-kw">{"=>"}</span>{" "}
+                {searchQuery && (
+                  <>
+                    n.includes(<span className="tok-str">"{searchQuery}"</span>)
+                  </>
+                )}
+                {searchQuery && dateFilter && (
+                  <span className="tok-kw"> && </span>
+                )}
+                {dateFilter && (
+                  <>
+                    n.month <span className="tok-kw">===</span>{" "}
+                    <span className="tok-str">"{monthLabel}"</span>
+                  </>
+                )}
+                <span className="tok-punc">);</span>
+                {"\n"}
+                <span className="tok-dim">{"< "}</span>
+                <span className="tok-punc">[]</span>{" "}
+                <span className="tok-com">// no matches found</span>
+              </pre>
+              <div className="px-5 pb-5 flex flex-wrap gap-2">
+                {searchQuery && (
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="ide-btn"
+                  >
+                    <span>
+                      query <span className="tok-kw">=</span>{" "}
+                      <span className="tok-str">""</span>
+                    </span>
+                  </button>
+                )}
+                {dateFilter && (
+                  <button
+                    type="button"
+                    onClick={() => setDateFilter("")}
+                    className="ide-btn"
+                  >
+                    <span>
+                      date <span className="tok-kw">=</span>{" "}
+                      <span className="tok-kw">null</span>
+                    </span>
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
+        {!locked &&
+          !loading &&
+          !decrypting &&
+          filteredNotes.length !== 0 &&
+          !isRateLimited && (
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+              {filteredNotes.map((note, index) => (
+                <div
+                  key={note.id}
+                  className="animate-slide-up opacity-0"
+                  style={{ animationDelay: `${Math.min(index, 12) * 50}ms` }}
+                >
+                  <NoteCard note={note} />
+                </div>
+              ))}
+            </div>
+          )}
+
+        {!locked && !loading && notes.length > 0 && (
           <div className="mt-4 text-[12.5px] tok-punc">{"}"}</div>
         )}
       </div>

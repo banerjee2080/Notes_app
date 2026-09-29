@@ -45,6 +45,7 @@ export function useDecryptedNotes() {
             // Fallback so the Promise.all doesn't reject entirely
             return {
               ...note,
+              decryptFailed: true,
               title: "Decryption Failed",
               content:
                 "<p>Could not decrypt this note. It may be corrupted or encrypted with a different PIN.</p>",
