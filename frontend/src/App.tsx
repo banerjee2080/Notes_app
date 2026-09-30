@@ -18,6 +18,7 @@ import HistoryPage from "./pages/HistoryPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import CodeSpinner from "./components/ui/CodeSpinner";
 import LogoutGuard from "./components/LogoutGuard";
+import KeyboardShortcuts from "./components/KeyboardShortcuts";
 
 /** Set by links that open a page as a modal over whatever is already shown. */
 interface ModalLocationState {
@@ -203,6 +204,7 @@ const App = () => {
         </Routes>
       )}
 
+      {authUser && <KeyboardShortcuts />}
       <LogoutGuard />
     </div>
   );

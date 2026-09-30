@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
 import { RefreshCw, SquareTerminal, X } from "lucide-react";
+import toast from "react-hot-toast";
 import { useSyncStore } from "../../stores/useSyncStore";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { useUiStore } from "../../stores/useUiStore";
@@ -448,8 +449,8 @@ const ConsoleLineView = ({
     return <div className="pl-4 tok-com">{"< // hidden — vault locked"}</div>;
   if (line.t === "row")
     return (
-      <div className="pl-4 flex gap-3 min-w-0" title={line.fullId}>
-        <span className="tok-num shrink-0 tabular-nums">{line.id}</span>
+      <div className="pl-4 flex gap-3 min-w-0">
+        <CopyableId short={line.id} full={line.fullId} />
         <span className="truncate text-[var(--fg)] min-w-0">
           {line.title === null || locked ? (
             <span className="tok-warn">🔒 encrypted</span>
@@ -488,6 +489,58 @@ const ConsoleLineView = ({
       <span className="tok-dim">{"< "}</span>
       {line.v}
     </div>
+  );
+};
+
+/** Copy text, falling back to execCommand where the Clipboard API is blocked
+ *  (plain-http LAN addresses aren't a "secure context"). */
+async function copyText(text: string): Promise<void> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return;
+  } catch {
+    // fall through to the legacy path
+  }
+  const ta = document.createElement("textarea");
+  ta.value = text;
+  ta.setAttribute("readonly", "");
+  ta.style.cssText = "position:fixed;opacity:0;pointer-events:none";
+  document.body.appendChild(ta);
+  ta.select();
+  const ok = document.execCommand("copy");
+  ta.remove();
+  if (!ok) throw new Error("clipboard unavailable");
+}
+
+/** An `ls` id: click to copy the full uuid (any 4+ char prefix works in rm/touch). */
+const CopyableId = ({ short, full }: { short: string; full: string }) => {
+  const [copied, setCopied] = useState(false);
+  const timer = useRef<ReturnType<typeof setTimeout>>(undefined);
+  useEffect(() => () => clearTimeout(timer.current), []);
+
+  const onCopy = async (e: React.MouseEvent) => {
+    e.stopPropagation(); // don't let the console steal focus mid-copy
+    try {
+      await copyText(full);
+      setCopied(true);
+      clearTimeout(timer.current);
+      timer.current = setTimeout(() => setCopied(false), 1200);
+      toast.success(`Copied ${short}…`, { id: "copy-id", duration: 1500 });
+    } catch {
+      toast.error("Couldn't copy — select the id manually", { id: "copy-id" });
+    }
+  };
+
+  return (
+    <button
+      type="button"
+      onClick={onCopy}
+      title={`${full} — click to copy`}
+      aria-label={`Copy note id ${full}`}
+      className={`shrink-0 tabular-nums text-left cursor-copy hover:underline underline-offset-2 ${copied ? "tok-ok" : "tok-num"}`}
+    >
+      {copied ? "copied ✓" : short}
+    </button>
   );
 };
 

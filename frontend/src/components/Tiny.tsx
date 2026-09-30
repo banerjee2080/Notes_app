@@ -1,6 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { Bookmark, Editor as TinyMCEEditor } from "tinymce";
 import { isCloseShortcut } from "../hooks/useCloseShortcut";
+import { isDeleteNoteShortcut, isNewNoteShortcut } from "../hooks/useKeyShortcut";
 import { Editor } from "@tinymce/tinymce-react";
 import { useAuthStore } from "../stores/useAuthStore";
 import { languageFromClass, lastLanguageId } from "../lib/code/languages";
@@ -26,6 +27,10 @@ interface TinyProps {
   placeholder: string;
   /** Ctrl+Shift+X inside the editor iframe closes the note window. */
   onCloseShortcut: () => void;
+  /** Ctrl+D inside the editor — delete the open note (omit to leave Ctrl+D alone). */
+  onDeleteShortcut?: () => void;
+  /** Ctrl+N / Alt+N inside the editor — open a new note. */
+  onNewShortcut?: () => void;
 }
 
 /** What the lazily-loaded code editor dialog is opened with. */
@@ -40,6 +45,8 @@ export default function Tiny({
   onEditorChange,
   placeholder,
   onCloseShortcut,
+  onDeleteShortcut,
+  onNewShortcut,
 }: TinyProps) {
   const { authUser, themeMode } = useAuthStore();
   const isDark = themeMode !== "light";
@@ -54,8 +61,12 @@ export default function Tiny({
   }>({ node: null, bookmark: null });
   // TinyMCE's setup() runs once, so it reads the latest callback through a ref.
   const closeShortcutRef = useRef(onCloseShortcut);
+  const deleteShortcutRef = useRef(onDeleteShortcut);
+  const newShortcutRef = useRef(onNewShortcut);
   useEffect(() => {
     closeShortcutRef.current = onCloseShortcut;
+    deleteShortcutRef.current = onDeleteShortcut;
+    newShortcutRef.current = onNewShortcut;
   });
 
   const openCodeEditor = (
@@ -163,11 +174,19 @@ export default function Tiny({
           setup: (editor: TinyMCEEditor) => {
             editorRef.current = editor;
             // Keys pressed inside the editor iframe don't reach the page's
-            // window listener (useCloseShortcut), so catch Ctrl+Shift+X here.
+            // window listeners (useCloseShortcut / useKeyShortcut), so catch
+            // Ctrl+Shift+X, Ctrl+D and Ctrl+N / Alt+N here.
             editor.on("keydown", (e) => {
-              if (!isCloseShortcut(e) || !closeShortcutRef.current) return;
+              const run = isCloseShortcut(e)
+                ? closeShortcutRef.current
+                : isDeleteNoteShortcut(e)
+                  ? deleteShortcutRef.current
+                  : isNewNoteShortcut(e)
+                    ? newShortcutRef.current
+                    : undefined;
+              if (!run || e.repeat) return;
               e.preventDefault();
-              closeShortcutRef.current();
+              run();
             });
             // Double-click a code block -> our editor. Registered in setup,
             // i.e. before the codesample plugin's own handler, so stopping

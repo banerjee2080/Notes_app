@@ -11,6 +11,12 @@ import CodeSpinner from "../components/ui/CodeSpinner";
 import { toFileName, timeAgo } from "../lib/utils";
 import { useDebounce } from "../hooks/useDebounce";
 import { useCloseShortcut } from "../hooks/useCloseShortcut";
+import {
+  useKeyShortcut,
+  useOpenNewNote,
+  isDeleteNoteShortcut,
+  DELETE_NOTE_SHORTCUT_LABEL,
+} from "../hooks/useKeyShortcut";
 import { localDB } from "../lib/db";
 import api from "../lib/axios";
 import { useAuthStore } from "../stores/useAuthStore";
@@ -203,6 +209,10 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
 
   const close = () => navigate("/");
   useCloseShortcut(close); // Ctrl+Shift+X
+  // Ctrl+D -> same confirm dialog as the "delete note" button (Enter confirms).
+  useKeyShortcut(isDeleteNoteShortcut, requestDelete, !loading && !isConfirmModalOpen);
+  // Ctrl+N (Alt+N) is handled app-wide; this copy is for keys typed inside TinyMCE.
+  const openNewNote = useOpenNewNote();
 
   if (loading) {
     return (
@@ -233,6 +243,7 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
               <button
                 type="button"
                 onClick={requestDelete}
+                title={`Delete note (${DELETE_NOTE_SHORTCUT_LABEL})`}
                 className="ide-btn ide-btn-danger !py-1 !px-2 text-xs"
               >
                 <Trash2Icon className="size-3.5" />
@@ -278,6 +289,8 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
               }}
               placeholder="// start typing… encrypted before it's saved"
               onCloseShortcut={close}
+              onDeleteShortcut={requestDelete}
+              onNewShortcut={openNewNote}
             />
           </div>
           <EditorFooter />
