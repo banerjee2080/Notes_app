@@ -16,10 +16,18 @@ import monoFont from "@fontsource-variable/jetbrains-mono/files/jetbrains-mono-l
 const CodeEditorModal = lazy(() => import("./code/CodeEditorModal"));
 
 // Same test TinyMCE's codesample plugin uses: <pre class="language-...">
-const codeSampleOf = (node: unknown): HTMLPreElement | null =>
-  node instanceof Element
-    ? node.closest<HTMLPreElement>('pre[class*="language-"]')
-    : null;
+//
+// Don't use `node instanceof Element` here. TinyMCE's content lives in an
+// <iframe>, and every iframe has its own copy of the DOM classes, so a <pre>
+// inside the editor is an instance of the *iframe's* Element, not this page's.
+// `instanceof` was false for every code block, the double-click handler bailed
+// out, and the codesample plugin's old dialog opened instead. Checking
+// nodeType works for nodes from any document.
+const codeSampleOf = (node: unknown): HTMLPreElement | null => {
+  const el = node as Element | null | undefined;
+  if (!el || el.nodeType !== 1 /* Node.ELEMENT_NODE */) return null;
+  return el.closest<HTMLPreElement>('pre[class*="language-"]');
+};
 
 interface TinyProps {
   value: string;
