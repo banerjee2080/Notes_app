@@ -22,6 +22,7 @@ import {
   SHORT_ID,
 } from "../../lib/noteCommands";
 import { timeAgo } from "../../lib/utils";
+import { SHORTCUT_LIST } from "../../hooks/useKeyShortcut";
 import { errorMessage } from "../../lib/errors";
 import { userIdOf } from "../../types/user";
 
@@ -323,6 +324,13 @@ const ConsoleDrawer = ({ onClose }: { onClose: () => void }) => {
       return;
     } else if (key === "help") {
       CONSOLE_HELP.forEach(([c, d]) => out.push({ t: "help", v: c, d }));
+    } else if (key === "shortcuts" || key === "keys") {
+      out.push({ t: "com", v: "// keyboard shortcuts (Cmd instead of Ctrl on macOS)" });
+      SHORTCUT_LIST.forEach(([c, d]) => out.push({ t: "help", v: c, d }));
+      out.push({
+        t: "com",
+        v: "// browser tabs keep Ctrl+N/T/Shift+T/Shift+C for themselves — use the Alt keys, or install the app",
+      });
     } else if (key === "gotchas") {
       GOTCHAS.forEach((g) => {
         out.push({ t: "in", v: g });
@@ -474,7 +482,7 @@ const ConsoleLineView = ({
   if (line.t === "help")
     return (
       <div>
-        <span className="tok-str inline-block min-w-40">{line.v}</span>
+        <span className="tok-str inline-block min-w-40 pr-3">{line.v}</span>
         <span className="tok-com">// {line.d}</span>
       </div>
     );

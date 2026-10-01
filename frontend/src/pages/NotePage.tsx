@@ -15,6 +15,7 @@ import {
   useKeyShortcut,
   useOpenNewNote,
   isDeleteNoteShortcut,
+  isFocusTitleShortcut,
   DELETE_NOTE_SHORTCUT_LABEL,
 } from "../hooks/useKeyShortcut";
 import { localDB } from "../lib/db";
@@ -213,6 +214,16 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
   useKeyShortcut(isDeleteNoteShortcut, requestDelete, !loading && !isConfirmModalOpen);
   // Ctrl+N (Alt+N) is handled app-wide; this copy is for keys typed inside TinyMCE.
   const openNewNote = useOpenNewNote();
+  // Ctrl+T (Alt+T) -> cursor to the end of the title. Ctrl+Shift+T (content)
+  // and Ctrl+Shift+C (code editor) live in Tiny, which owns the editor.
+  const titleRef = useRef<HTMLInputElement>(null);
+  const focusTitle = () => {
+    const el = titleRef.current;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  };
+  useKeyShortcut(isFocusTitleShortcut, focusTitle, !loading && !isConfirmModalOpen);
 
   if (loading) {
     return (
@@ -267,6 +278,7 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
             <span className="flex items-center min-w-0">
             <span className="tok-str text-lg shrink-0">"</span>
             <input
+              ref={titleRef}
               type="text"
               value={note.title || ""}
               placeholder="Untitled note"
@@ -291,6 +303,7 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
               onCloseShortcut={close}
               onDeleteShortcut={requestDelete}
               onNewShortcut={openNewNote}
+              onTitleShortcut={focusTitle}
             />
           </div>
           <EditorFooter />

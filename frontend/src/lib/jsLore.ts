@@ -93,6 +93,7 @@ export const TIMELINE: TimelineEntry[] = [
 // Console commands. Keys are matched after trimming + lowercasing.
 export const CONSOLE_HELP: ConsoleHelpEntry[] = [
   ["help", "list commands"],
+  ["shortcuts", "list all keyboard shortcuts"],
   ["gotchas", "classic JavaScript surprises"],
   ["typeof null", "a 30-year-old bug"],
   ["0.1 + 0.2", "floating point fun"],

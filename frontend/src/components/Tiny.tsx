@@ -1,7 +1,14 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import type { Bookmark, Editor as TinyMCEEditor } from "tinymce";
 import { isCloseShortcut } from "../hooks/useCloseShortcut";
-import { isDeleteNoteShortcut, isNewNoteShortcut } from "../hooks/useKeyShortcut";
+import {
+  isCodeEditorShortcut,
+  isDeleteNoteShortcut,
+  isFocusContentShortcut,
+  isFocusTitleShortcut,
+  isNewNoteShortcut,
+  useKeyShortcut,
+} from "../hooks/useKeyShortcut";
 import { Editor } from "@tinymce/tinymce-react";
 import { useAuthStore } from "../stores/useAuthStore";
 import { languageFromClass, lastLanguageId } from "../lib/code/languages";
@@ -39,6 +46,8 @@ interface TinyProps {
   onDeleteShortcut?: () => void;
   /** Ctrl+N / Alt+N inside the editor — open a new note. */
   onNewShortcut?: () => void;
+  /** Ctrl+T / Alt+T inside the editor — move the cursor to the title. */
+  onTitleShortcut?: () => void;
 }
 
 /** What the lazily-loaded code editor dialog is opened with. */
@@ -55,6 +64,7 @@ export default function Tiny({
   onCloseShortcut,
   onDeleteShortcut,
   onNewShortcut,
+  onTitleShortcut,
 }: TinyProps) {
   const { authUser, themeMode } = useAuthStore();
   const isDark = themeMode !== "light";
@@ -71,10 +81,12 @@ export default function Tiny({
   const closeShortcutRef = useRef(onCloseShortcut);
   const deleteShortcutRef = useRef(onDeleteShortcut);
   const newShortcutRef = useRef(onNewShortcut);
+  const titleShortcutRef = useRef(onTitleShortcut);
   useEffect(() => {
     closeShortcutRef.current = onCloseShortcut;
     deleteShortcutRef.current = onDeleteShortcut;
     newShortcutRef.current = onNewShortcut;
+    titleShortcutRef.current = onTitleShortcut;
   });
 
   const openCodeEditor = (
@@ -88,6 +100,16 @@ export default function Tiny({
       isEdit: !!pre,
     });
   };
+
+  // From outside the editor (e.g. the title input): Ctrl+Shift+T jumps into
+  // the content, Ctrl+Shift+C opens the code editor at the last caret spot.
+  // Inside the iframe the same keys are handled in setup() below.
+  const focusContent = () => editorRef.current?.focus();
+  const openCodeEditorShortcut = () => {
+    if (editorRef.current) openCodeEditor(editorRef.current);
+  };
+  useKeyShortcut(isFocusContentShortcut, focusContent, !codeDialog);
+  useKeyShortcut(isCodeEditorShortcut, openCodeEditorShortcut, !codeDialog);
 
   const closeCodeEditor = () => {
     setCodeDialog(null);
@@ -183,7 +205,8 @@ export default function Tiny({
             editorRef.current = editor;
             // Keys pressed inside the editor iframe don't reach the page's
             // window listeners (useCloseShortcut / useKeyShortcut), so catch
-            // Ctrl+Shift+X, Ctrl+D and Ctrl+N / Alt+N here.
+            // Ctrl+Shift+X, Ctrl+D, Ctrl+N, Ctrl+T, Ctrl+Shift+T and
+            // Ctrl+Shift+C (plus their Alt versions) here.
             editor.on("keydown", (e) => {
               const run = isCloseShortcut(e)
                 ? closeShortcutRef.current
@@ -191,7 +214,13 @@ export default function Tiny({
                   ? deleteShortcutRef.current
                   : isNewNoteShortcut(e)
                     ? newShortcutRef.current
-                    : undefined;
+                    : isFocusTitleShortcut(e)
+                      ? titleShortcutRef.current
+                      : isFocusContentShortcut(e)
+                        ? () => {} // already here; just keep the browser out
+                        : isCodeEditorShortcut(e)
+                          ? () => openCodeEditor(editor)
+                          : undefined;
               if (!run || e.repeat) return;
               e.preventDefault();
               run();

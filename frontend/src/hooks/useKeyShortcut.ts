@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useLocation, useNavigate, type Location } from "react-router";
-import type { ShortcutKeyEvent } from "./useCloseShortcut";
+import { CLOSE_SHORTCUT_LABEL, type ShortcutKeyEvent } from "./useCloseShortcut";
 
 // Ctrl+N is reserved by Chrome/Edge in a normal tab (it opens a new window
 // before the page ever sees it). It *does* reach us in the installed PWA
@@ -24,6 +24,43 @@ export const isNewNoteShortcut = (e: ShortcutKeyEvent): boolean => {
 /** Ctrl+D / Cmd+D (the browser's "bookmark this page", which we override). */
 export const isDeleteNoteShortcut = (e: ShortcutKeyEvent): boolean =>
   (e.ctrlKey || e.metaKey) && !e.shiftKey && !e.altKey && isKey(e, "d");
+
+// Ctrl+T, Ctrl+Shift+T and Ctrl+Shift+C belong to the browser in a normal tab
+// (new tab, reopen tab, DevTools inspector), so like Ctrl+N they only reach us
+// in the installed PWA window. The Alt versions are the backups.
+export const FOCUS_TITLE_SHORTCUT_LABEL = "Ctrl+T / Alt+T";
+export const FOCUS_CONTENT_SHORTCUT_LABEL = "Ctrl+Shift+T / Alt+Shift+T";
+export const CODE_EDITOR_SHORTCUT_LABEL = "Ctrl+Shift+C / Alt+Shift+C";
+
+/** Ctrl/Cmd+letter or Alt+letter, with Shift exactly as asked. */
+const isModLetter = (e: ShortcutKeyEvent, letter: string, shift: boolean): boolean => {
+  if (e.shiftKey !== shift || !isKey(e, letter)) return false;
+  const mod = e.ctrlKey || e.metaKey;
+  return (mod && !e.altKey) || (e.altKey && !mod); // mod+alt is AltGr
+};
+
+/** Ctrl+T / Alt+T — put the cursor in the note's title. */
+export const isFocusTitleShortcut = (e: ShortcutKeyEvent): boolean =>
+  isModLetter(e, "t", false);
+
+/** Ctrl+Shift+T / Alt+Shift+T — put the cursor in the note's content. */
+export const isFocusContentShortcut = (e: ShortcutKeyEvent): boolean =>
+  isModLetter(e, "t", true);
+
+/** Ctrl+Shift+C / Alt+Shift+C — open the code editor at the cursor. */
+export const isCodeEditorShortcut = (e: ShortcutKeyEvent): boolean =>
+  isModLetter(e, "c", true);
+
+/** Everything the console's `shortcuts` command lists. */
+export const SHORTCUT_LIST: [keys: string, what: string][] = [
+  [NEW_NOTE_SHORTCUT_LABEL, "new note (anywhere)"],
+  [FOCUS_TITLE_SHORTCUT_LABEL, "open note: jump to the title"],
+  [FOCUS_CONTENT_SHORTCUT_LABEL, "open note: jump to the content"],
+  [CODE_EDITOR_SHORTCUT_LABEL, "open note: open the code editor"],
+  [DELETE_NOTE_SHORTCUT_LABEL, "open note: move it to the recycle bin"],
+  [CLOSE_SHORTCUT_LABEL, "close the open note"],
+  ["Esc", "close the console"],
+];
 
 /**
  * Runs `handler` when `test` matches a keydown anywhere on the page.

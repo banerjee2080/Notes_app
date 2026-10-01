@@ -9,6 +9,7 @@ import api from "../lib/axios";
 import Tiny from "../components/Tiny";
 import { useDebounce } from "../hooks/useDebounce";
 import { useCloseShortcut } from "../hooks/useCloseShortcut";
+import { isFocusTitleShortcut, useKeyShortcut } from "../hooks/useKeyShortcut";
 import { v4 as uuidv4 } from "uuid";
 import { localDB } from "../lib/db";
 import { registerBackgroundSync } from "../lib/syncEngine";
@@ -114,6 +115,16 @@ const CreatePage = ({ isModal }: { isModal?: boolean }) => {
 
   const close = () => navigate("/");
   useCloseShortcut(close); // Ctrl+Shift+X
+  // Ctrl+T (Alt+T) -> cursor to the end of the title. Ctrl+Shift+T (content)
+  // and Ctrl+Shift+C (code editor) live in Tiny, which owns the editor.
+  const titleRef = useRef<HTMLInputElement>(null);
+  const focusTitle = () => {
+    const el = titleRef.current;
+    if (!el) return;
+    el.focus();
+    el.setSelectionRange(el.value.length, el.value.length);
+  };
+  useKeyShortcut(isFocusTitleShortcut, focusTitle);
 
   return (
     <div className={containerClasses} onClick={() => isModal && close()}>
@@ -140,6 +151,7 @@ const CreatePage = ({ isModal }: { isModal?: boolean }) => {
             <span className="flex items-center min-w-0">
             <span className="tok-str text-lg shrink-0">"</span>
             <input
+              ref={titleRef}
               type="text"
               value={title}
               placeholder="Untitled note"
@@ -158,6 +170,7 @@ const CreatePage = ({ isModal }: { isModal?: boolean }) => {
               onEditorChange={setContent}
               placeholder="// start typing… encrypted before it's saved"
               onCloseShortcut={close}
+              onTitleShortcut={focusTitle}
             />
           </form>
           <EditorFooter />
