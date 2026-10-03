@@ -11,6 +11,7 @@ import ProfilePage from "./pages/ProfilePage";
 import DelNotePage from "./pages/DelNotePage";
 import RecycleBinPage from "./pages/RecycleBinPage";
 import { useAuthStore } from "./stores/useAuthStore";
+import { useVaultStore } from "./stores/useVaultStore";
 import LoginPage from "./pages/LoginPage";
 import SignUpPage from "./pages/SignUpPage";
 import HistoryPage from "./pages/HistoryPage";
@@ -27,16 +28,17 @@ interface ModalLocationState {
 const RETURN_KEY = "returnTo";
 
 // A logged-out visitor on a note link: remember where they were heading so
-// signing in takes them to the note instead of the home page.
+// signing in takes them to the note instead of the home page. The #fragment
+// is kept: an encrypted note's link carries its key there.
 const ToLogin = () => {
-  const { pathname } = useLocation();
+  const { pathname, hash } = useLocation();
   useEffect(() => {
     try {
-      sessionStorage.setItem(RETURN_KEY, pathname);
+      sessionStorage.setItem(RETURN_KEY, pathname + hash);
     } catch {
       // storage blocked: they just land on the home page
     }
-  }, [pathname]);
+  }, [pathname, hash]);
   return <Navigate to={"/login"} />;
 };
 
@@ -72,6 +74,12 @@ const App = () => {
       checkAuth();
     }
   }, [_hasHydrated, checkAuth]);
+
+  // PIN vault state for whoever is signed in (cleared on logout).
+  const userId = authUser?._id;
+  useEffect(() => {
+    useVaultStore.getState().refresh(userId);
+  }, [userId]);
 
   useEffect(() => {
     if (authUser && authUser._id) {

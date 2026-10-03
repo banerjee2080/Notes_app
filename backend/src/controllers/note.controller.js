@@ -5,7 +5,9 @@ import { sanitizeHtml } from "../lib/sanitize.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import User from "../models/user.model.js";
+import NoteUpdate from "../models/noteUpdate.model.js";
 import { getNoteRole, canManageSharing } from "../collab/noteAccess.js";
+import { isB64 } from "../lib/vaultSecrets.js";
 
 // A note in the shape the frontend stores in IndexedDB.
 const toClientNote = (note, userId) => ({
@@ -17,7 +19,20 @@ const toClientNote = (note, userId) => ({
   is_deleted: note.is_deleted,
   role: getNoteRole(note, userId), // "owner" | "admin" | "editor" | "viewer" for THIS user
   collaborator_ids: note.collaborators.map((c) => String(c.user)), // lets the client list shared notes
+  // End-to-end encryption: the encrypted preview, plus THIS user's wrapped
+  // copy of the note key, so the list can show titles once the PIN is entered.
+  is_encrypted: !!note.is_encrypted,
+  key_version: note.key_version ?? 0,
+  enc_preview: note.is_encrypted ? (note.enc_preview ?? null) : null,
+  enc_key: note.is_encrypted ? myWrappedKey(note, userId) : null,
 });
+
+function myWrappedKey(note, userId) {
+  const k = (note.enc_keys ?? []).find(
+    (e) => String(e.user) === String(userId) && e.v === note.key_version,
+  );
+  return k ? { v: k.v, epk: k.epk, iv: k.iv, ct: k.ct } : null;
+}
 
 export const syncNotes = async (req, res) => {
   const userId = req.user._id;
@@ -134,7 +149,9 @@ export const uploadImage = async (req, res) => {
 export const clearRecycleBin = async (req, res) => {
   const userId = req.user._id;
   try {
-    await Note.deleteMany({ user_id: userId, is_deleted: true });
+    const ids = await Note.find({ user_id: userId, is_deleted: true }).distinct("_id");
+    await Note.deleteMany({ _id: { $in: ids } });
+    await NoteUpdate.deleteMany({ note: { $in: ids } }); // encrypted update logs
     res.status(200).json({ message: "Recycle bin cleared successfully" });
   } catch (error) {
     console.error("Clear Recycle Bin Error:", error);
@@ -245,7 +262,7 @@ const person = (user) => ({
 // (names and emails); everyone else just sees how the link is set up.
 const sharingState = async (noteId, role) => {
   const note = await Note.findById(noteId)
-    .select("user_id collaborators link_access link_role")
+    .select("user_id collaborators link_access link_role is_encrypted key_version needs_rotation")
     .populate("user_id", "fullName email profilePic")
     .populate("collaborators.user", "fullName email profilePic")
     .lean();
@@ -253,11 +270,17 @@ const sharingState = async (noteId, role) => {
     access: note?.link_access ?? "restricted",
     role: note?.link_role ?? "viewer",
   };
-  if (!note || !canManageSharing(role)) return { role, canManage: false, link };
+  const encryption = {
+    encrypted: !!note?.is_encrypted,
+    keyVersion: note?.key_version ?? 0,
+    needsRotation: !!note?.needs_rotation,
+  };
+  if (!note || !canManageSharing(role)) return { role, canManage: false, link, encryption };
   return {
     role,
     canManage: true,
     link,
+    encryption,
     owner: note.user_id ? person(note.user_id) : null,
     collaborators: note.collaborators
       .filter((c) => c.user) // skip entries whose user account was deleted
@@ -341,7 +364,7 @@ export const getSharing = async (req, res) => {
 // POST /api/notes/:id/share  body: { email, role } → sharingState (owner/admin)
 // Also how an existing collaborator's role gets changed.
 export const shareNote = async (req, res) => {
-  const { email, role = "editor" } = req.body ?? {}; // role defaults to editor; {} when no JSON body was sent
+  const { email, role = "editor", key } = req.body ?? {}; // role defaults to editor; {} when no JSON body was sent
   try {
     if (!isValidNoteId(req.params.id)) {
       return res.status(400).json({ message: "Invalid note id" });
@@ -353,7 +376,7 @@ export const shareNote = async (req, res) => {
         .json({ message: "Email and a valid role are required" });
     }
     const note = await Note.findById(req.params.id).select(
-      "user_id collaborators",
+      "user_id collaborators is_encrypted key_version enc_keys",
     ); // NOT lean: we'll .save() it
     const myRole = getNoteRole(note, req.user._id);
     if (!myRole) {
@@ -365,7 +388,7 @@ export const shareNote = async (req, res) => {
         .json({ message: "Only the owner or an admin can share this note" });
     }
     const target = await User.findOne({ email: email.trim() }) // find the person (same matching as your login)
-      .select("_id")
+      .select("_id +vault")
       .lean();
     if (!target) {
       return res.status(404).json({ message: "No user with that email" });
@@ -377,6 +400,32 @@ export const shareNote = async (req, res) => {
       // already shared with them?
       (c) => String(c.user) === String(target._id),
     );
+    // Encrypted note + new person: they need the note key wrapped for their
+    // public key. Only a browser holding the key can do that, so the first call
+    // answers 409 with their public key and the browser retries with `key`.
+    if (note.is_encrypted && !existing) {
+      if (!target.vault?.publicKey) {
+        return res.status(400).json({
+          message: "They need to set up a notes PIN before joining an encrypted note",
+        });
+      }
+      if (!key || key.v !== note.key_version) {
+        return res.status(409).json({
+          code: "NEEDS_KEY",
+          message: "Encrypted note: wrap the key for this person",
+          userId: String(target._id),
+          publicKey: target.vault.publicKey,
+          keyVersion: note.key_version,
+        });
+      }
+      if (!isB64(key.epk, 80, 100) || !isB64(key.iv, 16, 16) || !isB64(key.ct, 40, 100)) {
+        return res.status(400).json({ message: "Invalid key" });
+      }
+      note.enc_keys = [
+        ...note.enc_keys.filter((k) => String(k.user) !== String(target._id)),
+        { user: target._id, v: key.v, epk: key.epk, iv: key.iv, ct: key.ct },
+      ];
+    }
     if (existing) {
       existing.role = role; // yes → just change the role
       existing.via_link = false; // now on the list in their own right
@@ -398,7 +447,7 @@ export const unshareNote = async (req, res) => {
     if (!isValidNoteId(id) || !mongoose.isValidObjectId(userId)) {
       return res.status(400).json({ message: "Invalid id" });
     }
-    const note = await Note.findById(id).select("user_id collaborators").lean();
+    const note = await Note.findById(id).select("user_id collaborators is_encrypted").lean();
     const myRole = getNoteRole(note, req.user._id);
     const isSelf = String(userId) === String(req.user._id); // caller is removing themselves?
     if (!myRole || (!canManageSharing(myRole) && !isSelf)) {
@@ -406,7 +455,13 @@ export const unshareNote = async (req, res) => {
     }
     await Note.updateOne(
       { _id: id },
-      { $pull: { collaborators: { user: userId } } }, // remove matching entries from the array
+      note.is_encrypted
+        ? {
+            // They may still hold the key, so it gets replaced (needs_rotation).
+            $pull: { collaborators: { user: userId }, enc_keys: { user: userId } },
+            $set: { needs_rotation: true },
+          }
+        : { $pull: { collaborators: { user: userId } } }, // remove matching entries from the array
     );
     if (isSelf) return res.status(200).json({ left: true });
     res.status(200).json(await sharingState(id, myRole));
@@ -427,7 +482,7 @@ export const updateLinkSharing = async (req, res) => {
       return res.status(400).json({ message: "Invalid link settings" });
     }
     const note = await Note.findById(req.params.id)
-      .select("user_id collaborators")
+      .select("user_id collaborators is_encrypted")
       .lean();
     const myRole = getNoteRole(note, req.user._id);
     if (!myRole) {
@@ -438,13 +493,22 @@ export const updateLinkSharing = async (req, res) => {
         .status(403)
         .json({ message: "Only the owner or an admin can change the link" });
     }
+    const linkUsers = note.collaborators.filter((c) => c.via_link).map((c) => c.user);
     if (access === "restricted") {
       // Turning the link off also removes everyone who only had it via the link.
       await Note.updateOne(
         { _id: note._id },
         {
-          $set: { link_access: access, link_role: role },
-          $pull: { collaborators: { via_link: true } },
+          $set: {
+            link_access: access,
+            link_role: role,
+            // Link joiners of an encrypted note hold the key: replace it.
+            ...(note.is_encrypted && linkUsers.length ? { needs_rotation: true } : {}),
+          },
+          $pull: {
+            collaborators: { via_link: true },
+            ...(note.is_encrypted ? { enc_keys: { user: { $in: linkUsers } } } : {}),
+          },
         },
       );
     } else {

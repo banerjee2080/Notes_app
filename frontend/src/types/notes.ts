@@ -1,5 +1,7 @@
 // The note record exactly as it lives in IndexedDB and travels to the server.
 
+import type { EncBlob, WrappedNoteKey } from "../lib/crypto";
+
 export type SyncStatus = "synced" | "pending_update";
 
 /** What the current user may do with a note. Admins can do everything the
@@ -20,6 +22,13 @@ export interface Note {
   role?: NoteRole;
   /** Users the note is shared with (lets shared notes show up in the list). */
   collaborator_ids?: string[];
+  /** End-to-end encrypted: title/content are empty, the text is ciphertext. */
+  is_encrypted?: boolean;
+  key_version?: number;
+  /** Encrypted { title, text } for lists; readable once the PIN is entered. */
+  enc_preview?: EncBlob | null;
+  /** This user's wrapped copy of the note key (lets lists decrypt offline). */
+  enc_key?: WrappedNoteKey | null;
 }
 
 /** Row of the `meta` key/value table. */

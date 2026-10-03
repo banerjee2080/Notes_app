@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import notesRoutes from "./src/routes/notes.routes.js";
 import authRoutes from "./src/routes/auth.routes.js";
 import otpRoutes from "./src/routes/otp.routes.js";
+import vaultRoutes from "./src/routes/vault.routes.js";
 import { connectdb } from "./src/config/db.js";
 import rateLimiter from "./src/middleware/ratelimiter.middleware.js";
 import dotenv from "dotenv";
@@ -160,6 +161,7 @@ app.use("/api", rateLimiter);
 app.use("/api/notes", notesRoutes);
 app.use("/api/auth", authRoutes);
 app.use("/api/otp", otpRoutes);
+app.use("/api/vault", vaultRoutes);
 
 // Serve the static files from the React frontend build
 if (!isProduction) {

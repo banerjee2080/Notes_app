@@ -1,6 +1,7 @@
 import { localDB } from "./db";
 import axiosInstance from "./axios";
 import { useSyncStore } from "../stores/useSyncStore";
+import { deleteCollabCache } from "./collabCache";
 import type { Note } from "../types/notes";
 
 interface SyncResponse {
@@ -55,6 +56,11 @@ const runSync = async (userId: string): Promise<boolean> => {
     });
     const { serverChanges, timestamp } = res.data;
 
+    // Notes someone encrypted since our last sync: their plaintext offline
+    // copy (y-indexeddb) has to go. Done after the transaction - deleting a
+    // database isn't a Dexie operation and would end the transaction early.
+    const nowEncrypted: string[] = [];
+
     await localDB.transaction("rw", localDB.notes, localDB.meta, async () => {
       // Apply server changes, unless this device holds a newer unsent edit
       for (const serverNote of serverChanges ?? []) {
@@ -65,6 +71,9 @@ const runSync = async (userId: string): Promise<boolean> => {
           toMs(localNote.updated_at) > toMs(serverNote.updated_at);
 
         if (localHasNewerPendingEdit) continue;
+        if (serverNote.is_encrypted && localNote && !localNote.is_encrypted) {
+          nowEncrypted.push(serverNote.id);
+        }
 
         await localDB.notes.put({ ...serverNote, sync_status: "synced" });
       }
@@ -86,6 +95,8 @@ const runSync = async (userId: string): Promise<boolean> => {
         value: timestamp,
       });
     });
+
+    await Promise.all(nowEncrypted.map((id) => deleteCollabCache(id)));
 
     console.log("Sync complete at", timestamp);
     return true;

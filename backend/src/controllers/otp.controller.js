@@ -49,12 +49,16 @@ export const sendOtp = async (req, res) => {
     }
 
     const generatedOtp = generateOtp();
+    const isVaultReset = purpose === "vault_reset";
+    const intro = isVaultReset
+      ? "Use the OTP below to reset your notes PIN. Notes only you could read will stay locked forever."
+      : "Use the OTP below to complete your sign-up process.";
 
     const emailHtml = `
       <div style="font-family: 'Inter', Arial, sans-serif; max-width: 600px; margin: 0 auto; background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%); color: #f8fafc; padding: 40px; border-radius: 24px; border: 1px solid rgba(255, 255, 255, 0.1); box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);">
         <div style="text-align: center; margin-bottom: 30px;">
           <h1 style="color: #ffffff; margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -0.5px;">Verify Your Email</h1>
-          <p style="color: #94a3b8; font-size: 16px; margin-top: 12px;">Use the OTP below to complete your sign-up process.</p>
+          <p style="color: #94a3b8; font-size: 16px; margin-top: 12px;">${intro}</p>
         </div>
         <div style="background: rgba(255, 255, 255, 0.05); border: 1px solid rgba(255, 255, 255, 0.1); border-radius: 16px; padding: 40px; text-align: center; margin-bottom: 30px;">
           <span style="font-size: 48px; font-weight: 800; color: #60a5fa; letter-spacing: 12px; display: block; text-shadow: 0 0 20px rgba(96, 165, 250, 0.4);">${generatedOtp}</span>
@@ -68,7 +72,7 @@ export const sendOtp = async (req, res) => {
     const { error } = await resend.emails.send({
       from: "noreply@notejs.in",
       to: [email],
-      subject: "Your OTP Code",
+      subject: isVaultReset ? "Reset your notes PIN" : "Your OTP Code",
       html: emailHtml,
     });
 

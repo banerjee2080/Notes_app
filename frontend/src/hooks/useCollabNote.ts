@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import * as Y from "yjs";
 import { IndexeddbPersistence } from "y-indexeddb";
 import { HocuspocusProvider } from "@hocuspocus/provider";
@@ -10,7 +10,7 @@ import type { NoteRole } from "../types/notes";
 // Same origin by default: on Vercel, /collab is routed to the collab function,
 // and in development Vite proxies /collab to the local collab server.
 // VITE_COLLAB_URL still overrides it (e.g. for a separately hosted server).
-const COLLAB_URL =
+export const COLLAB_URL =
   import.meta.env.VITE_COLLAB_URL ||
   `${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/collab`;
 // The provider doesn't retry after a failed login, so we do it ourselves.
@@ -24,12 +24,18 @@ export type CollabStatus = "connecting" | "connected" | "disconnected";
 
 export interface CollabSession {
   ydoc: Y.Doc;
-  provider: HocuspocusProvider;
+  /** null for encrypted notes: their Y.Doc never goes over the socket. */
+  provider: HocuspocusProvider | null;
 }
 
 // Opens a note's shared Yjs document: loads the offline copy from IndexedDB
 // and keeps it in sync with the Hocuspocus server over a WebSocket.
-export function useCollabNote(noteId: string) {
+export function useCollabNote(noteId: string, { onEncrypted }: { onEncrypted?: () => void } = {}) {
+  // An owner/admin just encrypted this note; the page re-opens it as encrypted.
+  const onEncryptedRef = useRef(onEncrypted);
+  useEffect(() => {
+    onEncryptedRef.current = onEncrypted;
+  });
   const [session, setSession] = useState<CollabSession | null>(null);
   const [status, setStatus] = useState<CollabStatus>("connecting");
   // True once the doc holds content the server created (meta.seeded). Until
@@ -74,6 +80,13 @@ export function useCollabNote(noteId: string) {
         }
       },
       onStatus: ({ status }) => setStatus(status as CollabStatus),
+      onStateless: ({ payload }) => {
+        try {
+          if (JSON.parse(payload).t === "encrypted") onEncryptedRef.current?.();
+        } catch {
+          // not one of ours
+        }
+      },
       onSynced: readSeeded,
       onAuthenticationFailed: () => {
         window.clearTimeout(retryTimer);
@@ -98,7 +111,6 @@ export function useCollabNote(noteId: string) {
 
     // The doc and socket must be created and destroyed inside this effect
     // (StrictMode mounts twice), so the effect is what hands them out.
-    // eslint-disable-next-line react-hooks/set-state-in-effect -- subscribing to an external system
     setSession({ ydoc, provider });
 
     return () => {

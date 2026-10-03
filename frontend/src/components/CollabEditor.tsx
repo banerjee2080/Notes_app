@@ -157,7 +157,9 @@ export default function CollabEditor({
         Placeholder.configure({ placeholder }),
         // "default" must match FIELD in backend/collab.js.
         Collaboration.configure({ document: session.ydoc, field: "default" }),
-        CollaborationCaret.configure({ provider: session.provider, user }),
+        // Live cursors need awareness from the provider; encrypted notes
+        // don't have one (cursor positions would leak document structure).
+        ...(session.provider ? [CollaborationCaret.configure({ provider: session.provider, user })] : []),
       ],
       editorProps: {
         // Double-click a code block -> the code editor (same as with TinyMCE).
@@ -180,9 +182,10 @@ export default function CollabEditor({
     editor?.setEditable(editable);
   }, [editor, editable]);
 
+  const hasCarets = !!session.provider;
   useEffect(() => {
-    editor?.commands.updateUser(user);
-  }, [editor, user]);
+    if (hasCarets) editor?.commands.updateUser(user);
+  }, [editor, user, hasCarets]);
 
   // Ctrl+Shift+T jumps into the content, Ctrl+Shift+C opens the code editor
   // at the caret. Tiptap isn't in an iframe, so window listeners see these

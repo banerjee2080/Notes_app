@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import toast from "react-hot-toast";
-import { ArrowLeftIcon, LogOutIcon, Trash2Icon, UsersIcon } from "lucide-react";
+import { ArrowLeftIcon, LockIcon, LogOutIcon, ShieldCheckIcon, Trash2Icon, UsersIcon } from "lucide-react";
 import ConfirmModal from "../components/ConfirmModal";
 import CollabEditor from "../components/CollabEditor";
 import ShareDialog from "../components/ShareDialog";
+import PinDialog from "../components/PinDialog";
 import CodeWindow from "../components/ui/CodeWindow";
 import EditorFooter from "../components/ui/EditorFooter";
 import CodeSpinner from "../components/ui/CodeSpinner";
@@ -17,7 +18,11 @@ import {
   DELETE_NOTE_SHORTCUT_LABEL,
 } from "../hooks/useKeyShortcut";
 import { useCollabNote } from "../hooks/useCollabNote";
+import { useEncryptedNote } from "../hooks/useEncryptedNote";
 import { localDB } from "../lib/db";
+import { deleteCollabCache } from "../lib/collabCache";
+import { enableEncryption } from "../lib/noteKeys";
+import { useVaultStore } from "../stores/useVaultStore";
 import api from "../lib/axios";
 import { useAuthStore } from "../stores/useAuthStore";
 import { triggerSync } from "../lib/syncEngine";
@@ -55,7 +60,22 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
   const lastHtml = useRef("");
   const mirrorTimer = useRef<number | undefined>(undefined);
 
-  const { session, status, seeded, role, accessLost } = useCollabNote(id);
+  // Plaintext notes sync through Hocuspocus as before; end-to-end encrypted
+  // ones through useEncryptedNote (ciphertext only). Exactly one is active.
+  const encrypted = !!note?.is_encrypted;
+  const plain = useCollabNote(note && !encrypted ? id : "", {
+    onEncrypted: () => {
+      toast("This note is now end-to-end encrypted", { icon: "🔒" });
+      void reloadNoteRef.current();
+    },
+  });
+  const secure = useEncryptedNote(id, { enabled: encrypted, cachedKey: note?.enc_key, myUserId: myId });
+  const { session, status, seeded, role, accessLost } = encrypted ? secure : plain;
+  const vaultStatus = useVaultStore((s) => s.status);
+  const lockVault = useVaultStore((s) => s.lock);
+  const [pinOpen, setPinOpen] = useState(false);
+  const [afterUnlock, setAfterUnlock] = useState<(() => void) | null>(null);
+  const [isEncryptConfirmOpen, setIsEncryptConfirmOpen] = useState(false);
   const sessionRef = useRef(session);
   useEffect(() => {
     sessionRef.current = session;
@@ -64,7 +84,8 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
   const isOwner = note?.user_id === myId;
   // Live ticket first, then what /sync last said, then a fallback for old rows.
   const effectiveRole = role ?? note?.role ?? (isOwner ? "owner" : "viewer");
-  const canEdit = seeded && effectiveRole !== "viewer";
+  const canEdit = seeded && effectiveRole !== "viewer" && (!encrypted || secure.keyState === "ready");
+  const isManager = effectiveRole === "owner" || effectiveRole === "admin";
   const caretUser = useMemo(
     () => ({ name: authUser?.fullName ?? "Anonymous", color: colorFor(myId) }),
     [authUser?.fullName, myId],
@@ -108,7 +129,9 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
 
   // Copy the live title + HTML into IndexedDB so the home list stays current.
   // sync_status is left alone: the collab server already saved the change.
+  // Encrypted notes skip this: useEncryptedNote stores an encrypted preview instead.
   const scheduleMirror = useCallback(() => {
+    if (encrypted) return;
     window.clearTimeout(mirrorTimer.current);
     mirrorTimer.current = window.setTimeout(() => {
       const t = String(sessionRef.current?.ydoc.getMap("meta").get("title") ?? "");
@@ -120,7 +143,7 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
         })
         .catch((e) => console.error("Error mirroring note locally", e));
     }, 800);
-  }, [id]);
+  }, [id, encrypted]);
   useEffect(() => () => window.clearTimeout(mirrorTimer.current), []);
 
   // A note left completely empty (usually "new note" then close) goes to the
@@ -190,6 +213,61 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
     }
   }, [accessLost, note, isOwner, id, myId, navigate]);
 
+  // Reload this note's row from the server (it just became encrypted).
+  const reloadNote = useCallback(async () => {
+    try {
+      const { data } = await api.post<{ note: Omit<Note, "sync_status"> }>(`/notes/${id}/open`);
+      const fresh: Note = { ...data.note, sync_status: "synced" };
+      await localDB.notes.put(fresh);
+      await deleteCollabCache(id); // the plaintext offline copy must go
+      setNote(fresh);
+    } catch (e) {
+      console.error("Could not reload the note", e);
+    }
+  }, [id]);
+
+  const reloadNoteRef = useRef(reloadNote);
+  useEffect(() => {
+    reloadNoteRef.current = reloadNote;
+  });
+
+  // Runs `next` now if the vault is unlocked, else after the PIN dialog.
+  const withVault = (next: () => void) => {
+    if (useVaultStore.getState().status === "unlocked") return next();
+    setAfterUnlock(() => next);
+    setPinOpen(true);
+  };
+
+  const encryptNote = async () => {
+    const live = sessionRef.current;
+    if (!live || !seeded) return;
+    const toastId = toast.loading("Encrypting…");
+    try {
+      const { noteKey, version, withoutPin } = await enableEncryption(id, live.ydoc);
+      useVaultStore.getState().rememberNoteKey(id, version, noteKey);
+      // Tell everyone still on the plaintext channel to re-open the note.
+      live.provider?.sendStateless(JSON.stringify({ t: "encrypted" }));
+      const updated: Note = {
+        ...note!,
+        is_encrypted: true,
+        key_version: version,
+        title: "",
+        content: "",
+        enc_preview: null,
+        enc_key: null,
+      };
+      await localDB.notes.put(updated);
+      await deleteCollabCache(id);
+      setNote(updated);
+      toast.success("Note encrypted end-to-end", { id: toastId });
+      if (withoutPin.length) {
+        toast(`${withoutPin.join(", ")} must set up a PIN to keep reading it`, { icon: "⚠️" });
+      }
+    } catch (e) {
+      toast.error(errorMessage(e, "Could not encrypt the note"), { id: toastId });
+    }
+  };
+
   const changeTitle = (value: string) => {
     session?.ydoc.getMap("meta").set("title", value);
   };
@@ -256,7 +334,9 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
   const statusLabel = !seeded
     ? "connecting…"
     : status === "connected"
-      ? "● live"
+      ? encrypted
+        ? "● live · e2e"
+        : "● live"
       : "offline · saved on this device";
 
   return (
@@ -272,6 +352,30 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
                 <ArrowLeftIcon className="size-3.5" />
                 <span className="hidden sm:inline">cd ..</span>
               </Link>
+              {encrypted ? (
+                <button
+                  type="button"
+                  onClick={() => lockVault()}
+                  title="Lock: forget the decryption keys on this device"
+                  className="ide-btn ide-btn-ghost !py-1 !px-2 text-xs"
+                >
+                  <LockIcon className="size-3.5" />
+                  <span className="hidden sm:inline">lock</span>
+                </button>
+              ) : (
+                isManager &&
+                seeded && (
+                  <button
+                    type="button"
+                    onClick={() => withVault(() => setIsEncryptConfirmOpen(true))}
+                    title="Encrypt end-to-end: only people on this note can read it, not the server"
+                    className="ide-btn ide-btn-ghost !py-1 !px-2 text-xs"
+                  >
+                    <ShieldCheckIcon className="size-3.5" />
+                    <span className="hidden sm:inline">encrypt</span>
+                  </button>
+                )
+              )}
               <button
                 type="button"
                 onClick={() => setIsShareOpen(true)}
@@ -299,6 +403,7 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
             {"// last modified "}
             {timeAgo(note.updated_at)}
             {effectiveRole === "viewer" ? " · read-only" : " · changes sync live"}
+            {encrypted && " · end-to-end encrypted"}
           </p>
           <div className="space-y-5">
           <label className="flex items-center gap-2 border-b ide-divider focus-within:border-[var(--kw)] transition-colors pb-2">
@@ -323,7 +428,25 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
             </span>
             <span className="flex-1" />
           </label>
-            {session && seeded ? (
+            {encrypted && secure.keyState !== "ready" ? (
+              <div className="collab-editor border ide-divider rounded-md bg-[var(--win)] px-5 py-8 text-center space-y-3">
+                <LockIcon className="size-6 mx-auto tok-kw" />
+                {secure.keyState === "need-vault" ? (
+                  <>
+                    <p className="text-sm">This note is end-to-end encrypted.</p>
+                    <button type="button" className="ide-btn ide-btn-primary" onClick={() => setPinOpen(true)}>
+                      {vaultStatus === "none" ? "set up a PIN to read it" : "enter PIN to decrypt"}
+                    </button>
+                  </>
+                ) : secure.keyState === "no-key" ? (
+                  <p className="text-sm tok-com">
+                    {"// you don't have this note's key yet. Open it from a share link that includes the key, or ask an owner/admin to open the note - their browser re-shares it with you."}
+                  </p>
+                ) : (
+                  <p className="text-sm tok-com">{"// decrypting…"}</p>
+                )}
+              </div>
+            ) : session && seeded ? (
               <CollabEditor
                 session={session}
                 user={caretUser}
@@ -353,8 +476,33 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
       </div>
 
       {isShareOpen && (
-        <ShareDialog noteId={id} onClose={() => setIsShareOpen(false)} />
+        <ShareDialog
+          noteId={id}
+          onClose={() => setIsShareOpen(false)}
+          noteKey={encrypted ? secure.noteKey : null}
+          onRotateKey={secure.rotate}
+        />
       )}
+
+      {pinOpen && (
+        <PinDialog
+          onClose={() => {
+            setPinOpen(false);
+            setAfterUnlock(null);
+          }}
+          onUnlocked={() => afterUnlock?.()}
+        />
+      )}
+
+      <ConfirmModal
+        isOpen={isEncryptConfirmOpen}
+        onClose={() => setIsEncryptConfirmOpen(false)}
+        onConfirm={encryptNote}
+        title="Encrypt Note"
+        message="The text is encrypted in your browser and the server's readable copy is deleted. Only people on this note who have a PIN can read it - live cursors are turned off and images stay unencrypted. Continue?"
+        confirmText="Encrypt"
+        isDestructive={false}
+      />
 
       <ConfirmModal
         isOpen={isConfirmModalOpen}

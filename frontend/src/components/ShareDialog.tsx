@@ -1,9 +1,10 @@
 import { useEffect, useState, type FormEvent } from "react";
 import toast from "react-hot-toast";
-import { CheckIcon, GlobeIcon, LinkIcon, LockIcon, UsersIcon, XIcon } from "lucide-react";
+import { CheckIcon, GlobeIcon, LinkIcon, LockIcon, ShieldCheckIcon, UsersIcon, XIcon } from "lucide-react";
 import Dialog from "./ui/Dialog";
 import api from "../lib/axios";
-import { errorMessage } from "../lib/errors";
+import { errorBody, errorMessage } from "../lib/errors";
+import { shareLinkFor, wrapForInvite } from "../lib/noteKeys";
 import { useAuthStore } from "../stores/useAuthStore";
 import { userIdOf } from "../types/user";
 import type { NoteRole } from "../types/notes";
@@ -30,6 +31,7 @@ interface SharingState {
   role: NoteRole;
   canManage: boolean;
   link: { access: LinkAccess; role: LinkRole };
+  encryption: { encrypted: boolean; keyVersion: number; needsRotation: boolean };
   owner?: Person | null;
   collaborators?: Collaborator[];
 }
@@ -37,6 +39,17 @@ interface SharingState {
 interface ShareDialogProps {
   noteId: string;
   onClose: () => void;
+  /** Encrypted notes: the open note key (needed to invite and to build links). */
+  noteKey?: { key: CryptoKey; version: number } | null;
+  /** Encrypted notes: replace the key after someone lost access. */
+  onRotateKey?: () => Promise<void>;
+}
+
+interface NeedsKey {
+  code: "NEEDS_KEY";
+  userId: string;
+  publicKey: string;
+  keyVersion: number;
 }
 
 const ROLE_LABELS: Record<InviteRole, string> = {
@@ -54,7 +67,7 @@ const Avatar = ({ person }: { person: Person }) => (
   />
 );
 
-export default function ShareDialog({ noteId, onClose }: ShareDialogProps) {
+export default function ShareDialog({ noteId, onClose, noteKey, onRotateKey }: ShareDialogProps) {
   const { authUser } = useAuthStore();
   const myId = userIdOf(authUser);
   const [state, setState] = useState<SharingState | null>(null);
@@ -63,8 +76,8 @@ export default function ShareDialog({ noteId, onClose }: ShareDialogProps) {
   const [busy, setBusy] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  const link = `${location.origin}/note/${noteId}`;
   const canManage = state?.canManage ?? false;
+  const isEncrypted = state?.encryption.encrypted ?? false;
 
   useEffect(() => {
     api
@@ -73,12 +86,30 @@ export default function ShareDialog({ noteId, onClose }: ShareDialogProps) {
       .catch((e) => toast.error(errorMessage(e, "Could not load sharing settings")));
   }, [noteId]);
 
+  // Someone lost access to an encrypted note: they may still hold its key,
+  // so this browser makes a new one for everyone who's left.
+  const rotateIfNeeded = async (next: SharingState) => {
+    if (!next.encryption.needsRotation || !onRotateKey) return;
+    const toastId = toast.loading("Replacing the note key…");
+    try {
+      await onRotateKey();
+      const fresh = await api.get<SharingState>(`/notes/${noteId}/sharing`);
+      setState(fresh.data);
+      toast.success("New key: removed people can't read new changes", { id: toastId });
+    } catch (err) {
+      toast.error(errorMessage(err, "Could not replace the key; it'll be retried next time the note opens"), {
+        id: toastId,
+      });
+    }
+  };
+
   // Every mutating endpoint answers with the fresh sharing state.
   const run = async (request: () => Promise<{ data: SharingState }>, fallback: string) => {
     setBusy(true);
     try {
       const res = await request();
       setState(res.data);
+      await rotateIfNeeded(res.data);
       return true;
     } catch (err) {
       toast.error(errorMessage(err, fallback));
@@ -90,10 +121,20 @@ export default function ShareDialog({ noteId, onClose }: ShareDialogProps) {
 
   const invite = async (e: FormEvent) => {
     e.preventDefault();
-    const ok = await run(
-      () => api.post(`/notes/${noteId}/share`, { email, role }),
-      "Could not share note",
-    );
+    const ok = await run(async () => {
+      try {
+        return await api.post(`/notes/${noteId}/share`, { email, role });
+      } catch (err) {
+        const need = errorBody<NeedsKey>(err);
+        if (need?.code !== "NEEDS_KEY") throw err;
+        // Encrypted note: wrap the note key for their public key, then retry.
+        if (!noteKey || noteKey.version !== need.keyVersion) {
+          throw new Error("Unlock the note first (reopen it after entering your PIN)", { cause: err });
+        }
+        const key = await wrapForInvite(noteKey.key, need.publicKey, noteId, need.keyVersion);
+        return api.post(`/notes/${noteId}/share`, { email, role, key });
+      }
+    }, "Could not share note");
     if (ok) {
       setEmail("");
       toast.success("Note shared");
@@ -117,6 +158,11 @@ export default function ShareDialog({ noteId, onClose }: ShareDialogProps) {
 
   const copyLink = async () => {
     try {
+      const link =
+        isEncrypted && noteKey
+          ? await shareLinkFor(noteId, noteKey.key, noteKey.version)
+          : `${location.origin}/note/${noteId}`;
+      if (isEncrypted && !noteKey) toast("Link copied without the key - unlock the note to include it", { icon: "⚠️" });
       await navigator.clipboard.writeText(link);
       setCopied(true);
       window.setTimeout(() => setCopied(false), 1500);
@@ -264,6 +310,14 @@ export default function ShareDialog({ noteId, onClose }: ShareDialogProps) {
                 ? "// anyone signed in who opens the link gets access"
                 : "// only people added above can open the link"}
             </p>
+            {isEncrypted && (
+              <p className="text-xs mt-2 flex items-start gap-1.5">
+                <ShieldCheckIcon className="size-3.5 shrink-0 mt-0.5 tok-kw" />
+                <span className="tok-com">
+                  {"// end-to-end encrypted: the copied link carries the key after '#', which never reaches the server. Anyone holding the link can read the note, so share it like a password."}
+                </span>
+              </p>
+            )}
             {!canManage && (
               <p className="text-xs tok-com mt-1">
                 {"// only the owner or an admin can change who has access"}
