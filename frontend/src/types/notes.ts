@@ -2,8 +2,9 @@
 
 export type SyncStatus = "synced" | "pending_update";
 
-/** What the current user may do with a note. */
-export type NoteRole = "owner" | "editor" | "viewer";
+/** What the current user may do with a note. Admins can do everything the
+ * owner can except delete it. */
+export type NoteRole = "owner" | "admin" | "editor" | "viewer";
 
 export interface Note {
   id: string;

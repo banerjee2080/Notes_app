@@ -73,14 +73,28 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
   useEffect(() => {
     const fetchNote = async () => {
       try {
-        const res = await localDB.notes.get(id);
+        let res = await localDB.notes.get(id);
+        if (!res) {
+          // Not on this device yet: opened from a shared link, or shared
+          // moments ago. The server checks access (joining via the link if
+          // it's open) and hands the note over.
+          try {
+            const { data } = await api.post<{ note: Omit<Note, "sync_status"> }>(
+              `/notes/${id}/open`,
+            );
+            res = { ...data.note, sync_status: "synced" };
+            await localDB.notes.put(res);
+          } catch {
+            res = undefined;
+          }
+        }
         if (res && !res.is_deleted) {
           setNote(res);
           setTitle(res.title);
           lastHtml.current = res.content;
           setLoading(false);
         } else {
-          toast.error("Note not found or deleted");
+          toast.error("Note not found, or you don't have access");
           navigate("/");
         }
       } catch (error) {
@@ -339,7 +353,7 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
       </div>
 
       {isShareOpen && (
-        <ShareDialog noteId={id} isOwner={isOwner} onClose={() => setIsShareOpen(false)} />
+        <ShareDialog noteId={id} onClose={() => setIsShareOpen(false)} />
       )}
 
       <ConfirmModal

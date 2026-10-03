@@ -5,7 +5,19 @@ import { sanitizeHtml } from "../lib/sanitize.js";
 import jwt from "jsonwebtoken";
 import mongoose from "mongoose";
 import User from "../models/user.model.js";
-import { getNoteRole } from "../collab/noteAccess.js";
+import { getNoteRole, canManageSharing } from "../collab/noteAccess.js";
+
+// A note in the shape the frontend stores in IndexedDB.
+const toClientNote = (note, userId) => ({
+  id: note._id,
+  user_id: note.user_id,
+  title: note.title,
+  content: note.content,
+  updated_at: note.updated_at.toISOString(),
+  is_deleted: note.is_deleted,
+  role: getNoteRole(note, userId), // "owner" | "admin" | "editor" | "viewer" for THIS user
+  collaborator_ids: note.collaborators.map((c) => String(c.user)), // lets the client list shared notes
+});
 
 export const syncNotes = async (req, res) => {
   const userId = req.user._id;
@@ -90,16 +102,7 @@ export const syncNotes = async (req, res) => {
 
     const serverChangesRaw = await Note.find(query);
 
-    const serverChanges = serverChangesRaw.map((note) => ({
-      id: note._id,
-      user_id: note.user_id,
-      title: note.title,
-      content: note.content,
-      updated_at: note.updated_at.toISOString(),
-      is_deleted: note.is_deleted,
-      role: getNoteRole(note, userId),                            // "owner" | "editor" | "viewer" for THIS user
-      collaborator_ids: note.collaborators.map((c) => String(c.user)), // lets the client list shared notes
-    }));
+    const serverChanges = serverChangesRaw.map((note) => toClientNote(note, userId));
 
     res.status(200).json({
       serverChanges,
@@ -202,27 +205,64 @@ export const upsertNote = async (req, res) => {
   }
 };
 
-const NOTE_ROLES = ["editor", "viewer"]; // roles an owner can hand out
+
+const INVITE_ROLES = ["admin", "editor", "viewer"]; // roles the owner/an admin can hand out
+const LINK_ACCESS = ["restricted", "anyone"];
+const LINK_ROLES = ["editor", "viewer"]; // a link never grants admin
 
 const isValidNoteId = (
   id, // same rule your sync code uses
 ) => typeof id === "string" && id.length > 0 && id.length <= 64;
 
-// Returns [{ _id, fullName, email, role }] for a note's collaborators.
-const collaboratorList = async (noteId) => {
-  const note = await Note.findById(noteId) // load the note
-    .select("collaborators") // only the list
-    .populate("collaborators.user", "fullName email") // replace each user id with { _id, fullName, email }
-    .lean(); // plain objects
-  return (note?.collaborators ?? []) // empty list if none
-    .filter((c) => c.user) // skip entries whose user account was deleted
-    .map((c) => ({
-      // shape for the frontend
-      _id: String(c.user._id),
-      fullName: c.user.fullName,
-      email: c.user.email,
-      role: c.role,
-    }));
+const ACCESS_FIELDS = "user_id collaborators is_deleted link_access link_role";
+
+// The caller's role on a note. If they have none but the link is set to
+// "anyone", opening it adds them (marked via_link) with the link's role, the
+// way a Google Docs link puts the file in "Shared with me".
+const resolveRole = async (note, userId) => {
+  const role = getNoteRole(note, userId);
+  if (role || note.link_access !== "anyone") return role;
+  await Note.updateOne(
+    { _id: note._id, "collaborators.user": { $ne: userId } }, // no duplicate on a double open
+    {
+      $push: {
+        collaborators: { user: userId, role: note.link_role, via_link: true },
+      },
+    },
+  ); // bumps updatedAt → the note arrives with their next /sync
+  const fresh = await Note.findById(note._id).select("user_id collaborators").lean();
+  return getNoteRole(fresh, userId);
+};
+
+const person = (user) => ({
+  _id: String(user._id),
+  fullName: user.fullName,
+  email: user.email,
+  profilePic: user.profilePic || "",
+});
+
+// What the share dialog shows. Only the owner and admins get the people list
+// (names and emails); everyone else just sees how the link is set up.
+const sharingState = async (noteId, role) => {
+  const note = await Note.findById(noteId)
+    .select("user_id collaborators link_access link_role")
+    .populate("user_id", "fullName email profilePic")
+    .populate("collaborators.user", "fullName email profilePic")
+    .lean();
+  const link = {
+    access: note?.link_access ?? "restricted",
+    role: note?.link_role ?? "viewer",
+  };
+  if (!note || !canManageSharing(role)) return { role, canManage: false, link };
+  return {
+    role,
+    canManage: true,
+    link,
+    owner: note.user_id ? person(note.user_id) : null,
+    collaborators: note.collaborators
+      .filter((c) => c.user) // skip entries whose user account was deleted
+      .map((c) => ({ ...person(c.user), role: c.role, viaLink: !!c.via_link })),
+  };
 };
 
 // GET /api/notes/:id/collab-token → { token, role }
@@ -233,10 +273,11 @@ export const getCollabToken = async (req, res) => {
       return res.status(400).json({ message: "Invalid note id" });
     }
     const note = await Note.findById(req.params.id) // load the note
-      .select("user_id collaborators is_deleted") // just what the access check needs
+      .select(ACCESS_FIELDS) // just what the access check needs
       .lean();
-    const role = getNoteRole(note, req.user._id); // owner / editor / viewer / null
-    if (!role || note.is_deleted) {
+    const role =
+      note && !note.is_deleted ? await resolveRole(note, req.user._id) : null; // owner / admin / editor / viewer / null
+    if (!role) {
       // no access → 404 (doesn't reveal the note exists)
       return res.status(404).json({ message: "Note not found" });
     }
@@ -253,8 +294,31 @@ export const getCollabToken = async (req, res) => {
   }
 };
 
-// GET /api/notes/:id/collaborators → { collaborators } (anyone with access may look)
-export const getCollaborators = async (req, res) => {
+// POST /api/notes/:id/open → { note }
+// For a note that isn't on this device yet (opened from a shared link, or
+// shared moments ago and not synced): checks access, joining via the link if
+// it allows, and returns the note so the page can open it straight away.
+export const openNote = async (req, res) => {
+  try {
+    if (!isValidNoteId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid note id" });
+    }
+    const note = await Note.findById(req.params.id).select(ACCESS_FIELDS).lean();
+    const role =
+      note && !note.is_deleted ? await resolveRole(note, req.user._id) : null;
+    if (!role) {
+      return res.status(404).json({ message: "Note not found" });
+    }
+    const full = await Note.findById(note._id).lean();
+    res.status(200).json({ note: toClientNote(full, req.user._id) });
+  } catch (error) {
+    console.error("Open note error:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// GET /api/notes/:id/sharing → sharingState (anyone with access may look)
+export const getSharing = async (req, res) => {
   try {
     if (!isValidNoteId(req.params.id)) {
       return res.status(400).json({ message: "Invalid note id" });
@@ -262,25 +326,27 @@ export const getCollaborators = async (req, res) => {
     const note = await Note.findById(req.params.id)
       .select("user_id collaborators")
       .lean();
-    if (!getNoteRole(note, req.user._id)) {
+    const role = getNoteRole(note, req.user._id);
+    if (!role) {
       // must be owner or collaborator
       return res.status(404).json({ message: "Note not found" });
     }
-    res.status(200).json({ collaborators: await collaboratorList(note._id) });
+    res.status(200).json(await sharingState(note._id, role));
   } catch (error) {
-    console.error("Get collaborators error:", error);
+    console.error("Get sharing error:", error);
     res.status(500).json({ message: "Server Error" });
   }
 };
 
-// POST /api/notes/:id/share  body: { email, role } → { collaborators } (owner only)
+// POST /api/notes/:id/share  body: { email, role } → sharingState (owner/admin)
+// Also how an existing collaborator's role gets changed.
 export const shareNote = async (req, res) => {
   const { email, role = "editor" } = req.body ?? {}; // role defaults to editor; {} when no JSON body was sent
   try {
     if (!isValidNoteId(req.params.id)) {
       return res.status(400).json({ message: "Invalid note id" });
     }
-    if (typeof email !== "string" || !NOTE_ROLES.includes(role)) {
+    if (typeof email !== "string" || !INVITE_ROLES.includes(role)) {
       // validate input
       return res
         .status(400)
@@ -289,9 +355,14 @@ export const shareNote = async (req, res) => {
     const note = await Note.findById(req.params.id).select(
       "user_id collaborators",
     ); // NOT lean: we'll .save() it
-    if (!note || String(note.user_id) !== String(req.user._id)) {
-      // only the owner can share
+    const myRole = getNoteRole(note, req.user._id);
+    if (!myRole) {
       return res.status(404).json({ message: "Note not found" });
+    }
+    if (!canManageSharing(myRole)) {
+      return res
+        .status(403)
+        .json({ message: "Only the owner or an admin can share this note" });
     }
     const target = await User.findOne({ email: email.trim() }) // find the person (same matching as your login)
       .select("_id")
@@ -299,47 +370,100 @@ export const shareNote = async (req, res) => {
     if (!target) {
       return res.status(404).json({ message: "No user with that email" });
     }
-    if (String(target._id) === String(req.user._id)) {
-      // can't share with yourself
-      return res.status(400).json({ message: "You already own this note" });
+    if (String(target._id) === String(note.user_id)) {
+      return res.status(400).json({ message: "They own this note" });
     }
     const existing = note.collaborators.find(
       // already shared with them?
       (c) => String(c.user) === String(target._id),
     );
-    if (existing)
+    if (existing) {
       existing.role = role; // yes → just change the role
-    else note.collaborators.push({ user: target._id, role }); // no → add them
+      existing.via_link = false; // now on the list in their own right
+    } else note.collaborators.push({ user: target._id, role }); // no → add them
     await note.save(); // also bumps updatedAt → their next /sync pulls the note
-    res.status(200).json({ collaborators: await collaboratorList(note._id) });
+    res.status(200).json(await sharingState(note._id, myRole));
   } catch (error) {
     console.error("Share note error:", error);
     res.status(500).json({ message: "Server Error" });
   }
 };
 
-// DELETE /api/notes/:id/share/:userId → { collaborators }
-// The owner can remove anyone; a collaborator can remove themselves ("leave note").
+// DELETE /api/notes/:id/share/:userId → sharingState, or { left: true }
+// The owner or an admin can remove anyone; a collaborator can remove
+// themselves ("leave note"). The owner is never in the list, so can't be removed.
 export const unshareNote = async (req, res) => {
   const { id, userId } = req.params; // note id and the user being removed
   try {
     if (!isValidNoteId(id) || !mongoose.isValidObjectId(userId)) {
       return res.status(400).json({ message: "Invalid id" });
     }
-    const note = await Note.findById(id).select("user_id").lean();
-    const isOwner = note && String(note.user_id) === String(req.user._id); // caller is owner?
+    const note = await Note.findById(id).select("user_id collaborators").lean();
+    const myRole = getNoteRole(note, req.user._id);
     const isSelf = String(userId) === String(req.user._id); // caller is removing themselves?
-    if (!note || (!isOwner && !isSelf)) {
-      // anyone else → not allowed
+    if (!myRole || (!canManageSharing(myRole) && !isSelf)) {
       return res.status(404).json({ message: "Note not found" });
     }
     await Note.updateOne(
       { _id: id },
       { $pull: { collaborators: { user: userId } } }, // remove matching entries from the array
     );
-    res.status(200).json({ collaborators: await collaboratorList(id) });
+    if (isSelf) return res.status(200).json({ left: true });
+    res.status(200).json(await sharingState(id, myRole));
   } catch (error) {
     console.error("Unshare note error:", error);
+    res.status(500).json({ message: "Server Error" });
+  }
+};
+
+// PATCH /api/notes/:id/link  body: { access, role } → sharingState (owner/admin)
+export const updateLinkSharing = async (req, res) => {
+  const { access, role } = req.body ?? {};
+  try {
+    if (!isValidNoteId(req.params.id)) {
+      return res.status(400).json({ message: "Invalid note id" });
+    }
+    if (!LINK_ACCESS.includes(access) || !LINK_ROLES.includes(role)) {
+      return res.status(400).json({ message: "Invalid link settings" });
+    }
+    const note = await Note.findById(req.params.id)
+      .select("user_id collaborators")
+      .lean();
+    const myRole = getNoteRole(note, req.user._id);
+    if (!myRole) {
+      return res.status(404).json({ message: "Note not found" });
+    }
+    if (!canManageSharing(myRole)) {
+      return res
+        .status(403)
+        .json({ message: "Only the owner or an admin can change the link" });
+    }
+    if (access === "restricted") {
+      // Turning the link off also removes everyone who only had it via the link.
+      await Note.updateOne(
+        { _id: note._id },
+        {
+          $set: { link_access: access, link_role: role },
+          $pull: { collaborators: { via_link: true } },
+        },
+      );
+    } else {
+      // People who joined via the link follow its role.
+      await Note.updateOne(
+        { _id: note._id },
+        {
+          $set: {
+            link_access: access,
+            link_role: role,
+            "collaborators.$[v].role": role,
+          },
+        },
+        { arrayFilters: [{ "v.via_link": true }] },
+      );
+    }
+    res.status(200).json(await sharingState(note._id, myRole));
+  } catch (error) {
+    console.error("Update link sharing error:", error);
     res.status(500).json({ message: "Server Error" });
   }
 };

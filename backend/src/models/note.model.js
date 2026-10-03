@@ -38,12 +38,31 @@ const noteSchema = new mongoose.Schema(
           },
           role: {
             type: String,
-            enum: ["editor", "viewer"],
+            enum: ["admin", "editor", "viewer"],
             default: "editor",
+          },
+          // Joined by opening the share link rather than by invite. These
+          // entries follow link_role and are dropped when the link is
+          // switched back to "restricted".
+          via_link: {
+            type: Boolean,
+            default: false,
           },
         },
       ],
       default: [],
+    },
+    // Google-Docs style link: "restricted" = only people on the list,
+    // "anyone" = any signed-in user who opens /note/:id gets link_role.
+    link_access: {
+      type: String,
+      enum: ["restricted", "anyone"],
+      default: "restricted",
+    },
+    link_role: {
+      type: String,
+      enum: ["editor", "viewer"],
+      default: "viewer",
     },
     ydoc: {
       type: Buffer,

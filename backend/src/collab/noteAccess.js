@@ -6,3 +6,6 @@ export const getNoteRole = (note, userId) => {
   );
   return entry ? entry.role : null;
 };
+
+// Admins can do everything the owner can except delete the note.
+export const canManageSharing = (role) => role === "owner" || role === "admin";

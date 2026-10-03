@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import type { CSSProperties } from "react";
 import { Navigate, Route, Routes, useLocation, type Location } from "react-router";
 import { triggerSync } from "./lib/syncEngine";
@@ -23,6 +23,41 @@ import KeyboardShortcuts from "./components/KeyboardShortcuts";
 interface ModalLocationState {
   backgroundLocation?: Location;
 }
+
+const RETURN_KEY = "returnTo";
+
+// A logged-out visitor on a note link: remember where they were heading so
+// signing in takes them to the note instead of the home page.
+const ToLogin = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(RETURN_KEY, pathname);
+    } catch {
+      // storage blocked: they just land on the home page
+    }
+  }, [pathname]);
+  return <Navigate to={"/login"} />;
+};
+
+// Where to go once signed in: the remembered note link, else home.
+const AfterLogin = () => {
+  const [to] = useState(() => {
+    try {
+      return sessionStorage.getItem(RETURN_KEY) || "/";
+    } catch {
+      return "/";
+    }
+  });
+  useEffect(() => {
+    try {
+      sessionStorage.removeItem(RETURN_KEY);
+    } catch {
+      // nothing to clean up
+    }
+  }, []);
+  return <Navigate to={to} replace />;
+};
 
 const App = () => {
   const location = useLocation();
@@ -157,7 +192,7 @@ const App = () => {
         />
         <Route
           path="/note/:id"
-          element={authUser ? <NotePage /> : <Navigate to={"/login"} />}
+          element={authUser ? <NotePage /> : <ToLogin />}
         />
         <Route
           path="/profile"
@@ -165,11 +200,11 @@ const App = () => {
         />
         <Route
           path="/login"
-          element={!authUser ? <LoginPage /> : <Navigate to={"/"} />}
+          element={!authUser ? <LoginPage /> : <AfterLogin />}
         />
         <Route
           path="/signup"
-          element={!authUser ? <SignUpPage /> : <Navigate to={"/"} />}
+          element={!authUser ? <SignUpPage /> : <AfterLogin />}
         />
         <Route
           path="/recycleBin"
