@@ -27,10 +27,10 @@ const AuthFrame = ({ fileName, children }: AuthFrameProps) => {
         <aside className="hidden md:flex flex-col justify-between border-r ide-divider bg-[color-mix(in_srgb,var(--panel)_60%,transparent)] p-7 text-[13px] leading-7">
           <pre className="font-mono whitespace-pre-wrap">
             <span className="gutter inline-block w-5 mr-3">1</span>
-            <span className="tok-com">{"// Note.js — notes that keep secrets"}</span>
+            <span className="tok-com">{"// Note.js — notes that follow you"}</span>
             {"\n"}
             <span className="gutter inline-block w-5 mr-3">2</span>
-            <span className="tok-kw">import</span> <span className="tok-punc">{"{ "}</span>vault
+            <span className="tok-kw">import</span> <span className="tok-punc">{"{ "}</span>notes
             <span className="tok-punc">{" }"}</span> <span className="tok-kw">from</span>{" "}
             <span className="tok-str">"note.js"</span>
             <span className="tok-punc">;</span>
@@ -38,13 +38,12 @@ const AuthFrame = ({ fileName, children }: AuthFrameProps) => {
             <span className="gutter inline-block w-5 mr-3">3</span>
             {"\n"}
             <span className="gutter inline-block w-5 mr-3">4</span>
-            <span className="tok-kw">const</span> notes <span className="tok-punc">=</span>{" "}
-            <span className="tok-kw">await</span> vault<span className="tok-punc">.</span>
-            <span className="tok-fn">unlock</span>
-            <span className="tok-punc">(</span>pin<span className="tok-punc">);</span>
+            <span className="tok-kw">await</span> notes<span className="tok-punc">.</span>
+            <span className="tok-fn">sync</span>
+            <span className="tok-punc">();</span>
             {"\n"}
             <span className="gutter inline-block w-5 mr-3">5</span>
-            <span className="tok-com">{"// ✓ AES-GCM, end to end"}</span>
+            <span className="tok-com">{"// ✓ autosaves as you type"}</span>
             {"\n"}
             <span className="gutter inline-block w-5 mr-3">6</span>
             <span className="tok-com">{"// ✓ works offline"}</span>

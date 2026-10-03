@@ -39,7 +39,7 @@ const LoginPage = () => {
         <span className="tok-kw">async function</span> <span className="tok-fn">login</span>
         <span className="tok-punc">() {"{"}</span>
       </h1>
-      <p className="text-[12.5px] tok-com mb-6">{"// welcome back — sign in to decrypt your notes"}</p>
+      <p className="text-[12.5px] tok-com mb-6">{"// welcome back — sign in to pick up where you left off"}</p>
 
       <button
         type="button"

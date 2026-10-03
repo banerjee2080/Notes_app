@@ -1,96 +1,84 @@
-import { useEffect, useRef, useState } from "react";
-import { Link, useNavigate, useParams, useLocation } from "react-router";
-import ConfirmModal from "../components/ConfirmModal";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Link, useNavigate, useParams } from "react-router";
 import toast from "react-hot-toast";
-import { ArrowLeftIcon, Trash2Icon } from "lucide-react";
-import Tiny from "../components/Tiny";
+import { ArrowLeftIcon, LogOutIcon, Trash2Icon, UsersIcon } from "lucide-react";
+import ConfirmModal from "../components/ConfirmModal";
+import CollabEditor from "../components/CollabEditor";
+import ShareDialog from "../components/ShareDialog";
 import CodeWindow from "../components/ui/CodeWindow";
-import SaveStatus, { type SavingState } from "../components/ui/SaveStatus";
 import EditorFooter from "../components/ui/EditorFooter";
 import CodeSpinner from "../components/ui/CodeSpinner";
 import { toFileName, timeAgo } from "../lib/utils";
-import { useDebounce } from "../hooks/useDebounce";
 import { useCloseShortcut } from "../hooks/useCloseShortcut";
 import {
   useKeyShortcut,
-  useOpenNewNote,
   isDeleteNoteShortcut,
   isFocusTitleShortcut,
   DELETE_NOTE_SHORTCUT_LABEL,
 } from "../hooks/useKeyShortcut";
+import { useCollabNote } from "../hooks/useCollabNote";
 import { localDB } from "../lib/db";
 import api from "../lib/axios";
 import { useAuthStore } from "../stores/useAuthStore";
-import { triggerSync, registerBackgroundSync } from "../lib/syncEngine";
-import {
-  encryptData,
-  decryptData,
-  encryptHtml,
-  decryptHtml,
-} from "../lib/crypto";
+import { triggerSync } from "../lib/syncEngine";
 import { sanitizeHtml } from "../lib/sanitize";
-import { errorStatus, asApiError } from "../lib/errors";
+import { errorMessage } from "../lib/errors";
 import { userIdOf } from "../types/user";
-import type { DecryptedNote, Note } from "../types/notes";
+import type { Note } from "../types/notes";
+
+const CARET_COLORS = ["#f783ac", "#82aaff", "#a8d88a", "#f7a072", "#c792ea", "#ffd166", "#5eead4"];
+// Same user -> same cursor colour on every device.
+const colorFor = (id: string) =>
+  CARET_COLORS[[...id].reduce((h, ch) => (h * 31 + ch.charCodeAt(0)) >>> 0, 0) % CARET_COLORS.length];
+
+// True for "", "<p></p>", whitespace-only paragraphs etc. Images, tables and
+// rules count as content even though they have no text.
+const isBlankHtml = (html: string) =>
+  !/<(img|table|hr)\b/i.test(html) &&
+  html.replace(/<[^>]*>/g, "").replace(/&nbsp;/g, " ").trim() === "";
 
 const NotePage = ({ isModal }: { isModal?: boolean }) => {
-  // Empty until the note is read (and decrypted) from IndexedDB.
-  const [note, setNote] = useState<Partial<DecryptedNote>>({});
-  const [saving, setSaving] = useState<SavingState>(false);
-  const [loading, setLoading] = useState(true);
-  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const isInit = useRef(true);
-  const isDeleting = useRef(false);
-  const debouncedTitle = useDebounce(note.title, 500);
-  const debouncedContent = useDebounce(note.content, 500);
-
-  // The route is /note/:id, so this is always present; "" just falls
-  // through to the "not found" branch below.
+  // The route is /note/:id, so this is always present.
   const { id = "" } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const { authUser, checkPin, cryptoKey } = useAuthStore();
+  const { authUser } = useAuthStore();
+  const myId = userIdOf(authUser) ?? "";
 
-  const hasNavigated = useRef(false);
+  // The cached IndexedDB record: owner, role and last known HTML. The live
+  // title and body come from the shared Yjs document instead.
+  const [note, setNote] = useState<Note | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [title, setTitle] = useState("");
+  const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const [isShareOpen, setIsShareOpen] = useState(false);
+  const titleRef = useRef<HTMLInputElement>(null);
+  const lastHtml = useRef("");
+  const mirrorTimer = useRef<number | undefined>(undefined);
+
+  const { session, status, seeded, role, accessLost } = useCollabNote(id);
+  const sessionRef = useRef(session);
   useEffect(() => {
-    let isMounted = true;
-    const verifyPin = async () => {
-      const isValid = await checkPin();
-      if (!isValid && isMounted && !hasNavigated.current) {
-        hasNavigated.current = true;
-        navigate("/pin", { state: { backgroundLocation: location }, replace: true });
-      }
-    };
-    verifyPin();
-    return () => { isMounted = false; };
-  }, [checkPin, navigate, location]);
+    sessionRef.current = session;
+  });
+
+  const isOwner = note?.user_id === myId;
+  // Live ticket first, then what /sync last said, then a fallback for old rows.
+  const effectiveRole = role ?? note?.role ?? (isOwner ? "owner" : "viewer");
+  const canEdit = seeded && effectiveRole !== "viewer";
+  const caretUser = useMemo(
+    () => ({ name: authUser?.fullName ?? "Anonymous", color: colorFor(myId) }),
+    [authUser?.fullName, myId],
+  );
 
   useEffect(() => {
     const fetchNote = async () => {
       try {
         const res = await localDB.notes.get(id);
         if (res && !res.is_deleted) {
-          
-          // Check if the note is encrypted
-          if (res.iv_title || res.iv_content) {
-            
-            // Only decrypt and set state if the key is ready
-            if (cryptoKey) {
-              const title = res.iv_title ? await decryptData(res.title, res.iv_title, cryptoKey) : res.title;
-              const content = res.iv_content
-                ? await decryptHtml(res.content, res.iv_content, cryptoKey)
-                : sanitizeHtml(res.content);
-              setNote({ ...res, title, content });
-              setLoading(false);
-            }
-            // CRITICAL: If cryptoKey is missing, do NOT call setNote.
-            // Just wait. The verifyPin effect will handle the PIN prompt, 
-            // and this effect will re-run once cryptoKey is available.
-            
-          } else {
-            setNote(res);
-            setLoading(false);
-          }
+          setNote(res);
+          setTitle(res.title);
+          lastHtml.current = res.content;
+          setLoading(false);
         } else {
           toast.error("Note not found or deleted");
           navigate("/");
@@ -102,105 +90,120 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
       }
     };
     fetchNote();
-  }, [id, navigate, cryptoKey]); // <-- cryptoKey MUST be in this array
+  }, [id, navigate]);
+
+  // Copy the live title + HTML into IndexedDB so the home list stays current.
+  // sync_status is left alone: the collab server already saved the change.
+  const scheduleMirror = useCallback(() => {
+    window.clearTimeout(mirrorTimer.current);
+    mirrorTimer.current = window.setTimeout(() => {
+      const t = String(sessionRef.current?.ydoc.getMap("meta").get("title") ?? "");
+      localDB.notes
+        .update(id, {
+          title: t,
+          content: sanitizeHtml(lastHtml.current),
+          updated_at: new Date().toISOString(),
+        })
+        .catch((e) => console.error("Error mirroring note locally", e));
+    }, 800);
+  }, [id]);
+  useEffect(() => () => window.clearTimeout(mirrorTimer.current), []);
+
+  // A note left completely empty (usually "new note" then close) goes to the
+  // recycle bin instead of cluttering the list. Owner of an unshared note only.
+  const leaveState = useRef({ discardable: false, title: "" });
+  const discardTimer = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    leaveState.current = {
+      discardable: !!note && isOwner && !note.collaborator_ids?.length,
+      title,
+    };
+  });
+  useEffect(() => {
+    // The check runs a tick after unmount, and a remount cancels it, so
+    // StrictMode's mount -> unmount -> mount in development can't trash a
+    // note that was just created.
+    window.clearTimeout(discardTimer.current);
+    return () => {
+      discardTimer.current = window.setTimeout(() => {
+        const { discardable, title: lastTitle } = leaveState.current;
+        if (!discardable || lastTitle.trim() || !isBlankHtml(lastHtml.current)) return;
+        localDB.notes
+          .update(id, {
+            is_deleted: true,
+            updated_at: new Date().toISOString(),
+            sync_status: "pending_update",
+          })
+          .then(() => triggerSync(myId))
+          .catch((e) => console.error("Error discarding empty note", e));
+      }, 0);
+    };
+  }, [id, myId]);
+
+  // A brand-new (untitled) note starts with the cursor in the title.
+  const autoFocused = useRef(false);
+  useEffect(() => {
+    if (autoFocused.current || !canEdit || title) return;
+    autoFocused.current = true;
+    titleRef.current?.focus();
+  }, [canEdit, title]);
+
+  // Keep the title input in step with the shared title (mine or anyone's).
+  useEffect(() => {
+    if (!session || !seeded) return;
+    const meta = session.ydoc.getMap("meta");
+    const read = () => setTitle(String(meta.get("title") ?? ""));
+    read();
+    const onChange = () => {
+      read();
+      scheduleMirror();
+    };
+    meta.observe(onChange);
+    return () => meta.unobserve(onChange);
+  }, [session, seeded, scheduleMirror]);
 
   useEffect(() => {
-    if (isInit.current) {
-      isInit.current = false;
-      return;
+    if (!accessLost || !note) return;
+    if (!isOwner) {
+      // Removed from a shared note: drop the stale local copy.
+      localDB.notes.delete(id).catch(() => {});
+      toast.error("You no longer have access to this note");
+      navigate("/");
+    } else {
+      // The owner's note just hasn't reached the server yet. Push it; the
+      // collab hook retries every few seconds and gets in once it lands.
+      triggerSync(myId);
     }
+  }, [accessLost, note, isOwner, id, myId, navigate]);
 
-    if (debouncedContent === undefined || debouncedTitle === undefined) return;
-
-    const autoSaveNote = async () => {
-      if (!note.id || isDeleting.current) return;
-      if (debouncedTitle === undefined || debouncedContent === undefined) return;
-
-      setSaving(true);
-      try {
-        let encTitle = debouncedTitle;
-        let encContent = sanitizeHtml(debouncedContent);
-        let ivTitle = note.iv_title;
-        let ivContent = note.iv_content;
-
-        if (cryptoKey) {
-          const encT = await encryptData(debouncedTitle, cryptoKey);
-          encTitle = encT.ciphertext;
-          ivTitle = encT.iv;
-
-          const encC = await encryptHtml(debouncedContent, cryptoKey);
-          encContent = encC.ciphertext;
-          ivContent = encC.iv;
-        }
-
-        const updatedNote: Note = {
-          ...(note as DecryptedNote),
-          title: encTitle,
-          content: encContent,
-          iv_title: ivTitle,
-          iv_content: ivContent,
-          updated_at: new Date().toISOString(),
-          sync_status: "pending_update",
-        };
-
-        await localDB.notes.update(note.id, updatedNote);
-        setSaving("saved");
-        setTimeout(() => setSaving(""), 2000);
-
-        if (authUser) {
-          try {
-            await api.post("/notes/upsert", updatedNote, {
-              adapter: "fetch",
-            });
-            await localDB.notes.update(note.id, { sync_status: "synced" });
-          } catch (e) {
-            // A response means the server answered with an error; no response
-            // means the network is actually down.
-            const status = errorStatus(e);
-            if (status === 429) {
-              const wait =
-                asApiError(e)?.response?.headers?.["retry-after"] ?? "a few";
-              console.warn(`Server is rate-limiting saves - retrying in ${wait}s via background sync`);
-            } else if (status) {
-              console.warn(`Save failed (HTTP ${status}) - queued for background sync`);
-            } else {
-              console.log("Offline: Note edit queued for background sync");
-            }
-            const userId = userIdOf(authUser);
-            if (userId) registerBackgroundSync(userId);
-          }
-        }
-      } catch (error) {
-        setSaving("Saving failed..");
-        console.error("Error saving note locally: ", error);
-      }
-    };
-
-    autoSaveNote();
-  }, [debouncedTitle, debouncedContent, note.id, authUser]);
+  const changeTitle = (value: string) => {
+    session?.ydoc.getMap("meta").set("title", value);
+  };
 
   const requestDelete = () => {
     setIsConfirmModalOpen(true);
   };
 
   const executeDelete = async () => {
-    isDeleting.current = true;
     try {
-      await localDB.notes.update(id, {
-        is_deleted: true,
-        updated_at: new Date().toISOString(),
-        sync_status: "pending_update",
-      });
-
-      if (authUser) {
-        triggerSync(userIdOf(authUser));
+      if (isOwner) {
+        await localDB.notes.update(id, {
+          is_deleted: true,
+          updated_at: new Date().toISOString(),
+          sync_status: "pending_update",
+        });
+        triggerSync(myId);
+        toast.success("Note Deleted");
+      } else {
+        // A collaborator "deleting" a shared note leaves it instead.
+        await api.delete(`/notes/${id}/share/${myId}`);
+        await localDB.notes.delete(id);
+        toast.success("You left the note");
       }
-
-      toast.success("Note Deleted");
       navigate("/");
     } catch (error) {
-      console.log("Error in Deleting the Note ", error);
-      toast.error("Error in deleting note");
+      console.log("Error in deleting/leaving the note ", error);
+      toast.error(errorMessage(error, "Could not complete that"));
     }
   };
 
@@ -210,13 +213,10 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
 
   const close = () => navigate("/");
   useCloseShortcut(close); // Ctrl+Shift+X
-  // Ctrl+D -> same confirm dialog as the "delete note" button (Enter confirms).
+  // Ctrl+D -> same confirm dialog as the delete/leave button (Enter confirms).
   useKeyShortcut(isDeleteNoteShortcut, requestDelete, !loading && !isConfirmModalOpen);
-  // Ctrl+N (Alt+N) is handled app-wide; this copy is for keys typed inside TinyMCE.
-  const openNewNote = useOpenNewNote();
-  // Ctrl+T (Alt+T) -> cursor to the end of the title. Ctrl+Shift+T (content)
-  // and Ctrl+Shift+C (code editor) live in Tiny, which owns the editor.
-  const titleRef = useRef<HTMLInputElement>(null);
+  // Ctrl+T (Alt+T) -> cursor to the end of the title. Tiptap isn't inside an
+  // iframe like TinyMCE was, so these window shortcuts also fire while typing.
   const focusTitle = () => {
     const el = titleRef.current;
     if (!el) return;
@@ -225,7 +225,7 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
   };
   useKeyShortcut(isFocusTitleShortcut, focusTitle, !loading && !isConfirmModalOpen);
 
-  if (loading) {
+  if (loading || !note) {
     return (
       <div
         className={
@@ -234,16 +234,23 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
             : "min-h-screen flex justify-center items-center"
         }
       >
-        <CodeSpinner label="Decrypting with AES-GCM…" />
+        <CodeSpinner label="Reading from IndexedDB…" />
       </div>
     );
   }
+
+  const statusLabel = !seeded
+    ? "connecting…"
+    : status === "connected"
+      ? "● live"
+      : "offline · saved on this device";
+
   return (
     <div className={containerClasses} onClick={() => isModal && close()}>
       <div className="w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
         <CodeWindow
-          fileName={toFileName(note.title)}
-          status={<SaveStatus saving={saving} />}
+          fileName={toFileName(title)}
+          status={<span className="text-[11px] tok-com">{statusLabel}</span>}
           onClose={close}
           actions={
             <>
@@ -253,13 +260,22 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
               </Link>
               <button
                 type="button"
+                onClick={() => setIsShareOpen(true)}
+                title="Share note"
+                className="ide-btn ide-btn-ghost !py-1 !px-2 text-xs"
+              >
+                <UsersIcon className="size-3.5" />
+                <span>share</span>
+              </button>
+              <button
+                type="button"
                 onClick={requestDelete}
-                title={`Delete note (${DELETE_NOTE_SHORTCUT_LABEL})`}
+                title={`${isOwner ? "Delete" : "Leave"} note (${DELETE_NOTE_SHORTCUT_LABEL})`}
                 className="ide-btn ide-btn-danger !py-1 !px-2 text-xs"
               >
-                <Trash2Icon className="size-3.5" />
+                {isOwner ? <Trash2Icon className="size-3.5" /> : <LogOutIcon className="size-3.5" />}
                 <span>
-                  <span className="tok-kw">delete</span> note
+                  <span className="tok-kw">{isOwner ? "delete" : "leave"}</span> note
                 </span>
               </button>
             </>
@@ -268,7 +284,7 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
           <p className="text-[12px] tok-com mb-4">
             {"// last modified "}
             {timeAgo(note.updated_at)}
-            {" · autosaves as you type"}
+            {effectiveRole === "viewer" ? " · read-only" : " · changes sync live"}
           </p>
           <div className="space-y-5">
           <label className="flex items-center gap-2 border-b ide-divider focus-within:border-[var(--kw)] transition-colors pb-2">
@@ -280,11 +296,10 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
             <input
               ref={titleRef}
               type="text"
-              value={note.title || ""}
+              value={title}
+              readOnly={!canEdit}
               placeholder="Untitled note"
-              onChange={(e) => {
-                setNote({ ...note, title: e.target.value });
-              }}
+              onChange={(e) => changeTitle(e.target.value)}
               aria-label="Note title"
               style={{ fieldSizing: "content" }}
               className="min-w-[10ch] max-w-full bg-transparent outline-none text-lg md:text-xl font-semibold tok-str placeholder:text-[var(--fg-dim)] placeholder:font-normal"
@@ -294,29 +309,50 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
             </span>
             <span className="flex-1" />
           </label>
-            <Tiny
-              value={note.content || ""}
-              onEditorChange={(newContent) => {
-                setNote({ ...note, content: newContent });
-              }}
-              placeholder="// start typing… encrypted before it's saved"
-              onCloseShortcut={close}
-              onDeleteShortcut={requestDelete}
-              onNewShortcut={openNewNote}
-              onTitleShortcut={focusTitle}
-            />
+            {session && seeded ? (
+              <CollabEditor
+                session={session}
+                user={caretUser}
+                editable={canEdit}
+                placeholder="// start typing… everyone here sees it live"
+                onHtmlChange={(html) => {
+                  lastHtml.current = html;
+                  scheduleMirror();
+                }}
+              />
+            ) : (
+              // Never opened collaboratively and the server isn't reachable:
+              // show the cached HTML read-only until it is.
+              <div className="collab-editor border ide-divider rounded-md bg-[var(--win)]">
+                <p className="text-[12px] tok-com px-5 pt-3">
+                  {"// waiting for the collaboration server — read-only for now"}
+                </p>
+                <div
+                  className="ProseMirror"
+                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(note.content) }}
+                />
+              </div>
+            )}
           </div>
           <EditorFooter />
         </CodeWindow>
       </div>
 
+      {isShareOpen && (
+        <ShareDialog noteId={id} isOwner={isOwner} onClose={() => setIsShareOpen(false)} />
+      )}
+
       <ConfirmModal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
         onConfirm={executeDelete}
-        title="Delete Note"
-        message="This note moves to RecycleBin() and is garbage-collected after 30 days. Continue?"
-        confirmText="Delete"
+        title={isOwner ? "Delete Note" : "Leave Note"}
+        message={
+          isOwner
+            ? "This note moves to RecycleBin() and is garbage-collected after 30 days. Collaborators lose it too. Continue?"
+            : "You'll lose access to this shared note. Continue?"
+        }
+        confirmText={isOwner ? "Delete" : "Leave"}
         isDestructive={true}
       />
     </div>

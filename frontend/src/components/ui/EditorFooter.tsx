@@ -1,7 +1,7 @@
-import { Lock } from "lucide-react";
+import { CloudUpload } from "lucide-react";
 import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 
-// Bottom line of the note editor: export + encryption / sync status.
+// Bottom line of the note editor: export + sync status.
 const EditorFooter = ({ readOnly = false }: { readOnly?: boolean }) => {
   const isOnline = useOnlineStatus();
   return (
@@ -13,8 +13,8 @@ const EditorFooter = ({ readOnly = false }: { readOnly?: boolean }) => {
         {readOnly && <span className="tok-com"> {"// read-only"}</span>}
       </span>
       <span className="flex items-center gap-1.5 tok-dim">
-        <Lock className="size-3.5 tok-ok" />
-        AES-GCM · {isOnline ? "syncs when saved" : "offline, queued for sync"}
+        <CloudUpload className="size-3.5 tok-ok" />
+        {isOnline ? "syncs when saved" : "offline, queued for sync"}
       </span>
     </div>
   );

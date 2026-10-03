@@ -38,6 +38,11 @@ export default defineConfig({
         target: "http://localhost:5001",
         changeOrigin: true,
       },
+      // The collaboration WebSocket, so dev uses the same /collab URL as Vercel.
+      "/collab": {
+        target: "http://localhost:1234", // npm run collab:dev
+        ws: true,
+      },
     },
   },
   plugins: [

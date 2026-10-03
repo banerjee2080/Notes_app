@@ -16,7 +16,7 @@ interface DialogProps {
 }
 
 // The "Uncaught TypeError" style popup from the mockup. Every modal in the
-// app (confirmations, PIN vault, etc.) renders through this.
+// app (confirmations, etc.) renders through this.
 const Dialog = ({
   onClose,
   title,

@@ -109,11 +109,6 @@ const ConfigPopover = () => {
             </p>
 
             <div>
-              encryption<span className="tok-punc">: </span>
-              <span className="tok-str">'AES-GCM'</span>
-              <span className="tok-punc">,</span>
-            </div>
-            <div>
               strictMode<span className="tok-punc">: </span>
               <span className="tok-kw">true</span>
               <span className="tok-punc">,</span>

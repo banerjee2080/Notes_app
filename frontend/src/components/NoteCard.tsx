@@ -9,10 +9,10 @@ import { localDB } from "../lib/db";
 import { triggerSync } from "../lib/syncEngine";
 import { sanitizeHtml } from "../lib/sanitize";
 import { userIdOf } from "../types/user";
-import type { DecryptedNote } from "../types/notes";
+import type { Note } from "../types/notes";
 
 interface NoteCardProps {
-  note: DecryptedNote;
+  note: Note;
   /** "delete" renders the recycle-bin variant (restore instead of delete). */
   mode?: "delete";
 }
@@ -120,7 +120,7 @@ const NoteCard = ({ note, mode }: NoteCardProps) => {
               <span className="tok-warn">{"// awaiting garbage collection"}</span>
             ) : (
               <>
-                <span className="tok-kw">await</span> <span className="tok-fn">decrypt</span>
+                <span className="tok-kw">await</span> <span className="tok-fn">save</span>
                 <span className="tok-punc">()</span> <span className="tok-ok">✓</span>
               </>
             )}

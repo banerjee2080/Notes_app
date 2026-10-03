@@ -1,11 +1,11 @@
 import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { useAuthStore } from "../stores/useAuthStore";
-import { Camera, Loader2, Trash2, LogOut, Upload, Sun, Moon, Lock, LockOpen } from "lucide-react";
+import { Camera, Loader2, Trash2, LogOut, Upload, Sun, Moon } from "lucide-react";
 import { useNavigate } from "react-router";
 import { compressImage, timeAgo } from "../lib/utils";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
-import { useDecryptedNotes } from "../hooks/useDecryptedNotes";
+import { useNotes } from "../hooks/useNotes";
 import AppShell from "../components/shell/AppShell";
 import Navbar from "../components/Navbar";
 
@@ -55,12 +55,11 @@ const ProfilePage = () => {
     setTheme,
     isThemeChanging,
     logout,
-    cryptoKey,
   } = useAuthStore();
   const [selectedImage, setSelectedImage] = useState<string | null>(null);
   const navigate = useNavigate();
   const isOnline = useOnlineStatus();
-  const { notes } = useDecryptedNotes();
+  const { notes } = useNotes();
   const wallpaperRef = useRef<HTMLInputElement>(null);
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -118,13 +117,6 @@ const ProfilePage = () => {
             <Prop k="notes" comment="notes.length">
               <span className="tok-num">{noteCount}</span>
             </Prop>
-            <Prop k="vault" comment={cryptoKey ? "key in memory only" : "enter your PIN to unlock"}>
-              <span className="inline-flex items-center gap-1.5">
-                {cryptoKey ? <LockOpen className="size-3.5 tok-ok" /> : <Lock className="size-3.5 tok-warn" />}
-                <span className="tok-str">"{cryptoKey ? "unlocked" : "locked"}"</span>
-              </span>
-            </Prop>
-
             {/* theme sub-object */}
             <div className="py-1.5 pl-5 md:pl-8 border-l ide-divider">
               <span className="text-[var(--fg)]">theme</span>

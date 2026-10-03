@@ -3,20 +3,7 @@ import { persist } from "zustand/middleware";
 import axiosInstance from "../lib/axios";
 import toast from "react-hot-toast";
 import { triggerSync } from "../lib/syncEngine";
-import {
-  clearLocalDB,
-  countUnsyncedNotes,
-  markPinConfigured,
-  saveVaultKey,
-  getVaultKey,
-  clearVaultKey,
-} from "../lib/db";
-import { deriveKeyFromPin } from "../lib/crypto";
-import {
-  verifyPinKey,
-  establishVaultCheck,
-  VaultAlreadySetError,
-} from "../lib/vault";
+import { clearLocalDB, countUnsyncedNotes } from "../lib/db";
 import { errorMessage, errorStatus, errorBody, asApiError } from "../lib/errors";
 import {
   userIdOf,
@@ -44,36 +31,23 @@ export interface AuthState {
   themeMode: ThemeMode;
   _hasHydrated: boolean;
   _cachedAt: number | null;
-  cryptoKey: CryptoKey | null;
 
   // Logout guard state
   isLoggingOut: boolean;
   logoutWarning: LogoutWarning | null;
-  pendingGoogleUser: AuthUser | null;
 
-  initCryptoKey: (pinValue: string, userId: string) => Promise<CryptoKey | null>;
-  checkPin: () => Promise<boolean>;
   setHasHydrated: (hydrated: boolean) => void;
   toggleThemeMode: () => void;
   checkAuth: () => Promise<void>;
-  lockVault: () => Promise<void>;
   logout: () => Promise<void>;
   cancelLogout: () => void;
   confirmLogoutDiscard: () => Promise<void>;
   _finishLogout: (options: { discardUnsynced: boolean }) => Promise<boolean>;
   login: (formData: LoginPayload) => Promise<void>;
-  signup: (
-    formData: SignupPayload,
-    pin: string,
-    rememberMe?: boolean,
-  ) => Promise<void>;
+  signup: (formData: SignupPayload) => Promise<void>;
   updateProfile: (data: { profilePic: string }) => Promise<void>;
   setTheme: (image: { backgroundImg: string }) => Promise<void>;
-  googleLogin: (
-    accessToken: string,
-    isSignUp?: boolean,
-  ) => Promise<AuthUser | null>;
-  finalizeGoogleSignup: (pin: string, rememberMe?: boolean) => Promise<void>;
+  googleLogin: (accessToken: string) => Promise<AuthUser | null>;
 }
 
 /** The slice written to localStorage. */
@@ -94,49 +68,10 @@ export const useAuthStore = create<AuthState>()(
       themeMode: storedThemeMode(),
       _hasHydrated: false,
       _cachedAt: null,
-      cryptoKey: null,
 
       // Logout guard state
       isLoggingOut: false,
       logoutWarning: null, // null, or { count } when unsynced notes block logout
-      pendingGoogleUser: null,
-
-      initCryptoKey: async (pinValue, userId) => {
-        if (!pinValue || !userId) return null;
-        try {
-          const key = await deriveKeyFromPin(pinValue, userId);
-          set({ cryptoKey: key });
-          return key;
-        } catch (err) {
-          console.error("Failed to derive encryption key:", err);
-          return null;
-        }
-      },
-
-      checkPin: async () => {
-        const state = get();
-        if (state.cryptoKey) return true;
-        if (!state.authUser) return false;
-
-        const userId = userIdOf(state.authUser);
-        if (!userId) return false;
-
-        const key = await getVaultKey(userId);
-        if (!key) return false;
-
-        const result = await verifyPinKey(userId, key);
-        if (result.ok) {
-          set({ cryptoKey: key });
-          return true;
-        }
-
-        if (result.reason === "wrong_pin") {
-          console.error("Stored vault key failed verification");
-          await clearVaultKey(userId);
-        }
-        set({ cryptoKey: null });
-        return false;
-      },
 
       setHasHydrated: (hydrated) => {
         set({ _hasHydrated: hydrated });
@@ -193,15 +128,6 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      // Lock without logging out: forget the vault key everywhere it lives
-      // (memory + the "keep me unlocked" copy in IndexedDB). Notes stay
-      // encrypted on disk; the PIN is needed to read them again.
-      lockVault: async () => {
-        const userId = userIdOf(get().authUser);
-        if (userId) await clearVaultKey(userId);
-        set({ cryptoKey: null });
-      },
-
       // Step 1 of logout: never wipe anything the server hasn't confirmed.
       // Try one last sync; if notes are still pending, stop and ask.
       logout: async () => {
@@ -255,15 +181,12 @@ export const useAuthStore = create<AuthState>()(
           }
         }
 
-        await clearVaultKey(userId);
-        localStorage.removeItem("pin"); // legacy cleanup, safe to keep for a while
-
         // An edit could have landed (e.g. from another tab) after the check in
         // logout(). If so, keep those notes instead of silently deleting them.
         const lateEdits = discardUnsynced ? 0 : await countUnsyncedNotes(userId);
         await clearLocalDB({ keepUnsynced: lateEdits > 0 });
 
-        set({ authUser: null, _cachedAt: null, cryptoKey: null });
+        set({ authUser: null, _cachedAt: null });
 
         if (lateEdits > 0) {
           toast.success(
@@ -279,11 +202,7 @@ export const useAuthStore = create<AuthState>()(
         set({ isLoggingIn: true });
         try {
           const res = await axiosInstance.post<AuthUser>("/auth/login", formData);
-          set({
-            authUser: res.data,
-            _cachedAt: Date.now(),
-            cryptoKey: null,
-          });
+          set({ authUser: res.data, _cachedAt: Date.now() });
           triggerSync(res.data._id);
           toast.success("Logged in Successfully");
         } catch (error) {
@@ -294,30 +213,11 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      signup: async (formData, pin, rememberMe = false) => {
+      signup: async (formData) => {
         set({ isSigningUp: true });
         try {
           const res = await axiosInstance.post<AuthUser>("/auth/signup", formData);
           set({ authUser: res.data, _cachedAt: Date.now() });
-
-          if (pin) {
-            const userId = userIdOf(res.data);
-            try {
-              if (!userId) throw new Error("Signup response had no user id");
-              const key = await deriveKeyFromPin(pin, userId);
-              await establishVaultCheck(userId, key);
-              await markPinConfigured(userId);
-              if (rememberMe) {
-                await saveVaultKey(userId, key);
-              }
-              set({ cryptoKey: key });
-            } catch (vaultErr) {
-              console.error("Vault setup failed after signup", vaultErr);
-              toast.error(
-                "Account created, but your PIN couldn't be saved. You'll be asked to set it again.",
-              );
-            }
-          }
 
           triggerSync(res.data._id);
           toast.success("Signed up successfully.");
@@ -368,26 +268,14 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      googleLogin: async (accessToken, isSignUp = false) => {
+      googleLogin: async (accessToken) => {
         set({ isLoggingIn: true });
         try {
           const res = await axiosInstance.post<AuthUser>("/auth/google", {
             access_token: accessToken,
           });
 
-          if (isSignUp) {
-            set({ pendingGoogleUser: res.data });
-            toast.success(
-              "Google authenticated. Please secure your vault with a PIN.",
-            );
-            return res.data;
-          }
-
-          set({
-            authUser: res.data,
-            _cachedAt: Date.now(),
-            cryptoKey: null,
-          });
+          set({ authUser: res.data, _cachedAt: Date.now() });
           triggerSync(res.data._id);
           toast.success("Logged in with Google!");
           return res.data;
@@ -400,48 +288,6 @@ export const useAuthStore = create<AuthState>()(
         }
       },
 
-      finalizeGoogleSignup: async (pin, rememberMe = false) => {
-        const { pendingGoogleUser } = get();
-        if (!pendingGoogleUser) return;
-
-        set({ isSigningUp: true });
-        const userId = userIdOf(pendingGoogleUser);
-        try {
-          if (!userId) throw new Error("Google user had no id");
-          const key = await deriveKeyFromPin(pin, userId);
-          await establishVaultCheck(userId, key);
-          await markPinConfigured(userId);
-          if (rememberMe) {
-            await saveVaultKey(userId, key);
-          }
-          set({
-            authUser: pendingGoogleUser,
-            _cachedAt: Date.now(),
-            pendingGoogleUser: null,
-            cryptoKey: key,
-          });
-          triggerSync(userId);
-          toast.success("Vault secured. Welcome!");
-        } catch (error) {
-          if (error instanceof VaultAlreadySetError) {
-            set({
-              authUser: pendingGoogleUser,
-              _cachedAt: Date.now(),
-              pendingGoogleUser: null,
-              cryptoKey: null,
-            });
-            triggerSync(userId);
-            toast.error(
-              "This account already has a PIN. Please unlock with your existing PIN.",
-            );
-          } else {
-            console.error("Error finalizing Google signup", error);
-            toast.error("Failed to secure vault. Please try again.");
-          }
-        } finally {
-          set({ isSigningUp: false });
-        }
-      },
     }),
     {
       name: "auth-storage",

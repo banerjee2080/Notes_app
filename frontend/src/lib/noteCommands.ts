@@ -2,17 +2,16 @@
 // Mirrors exactly what the UI already does (NoteCard delete, RecycleBin
 // "empty bin"), so the terminal and the buttons can never disagree.
 import { localDB } from "./db";
-import { decryptData } from "./crypto";
 import { triggerSync } from "./syncEngine";
 import api from "./axios";
 import type { Note } from "../types/notes";
 
 export const SHORT_ID = 8; // uuid v4 prefix shown by `ls`
 
-/** One row of `ls`. `title` is null when the vault is locked. */
+/** One row of `ls`. */
 export interface NoteListRow {
   id: string;
-  title: string | null;
+  title: string;
   updated_at: string;
 }
 
@@ -26,10 +25,9 @@ const announce = (): void => {
   window.dispatchEvent(new CustomEvent("notes-changed"));
 };
 
-/** Notes (or bin items) for `ls`, newest first, with decrypted titles when unlocked. */
+/** Notes (or bin items) for `ls`, newest first. */
 export async function listNotes(
   userId: string,
-  cryptoKey: CryptoKey | null,
   { deleted = false }: { deleted?: boolean } = {},
 ): Promise<NoteListRow[]> {
   const rows = await localDB.notes
@@ -42,20 +40,11 @@ export async function listNotes(
       new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime(),
   );
 
-  return Promise.all(
-    rows.map(async (n) => {
-      let title: string | null = null; // null = can't show (vault locked)
-      if (!n.iv_title) title = n.title;
-      else if (cryptoKey) {
-        try {
-          title = await decryptData(n.title, n.iv_title, cryptoKey);
-        } catch {
-          title = "⚠ decryption failed";
-        }
-      }
-      return { id: n.id, title, updated_at: n.updated_at };
-    }),
-  );
+  return rows.map((n) => ({
+    id: n.id,
+    title: n.title,
+    updated_at: n.updated_at,
+  }));
 }
 
 /**
@@ -116,16 +105,7 @@ export async function emptyBin(userId: string): Promise<number> {
   return removed;
 }
 
-/** Decrypted title of a raw note record, or null if the vault is locked. */
-export async function titleOf(
-  note: Note,
-  cryptoKey: CryptoKey | null,
-): Promise<string | null> {
-  if (!note.iv_title) return note.title;
-  if (!cryptoKey) return null;
-  try {
-    return await decryptData(note.title, note.iv_title, cryptoKey);
-  } catch {
-    return null;
-  }
+/** Title of a raw note record. */
+export function titleOf(note: Note): string {
+  return note.title;
 }

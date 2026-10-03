@@ -11,18 +11,10 @@ import {
   consumeVerificationToken,
 } from "../lib/otpSecurity.js";
 import { sendWelcomeEmail } from "../lib/mailer.js";
-import Note from "../models/note.model.js";
 
 OAuth2Client.CLOCK_SKEW_SECS_ = 3600;
 
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
-
-const BASE64_RE = /^[A-Za-z0-9+/]+={0,2}$/;
-const isValidBase64 = (value, maxLength) =>
-  typeof value === "string" &&
-  value.length > 0 &&
-  value.length <= maxLength &&
-  BASE64_RE.test(value);
 
 export const googleAuth = async (req, res) => {
   try {
@@ -310,55 +302,5 @@ export const setBackgroundImg = async (req, res) => {
   } catch (error) {
     console.log("Error in setBackgroundImg controller", error.message);
     res.status(500).json({ message: error.message });
-  }
-};
-
-export const getVaultCheck = async (req, res) => {
-  try {
-    const hasEncryptedNotes = !!(await Note.exists({
-      user_id: req.user._id,
-      iv_content: { $nin: ["", null] },
-    }));
-
-    res.status(200).json({
-      vaultCheck: req.user.vaultCheck ?? null,
-      hasEncryptedNotes,
-    });
-  } catch (error) {
-    console.log("Error in getVaultCheck: ", error);
-    res.status(500).json({ message: "Internal Server Error" });
-  }
-};
-
-export const setVaultCheck = async (req, res) => {
-  try {
-    const { ciphertext, iv } = req.body ?? {};
-
-    if (!isValidBase64(ciphertext, 256) || !isValidBase64(iv, 32)) {
-      return res.status(400).json({ message: "Invalid vault check" });
-    }
-
-    const updated = await User.findOneAndUpdate(
-      { _id: req.user._id, vaultCheck: null },
-      { $set: { vaultCheck: { ciphertext, iv } } },
-      { returnDocument: "after" },
-    )
-      .select("_id")
-      .lean();
-
-    if (!updated) {
-      const current = await User.findById(req.user._id)
-        .select("vaultCheck")
-        .lean();
-      return res.status(409).json({
-        message: "A vault PIN is already set for this account",
-        vaultCheck: current?.vaultCheck ?? null,
-      });
-    }
-
-    return res.status(201).json({ vaultCheck: { ciphertext, iv } });
-  } catch (error) {
-    console.log("Error in setVaultCheck: ", error);
-    res.status(500).json({ message: "Internal Server Error" });
   }
 };

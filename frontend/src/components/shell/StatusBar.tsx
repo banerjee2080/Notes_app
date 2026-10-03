@@ -34,21 +34,19 @@ const BIN_WORDS = [
   "recycle_bin",
 ];
 
-/** Plain output, coloured by token kind. `sensitive` lines hide once locked. */
+/** Plain output, coloured by token kind. */
 interface ConsoleOutLine {
   t: TokenKind;
   v: string;
-  sensitive?: boolean;
 }
 
-/** One note listed by `ls`; `title` is null while the vault is locked. */
+/** One note listed by `ls`. */
 interface ConsoleRowLine {
   t: "row";
   id: string;
   fullId: string;
-  title: string | null;
+  title: string;
   when: string;
-  sensitive: true;
 }
 
 type ConsoleLine =
@@ -156,7 +154,7 @@ const StatusBar = () => {
 const ConsoleDrawer = ({ onClose }: { onClose: () => void }) => {
   const navigate = useNavigate();
   const location = useLocation();
-  const { authUser, toggleThemeMode, lockVault, cryptoKey } = useAuthStore();
+  const { authUser, toggleThemeMode } = useAuthStore();
   const userId = userIdOf(authUser);
   const [lines, setLines] = useState<ConsoleLine[]>(WELCOME);
   const [input, setInput] = useState("");
@@ -195,7 +193,7 @@ const ConsoleDrawer = ({ onClose }: { onClose: () => void }) => {
       ]);
       return;
     }
-    const rows = await listNotes(uid, cryptoKey, { deleted: inBin });
+    const rows = await listNotes(uid, { deleted: inBin });
     if (rows.length === 0) {
       print([
         {
@@ -219,9 +217,8 @@ const ConsoleDrawer = ({ onClose }: { onClose: () => void }) => {
           t: "row",
           id: r.id.slice(0, SHORT_ID),
           fullId: r.id,
-          title: r.title, // null when locked -> rendered as 🔒
+          title: r.title,
           when: timeAgo(r.updated_at),
-          sensitive: true,
         }),
       ),
     ]);
@@ -266,12 +263,11 @@ const ConsoleDrawer = ({ onClose }: { onClose: () => void }) => {
       }
       const { note } = resolved;
       await moveToBin(uid, note.id);
-      const title = await titleOf(note, cryptoKey);
+      const title = titleOf(note);
       print([
         {
           t: "ok",
           v: `✓ moved ${title ? `'${title}'` : "note"} (${note.id.slice(0, SHORT_ID)}) to RecycleBin()`,
-          sensitive: Boolean(title),
         },
       ]);
     }
@@ -300,12 +296,11 @@ const ConsoleDrawer = ({ onClose }: { onClose: () => void }) => {
       return;
     }
     const { note } = resolved;
-    const title = await titleOf(note, cryptoKey);
+    const title = titleOf(note);
     print([
       {
         t: "ok",
         v: `✓ opening ${title ? `'${title}'` : "note"} (${note.id.slice(0, SHORT_ID)})`,
-        sensitive: Boolean(title),
       },
     ]);
     onClose(); // the editor opens as a modal on top; get the drawer out of the way
@@ -345,11 +340,6 @@ const ConsoleDrawer = ({ onClose }: { onClose: () => void }) => {
     } else if (key === "theme") {
       toggleThemeMode();
       out.push({ t: "ok", v: "✓ theme toggled" });
-    } else if (key === "lock" || key === "vault.lock()") {
-      lockVault().then(() =>
-        navigate("/pin", { state: { backgroundLocation: location } }),
-      );
-      out.push({ t: "ok", v: "✓ vault locked — key wiped from memory" });
     } else if (key === "whoami") {
       out.push({ t: "str", v: `'${authUser?.fullName || "anonymous"}'` });
       out.push({ t: "com", v: `// ${authUser?.email || ""}` });
@@ -424,7 +414,7 @@ const ConsoleDrawer = ({ onClose }: { onClose: () => void }) => {
         onClick={() => inputRef.current?.focus()}
       >
         {lines.map((l, i) => (
-          <ConsoleLineView key={i} line={l} locked={!cryptoKey} />
+          <ConsoleLineView key={i} line={l} />
         ))}
         <div className="flex items-center gap-2">
           <span className="tok-fn">{">"}</span>
@@ -445,26 +435,13 @@ const ConsoleDrawer = ({ onClose }: { onClose: () => void }) => {
   );
 };
 
-const ConsoleLineView = ({
-  line,
-  locked,
-}: {
-  line: ConsoleLine;
-  locked: boolean;
-}) => {
-  // Anything that printed a decrypted title is hidden again once the vault locks.
-  if ("sensitive" in line && line.sensitive && locked && line.t !== "row")
-    return <div className="pl-4 tok-com">{"< // hidden — vault locked"}</div>;
+const ConsoleLineView = ({ line }: { line: ConsoleLine }) => {
   if (line.t === "row")
     return (
       <div className="pl-4 flex gap-3 min-w-0">
         <CopyableId short={line.id} full={line.fullId} />
         <span className="truncate text-[var(--fg)] min-w-0">
-          {line.title === null || locked ? (
-            <span className="tok-warn">🔒 encrypted</span>
-          ) : (
-            line.title
-          )}
+          {line.title || <span className="tok-kw">undefined</span>}
         </span>
         <span className="tok-com shrink-0 ml-auto">
           {"// "}

@@ -1,4 +1,3 @@
-import { useEffect } from "react";
 import { Link, NavLink, useLocation } from "react-router";
 import {
   Plus,
@@ -6,12 +5,11 @@ import {
   Folder,
   FileCode2,
   ArrowUpToLine,
-  Lock,
   LogOut,
 } from "lucide-react";
 import { useAuthStore } from "../../stores/useAuthStore";
 import { useUiStore } from "../../stores/useUiStore";
-import { useDecryptedNotes } from "../../hooks/useDecryptedNotes";
+import { useNotes } from "../../hooks/useNotes";
 import { toFileName } from "../../lib/utils";
 
 /** One row of the file-tree navigation, rendered as a line of code. */
@@ -32,17 +30,11 @@ const TREE: TreeItem[] = [
 
 const Sidebar = () => {
   const location = useLocation();
-  const { authUser, logout, checkPin } = useAuthStore();
-
-  // Quietly load a remembered vault key (if "keepUnlocked" was ticked) so
-  // pages that don't ask for the PIN (profile, history) still show titles.
-  useEffect(() => {
-    checkPin();
-  }, [checkPin]);
+  const { authUser, logout } = useAuthStore();
   const { sidebarOpen, drawerOpen, closeDrawer } = useUiStore();
-  const { notes, decryptedNotes, isUnlocked } = useDecryptedNotes();
+  const { notes } = useNotes();
 
-  const hoisted = decryptedNotes.slice(0, 5);
+  const hoisted = (notes ?? []).slice(0, 5);
   const closeOnMobile = closeDrawer;
 
   return (
@@ -108,16 +100,7 @@ const Sidebar = () => {
             <ArrowUpToLine className="size-3.5 tok-js" />
           </div>
 
-          {!isUnlocked ? (
-            <Link
-              to="/pin"
-              state={{ backgroundLocation: location }}
-              className="tree-item"
-            >
-              <Lock className="size-4 tok-warn" />
-              <span className="tok-com">// vault locked</span>
-            </Link>
-          ) : hoisted.length === 0 ? (
+          {hoisted.length === 0 ? (
             <p className="px-3 py-1 text-xs tok-com">// nothing hoisted yet</p>
           ) : (
             <ul className="pl-1 space-y-0.5">

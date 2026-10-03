@@ -96,16 +96,3 @@ export const sanitizeHtml = async (content) => {
   installHooks(DOMPurify);
   return DOMPurify.sanitize(String(content), SANITIZE_CONFIG);
 };
-
-/**
- * Sanitize only when the payload is plaintext.
- *
- * When iv_content is set the body is AES-GCM ciphertext - the server has no
- * key and must not touch it. That is the zero-knowledge guarantee, and it is
- * also why the CLIENT sanitizes before encrypting (see frontend crypto.js
- * encryptHtml). This function covers the unencrypted path only.
- */
-export const sanitizeIfPlaintext = async (content, ivContent) => {
-  if (ivContent) return content;
-  return sanitizeHtml(content);
-};

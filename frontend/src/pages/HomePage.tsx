@@ -1,82 +1,51 @@
-import { useMemo, useState, useEffect, useRef } from "react";
-import { useLocation, useNavigate } from "react-router";
+import { useMemo, useState } from "react";
 import Navbar from "../components/Navbar";
 import AppShell from "../components/shell/AppShell";
 import RateLimitedUI from "../components/RateLimitedUI";
 import NoteCard from "../components/NoteCard";
 import NotesNotFound from "../components/NotesNotFound";
 import CodeSpinner from "../components/ui/CodeSpinner";
-import { Lock, KeyRound } from "lucide-react";
-import { useAuthStore } from "../stores/useAuthStore";
-import { useDecryptedNotes } from "../hooks/useDecryptedNotes";
+import { useNotes } from "../hooks/useNotes";
 import { stripHtml } from "../lib/sanitize";
-import type { DecryptedNote } from "../types/notes";
+import type { Note } from "../types/notes";
 
 /** One note pre-lowercased for search, so keystrokes don't re-strip HTML. */
 interface SearchEntry {
-  note: DecryptedNote;
+  note: Note;
   title: string;
   body: string;
 }
 
 const HomePage = () => {
-  const { checkPin } = useAuthStore();
   const [isRateLimited] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [dateFilter, setDateFilter] = useState("");
-  const navigate = useNavigate();
-  const location = useLocation();
-  const { notes, decryptedNotes, loading, isUnlocked } = useDecryptedNotes();
+  const { notes, loading } = useNotes();
   const noteCount = notes?.length ?? 0;
-  // While the vault is locked, never render cards (they'd show ciphertext).
-  const locked = !isUnlocked && !loading && noteCount > 0;
 
-  const hasNavigated = useRef(false);
-  useEffect(() => {
-    let isMounted = true;
-    const verifyPin = async () => {
-      const isValid = await checkPin();
-      if (!isValid && isMounted && !hasNavigated.current) {
-        hasNavigated.current = true;
-        console.log("PIN is not set or expired");
-        navigate("/pin", {
-          state: { backgroundLocation: location },
-          replace: true,
-        });
-      }
-    };
-    verifyPin();
-    return () => {
-      isMounted = false;
-    };
-  }, [checkPin, navigate, location]);
-
-  // Build a plaintext search index once per decryption pass, not per keystroke.
+  // Build the search index once per note change, not per keystroke.
   const searchIndex = useMemo(() => {
     const index = new Map<string, SearchEntry>();
-    for (const note of decryptedNotes) {
+    for (const note of notes ?? []) {
       index.set(note.id, {
         note,
-        title: note.decryptFailed ? "" : (note.title || "").toLowerCase(),
-        body: note.decryptFailed ? "" : stripHtml(note.content).toLowerCase(),
+        title: (note.title || "").toLowerCase(),
+        body: stripHtml(note.content).toLowerCase(),
       });
     }
     return index;
-  }, [decryptedNotes]);
-
-  // Unlocked, notes exist, but the first decryption pass hasn't finished yet.
-  const decrypting = isUnlocked && noteCount > 0 && decryptedNotes.length === 0;
+  }, [notes]);
 
   const filteredNotes = useMemo(() => {
-    if (!notes || !isUnlocked) return [];
+    if (!notes) return [];
     const query = searchQuery.trim().toLowerCase();
 
-    const result: DecryptedNote[] = [];
+    const result: Note[] = [];
     for (const raw of notes) {
       const entry = searchIndex.get(raw.id);
-      if (!entry) continue; // not decrypted yet — never search or show ciphertext
+      if (!entry) continue;
 
-      // Date filter (YYYY-MM). Timestamps aren't encrypted, so read them from the raw record.
+      // Date filter (YYYY-MM).
       if (dateFilter) {
         const noteDate = new Date(
           raw.updated_at || raw.createdAt || raw.created_at || "",
@@ -87,14 +56,13 @@ const HomePage = () => {
         }
       }
 
-      // Text search, against the plaintext index only.
       if (query && !entry.title.includes(query) && !entry.body.includes(query))
         continue;
 
       result.push(entry.note);
     }
     return result;
-  }, [notes, isUnlocked, searchIndex, searchQuery, dateFilter]);
+  }, [notes, searchIndex, searchQuery, dateFilter]);
 
   const monthLabel = dateFilter
     ? (() => {
@@ -118,7 +86,7 @@ const HomePage = () => {
       }
     >
       <div className="max-w-6xl mx-auto px-3 md:px-6 py-5 md:py-6">
-        {!locked && !loading && noteCount > 0 && (
+        {!loading && noteCount > 0 && (
           <div className="flex items-baseline justify-between gap-3 mb-4 text-[12.5px]">
             <div>
               <span className="tok-kw">class</span>{" "}
@@ -136,43 +104,13 @@ const HomePage = () => {
           </div>
         )}
 
-        {(loading || decrypting) && <CodeSpinner className="py-24" />}
+        {loading && <CodeSpinner className="py-24" />}
 
         {isRateLimited && <RateLimitedUI />}
 
         {!loading && noteCount === 0 && !isRateLimited && <NotesNotFound />}
 
-        {locked && (
-            <div className="max-w-md mx-auto mt-10 ide-card !bg-[var(--panel)] px-6 py-8 text-center animate-slide-up">
-              <Lock className="size-9 mx-auto mb-4 tok-warn" />
-              <p className="text-[13.5px]">
-                <span className="tok-kw">await</span> vault
-                <span className="tok-punc">.</span>
-                <span className="tok-fn">unlock</span>
-                <span className="tok-punc">(</span>pin
-                <span className="tok-punc">);</span>
-              </p>
-              <p className="text-xs tok-com mt-2 mb-5">
-                {"// "}
-                {noteCount} encrypted {noteCount === 1 ? "note" : "notes"}{" "}
-                — enter your PIN to read them
-              </p>
-              <button
-                type="button"
-                onClick={() =>
-                  navigate("/pin", { state: { backgroundLocation: location } })
-                }
-                className="ide-btn ide-btn-primary"
-              >
-                <KeyRound className="size-4" />
-                unlock()
-              </button>
-            </div>
-          )}
-
-        {!locked &&
-          !loading &&
-          !decrypting &&
+        {!loading &&
           filteredNotes.length === 0 &&
           noteCount !== 0 &&
           !isRateLimited && (
@@ -232,9 +170,7 @@ const HomePage = () => {
             </div>
           )}
 
-        {!locked &&
-          !loading &&
-          !decrypting &&
+        {!loading &&
           filteredNotes.length !== 0 &&
           !isRateLimited && (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
@@ -250,7 +186,7 @@ const HomePage = () => {
             </div>
           )}
 
-        {!locked && !loading && noteCount > 0 && (
+        {!loading && noteCount > 0 && (
           <div className="mt-4 text-[12.5px] tok-punc">{"}"}</div>
         )}
       </div>

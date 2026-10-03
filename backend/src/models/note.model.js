@@ -19,19 +19,37 @@ const noteSchema = new mongoose.Schema(
       type: String,
       default: "",
     },
-    iv_title: {
-      type: String,
-      default: "",
-    },
-    iv_content: {
-      type: String,
-      default: "",
-    },
     updated_at: {
       type: Date,
       required: true,
     },
     is_deleted: {
+      type: Boolean,
+      default: false,
+    },
+    collaborators: {
+      type: [
+        {
+          _id: false,
+          user: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: "User",
+            required: true,
+          },
+          role: {
+            type: String,
+            enum: ["editor", "viewer"],
+            default: "editor",
+          },
+        },
+      ],
+      default: [],
+    },
+    ydoc: {
+      type: Buffer,
+      select: false,
+    },
+    is_collaborative: {
       type: Boolean,
       default: false,
     },

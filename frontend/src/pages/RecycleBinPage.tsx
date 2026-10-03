@@ -1,5 +1,4 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useLocation } from "react-router";
 import { localDB } from "../lib/db";
 import { useAuthStore } from "../stores/useAuthStore";
 import NoteCard from "../components/NoteCard";
@@ -10,36 +9,21 @@ import Navbar from "../components/Navbar";
 import toast from "react-hot-toast";
 import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import ConfirmModal from "../components/ConfirmModal";
-import { decryptData, decryptHtml } from "../lib/crypto";
 import { emptyBin } from "../lib/noteCommands";
-import type { DecryptedNote } from "../types/notes";
+import type { Note } from "../types/notes";
 
 const RecycleBinPage = () => {
-  const [deletedNotes, setDeletedNotes] = useState<DecryptedNote[]>([]);
-  const { authUser, checkPin, cryptoKey } = useAuthStore();
+  const [deletedNotes, setDeletedNotes] = useState<Note[]>([]);
+  const { authUser } = useAuthStore();
   const isOnline = useOnlineStatus();
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  useEffect(() => {
-    let isMounted = true;
-    const verifyPin = async () => {
-      const isValid = await checkPin();
-      if (!isValid && isMounted) {
-        navigate("/pin", { state: { backgroundLocation: location }, replace: true });
-      }
-    };
-    verifyPin();
-    return () => { isMounted = false; };
-  }, [checkPin, navigate, location]);
 
   useEffect(() => {
     const userId = authUser?._id;
     if (!userId) return;
 
-    // Each run gets a fresh token; a slower, older pass (e.g. one that started
-    // before the vault key arrived) must not overwrite a newer result.
+    // Each run gets a fresh token; a slower, older pass must not overwrite a
+    // newer result.
     let runId = 0;
     let cancelled = false;
 
@@ -58,27 +42,7 @@ const RecycleBinPage = () => {
         return (now - new Date(note.updated_at).getTime()) <= thirtyDaysMs;
       });
 
-      if (!cryptoKey) {
-        if (!isStale()) setDeletedNotes(validNotes);
-        return;
-      }
-
-      const decrypted = await Promise.all(validNotes.map(async (note): Promise<DecryptedNote> => {
-        try {
-          const title = note.iv_title ? await decryptData(note.title, note.iv_title, cryptoKey) : note.title;
-          const content = note.iv_content ? await decryptHtml(note.content, note.iv_content, cryptoKey) : note.content;
-          return { ...note, title, content };
-        } catch (err) {
-          console.error(`Failed to decrypt deleted note ${note.id}`, err);
-          return {
-            ...note,
-            title: "Decryption Failed",
-            content: "<p>Could not decrypt this note. It may be corrupted or encrypted with a different PIN.</p>",
-          };
-        }
-      }));
-
-      if (!isStale()) setDeletedNotes(decrypted);
+      if (!isStale()) setDeletedNotes(validNotes);
     };
     fetchDeletedNotes();
 
@@ -95,8 +59,7 @@ const RecycleBinPage = () => {
       window.removeEventListener("note-restored", handleNoteRestored);
       window.removeEventListener("notes-changed", fetchDeletedNotes);
     };
-    // Re-run once the vault key is loaded, otherwise the bin shows ciphertext.
-  }, [authUser?._id, cryptoKey]);
+  }, [authUser?._id]);
 
   useEffect(() => {
     if (authUser && authUser._id) {

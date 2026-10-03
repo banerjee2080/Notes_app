@@ -16,7 +16,7 @@ const NotesNotFound = () => {
         <span className="tok-punc">(</span>notes<span className="tok-punc">.</span>length<span className="tok-punc">);</span>{" "}
         <span className="tok-com">// 0</span>
         {"\n\n"}
-        <span className="tok-com">{"// Your vault is empty. Every great program starts with a blank file."}</span>
+        <span className="tok-com">{"// Nothing here yet. Every great program starts with a blank file."}</span>
       </pre>
       <div className="px-5 pb-5">
         <Link

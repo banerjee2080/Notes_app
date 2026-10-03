@@ -124,6 +124,7 @@ app.get("/api/health", (req, res) => {
     "GOOGLE_CLIENT_ID",
     "RESEND_API_KEY",
     "CLOUDINARY_CLOUD_NAME",
+    "COLLAB_TOKEN_SECRET",
   ];
 
   const env = {};

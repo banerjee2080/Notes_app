@@ -1,11 +1,10 @@
-import { useEffect, useState, useRef, useMemo } from "react";
-import { useNavigate, useParams, useLocation } from "react-router";
+import { useEffect, useState, useMemo } from "react";
+import { useNavigate, useParams } from "react-router";
 import toast from "react-hot-toast";
 import { ArrowLeftIcon, Undo2Icon } from "lucide-react";
 import { localDB } from "../lib/db";
 import { triggerSync } from "../lib/syncEngine";
 import { useAuthStore } from "../stores/useAuthStore";
-import { decryptData, decryptHtml } from "../lib/crypto";
 import { sanitizeHtml } from "../lib/sanitize";
 import CodeWindow from "../components/ui/CodeWindow";
 import CodeSpinner from "../components/ui/CodeSpinner";
@@ -13,11 +12,11 @@ import EditorFooter from "../components/ui/EditorFooter";
 import { toFileName } from "../lib/utils";
 import { useCloseShortcut } from "../hooks/useCloseShortcut";
 import { userIdOf } from "../types/user";
-import type { DecryptedNote } from "../types/notes";
+import type { Note } from "../types/notes";
 
 const DelNotePage = ({ isModal }: { isModal?: boolean }) => {
-  // Empty until the note is read (and decrypted) from IndexedDB.
-  const [note, setNote] = useState<Partial<DecryptedNote>>({});
+  // Empty until the note is read from IndexedDB.
+  const [note, setNote] = useState<Partial<Note>>({});
   const [loading, setLoading] = useState(true);
   const safeContent = useMemo(
     () => sanitizeHtml(note.content || "No content"),
@@ -28,48 +27,15 @@ const DelNotePage = ({ isModal }: { isModal?: boolean }) => {
   // through to the "not found" branch below.
   const { id = "" } = useParams();
   const navigate = useNavigate();
-  const location = useLocation();
-  const { authUser, checkPin, cryptoKey } = useAuthStore();
-
-  const hasNavigated = useRef(false);
-  useEffect(() => {
-    let isMounted = true;
-    const verifyPin = async () => {
-      const isValid = await checkPin();
-      if (!isValid && isMounted && !hasNavigated.current) {
-        hasNavigated.current = true;
-        navigate("/pin", {
-          state: { backgroundLocation: location },
-          replace: true,
-        });
-      }
-    };
-    verifyPin();
-    return () => {
-      isMounted = false;
-    };
-  }, [checkPin, navigate, location]);
+  const { authUser } = useAuthStore();
 
   useEffect(() => {
     const fetchNote = async () => {
       try {
         const res = await localDB.notes.get(id);
         if (res && res.is_deleted) {
-          if (res.iv_title || res.iv_content) {
-            if (cryptoKey) {
-              const title = res.iv_title
-                ? await decryptData(res.title, res.iv_title, cryptoKey)
-                : res.title;
-              const content = res.iv_content
-                ? await decryptHtml(res.content, res.iv_content, cryptoKey)
-                : res.content;
-              setNote({ ...res, title, content });
-              setLoading(false);
-            }
-          } else {
-            setNote(res);
-            setLoading(false);
-          }
+          setNote(res);
+          setLoading(false);
         } else {
           toast.error("Deleted note not found");
           navigate("/recycleBin");
@@ -81,7 +47,7 @@ const DelNotePage = ({ isModal }: { isModal?: boolean }) => {
       }
     };
     fetchNote();
-  }, [id, navigate, cryptoKey]); // <-- cryptoKey MUST be in this array
+  }, [id, navigate]);
 
   const handleRestore = async () => {
     try {
@@ -122,7 +88,7 @@ const DelNotePage = ({ isModal }: { isModal?: boolean }) => {
             : "min-h-screen flex justify-center items-center"
         }
       >
-        <CodeSpinner label="Decrypting with AES-GCM…" />
+        <CodeSpinner label="Reading from IndexedDB…" />
       </div>
     );
   }

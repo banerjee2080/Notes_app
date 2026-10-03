@@ -8,8 +8,6 @@ import {
   sendMail,
   setBackgroundImg,
   googleAuth,
-  getVaultCheck,
-  setVaultCheck,
 } from "../controllers/auth.controller.js";
 import { ProtectedRoute } from "../middleware/auth.middleware.js";
 import { authRateLimiter } from "../middleware/ratelimiter.middleware.js";
@@ -23,7 +21,5 @@ authRouter.post("/logout", logout);
 authRouter.put("/updateProfile", ProtectedRoute, updateProfile);
 authRouter.put("/setBackgroundImg", ProtectedRoute, setBackgroundImg);
 authRouter.get("/check", ProtectedRoute, checkAuth);
-authRouter.get("/vault-check", ProtectedRoute, getVaultCheck);
-authRouter.post("/vault-check", ProtectedRoute, setVaultCheck);
 
 export default authRouter;

@@ -14,7 +14,7 @@
 // language (JS included) is compiled to WebAssembly and executed by Wasmer
 // inside Workers with a virtual filesystem, no network, and hard limits on
 // instructions, memory, output and wall time. The program cannot see the
-// app's IndexedDB, cookies or vault keys.
+// app's IndexedDB or cookies.
 import {
   createBrowserEngine,
   browserToolchainAssetUrl,

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import type { ReactNode } from "react";
 import { useAuthStore } from "../stores/useAuthStore";
 import toast from "react-hot-toast";
@@ -15,7 +15,6 @@ import {
 } from "lucide-react";
 import { useGoogleLogin } from "@react-oauth/google";
 import AuthFrame, { CodeField, GoogleGlyph } from "../components/ui/AuthFrame";
-import RememberToggle from "../components/ui/RememberToggle";
 import api from "../lib/axios";
 import { errorMessage, errorStatus, errorBody } from "../lib/errors";
 
@@ -40,34 +39,12 @@ const SignUpPage = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [takeOtp, setTakeOtp] = useState(false);
-  const [takePin, setTakePin] = useState(false);
-  const [pinDigits, setPinDigits] = useState(["", "", "", "", "", ""]);
-  const [confirmPinDigits, setConfirmPinDigits] = useState([
-    "",
-    "",
-    "",
-    "",
-    "",
-    "",
-  ]);
-  const createPinRefs = useRef<Array<HTMLInputElement | null>>([]);
-  const confirmPinRefs = useRef<Array<HTMLInputElement | null>>([]);
-  const [rememberMe, setRememberMe] = useState(false);
   const [otp, setOtp] = useState("");
   const [isSendingOtp, setIsSendingOtp] = useState(false);
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
-  const [verificationToken, setVerificationToken] = useState<string | null>(
-    null,
-  );
   const [resendTimer, setResendTimer] = useState(0);
   const [resendCount, setResendCount] = useState(0);
-  const {
-    isSigningUp,
-    signup,
-    googleLogin,
-    finalizeGoogleSignup,
-    pendingGoogleUser,
-  } = useAuthStore();
+  const { isSigningUp, signup, googleLogin } = useAuthStore();
 
   useEffect(() => {
     if (resendTimer <= 0) return;
@@ -79,11 +56,7 @@ const SignUpPage = () => {
 
   const handleGoogleLogin = useGoogleLogin({
     onSuccess: async (codeResponse) => {
-      const user = await googleLogin(codeResponse.access_token, true);
-      if (user) {
-        setTakeOtp(false);
-        setTakePin(true);
-      }
+      await googleLogin(codeResponse.access_token);
     },
     onError: (error) => {
       console.log("Google Login Failed:", error);
@@ -184,133 +157,20 @@ const SignUpPage = () => {
         return;
       }
 
-      setVerificationToken(res.data.verificationToken);
       toast.success("OTP verified successfully");
-      setTakeOtp(false);
-      setTakePin(true);
+
+      await signup({
+        fullName: formData.fullName,
+        email: formData.email,
+        password: formData.password,
+        verificationToken: res.data.verificationToken,
+      });
     } catch (error) {
       toast.error(errorMessage(error, "Invalid OTP"));
     } finally {
       setIsVerifyingOtp(false);
     }
   };
-
-  const handlePinChange = (
-    index: number,
-    e: React.ChangeEvent<HTMLInputElement>,
-    isConfirm = false,
-  ) => {
-    const value = e.target.value;
-    if (isNaN(Number(value))) return;
-
-    const currentDigits = isConfirm ? [...confirmPinDigits] : [...pinDigits];
-    const setDigits = isConfirm ? setConfirmPinDigits : setPinDigits;
-    const refs = isConfirm ? confirmPinRefs : createPinRefs;
-
-    // Allow pasting
-    if (value.length > 1) {
-      const pasted = value.slice(0, 6).split("");
-      for (let i = 0; i < pasted.length; i++) {
-        if (!isNaN(Number(pasted[i]))) {
-          currentDigits[i] = pasted[i];
-        }
-      }
-      setDigits(currentDigits);
-      const nextIndex = Math.min(pasted.length, 5);
-      (refs.current[nextIndex] ?? refs.current[5])?.focus();
-      return;
-    }
-
-    currentDigits[index] = value.slice(-1);
-    setDigits(currentDigits);
-
-    // Move to next input
-    if (value !== "" && index < 5) {
-      refs.current[index + 1]?.focus();
-    }
-  };
-
-  const handlePinKeyDown = (
-    index: number,
-    e: React.KeyboardEvent<HTMLInputElement>,
-    isConfirm = false,
-  ) => {
-    const currentDigits = isConfirm ? confirmPinDigits : pinDigits;
-    const refs = isConfirm ? confirmPinRefs : createPinRefs;
-
-    if (e.key === "Backspace" && currentDigits[index] === "" && index > 0) {
-      refs.current[index - 1]?.focus();
-    } else if (e.key === "Enter") {
-      e.preventDefault();
-      if (!isConfirm && index === 5) {
-        confirmPinRefs.current[0]?.focus();
-      } else if (isConfirm && index === 5) {
-        handlePinSubmit(e);
-      }
-    }
-  };
-
-  const handlePinSubmit = async (e?: React.SyntheticEvent) => {
-    e?.preventDefault();
-    const pin = pinDigits.join("");
-    const confirmPin = confirmPinDigits.join("");
-
-    if (pin.length !== 6 || isNaN(Number(pin))) {
-      return toast.error("Please enter a valid 6-digit numerical PIN");
-    }
-    if (pin !== confirmPin) {
-      return toast.error("PINs do not match. Please try again.");
-    }
-
-    if (pendingGoogleUser) {
-      finalizeGoogleSignup(pin, rememberMe);
-    } else {
-      if (!verificationToken) {
-        toast.error(
-          "Your verification expired. Please verify your email again.",
-        );
-        setTakePin(false);
-        setTakeOtp(true);
-        return;
-      }
-      signup(
-        {
-          fullName: formData.fullName,
-          email: formData.email,
-          password: formData.password,
-          verificationToken,
-        },
-        pin,
-        rememberMe,
-      );
-    }
-  };
-
-  const pinRow = (
-    digits: string[],
-    refs: React.RefObject<Array<HTMLInputElement | null>>,
-    isConfirm: boolean,
-  ): ReactNode => (
-    <div className="flex gap-1.5 sm:gap-2 justify-center">
-      {digits.map((digit, index) => (
-        <input
-          key={index}
-          ref={(el) => {
-            refs.current[index] = el;
-          }}
-          type="text"
-          inputMode="numeric"
-          autoComplete="one-time-code"
-          maxLength={6}
-          value={digit}
-          aria-label={`${isConfirm ? "Confirm PIN" : "PIN"} digit ${index + 1}`}
-          onChange={(e) => handlePinChange(index, e, isConfirm)}
-          onKeyDown={(e) => handlePinKeyDown(index, e, isConfirm)}
-          className={`ide-digit ${digit ? "is-filled" : ""}`}
-        />
-      ))}
-    </div>
-  );
 
   const passwordInput = (
     value: string,
@@ -342,14 +202,14 @@ const SignUpPage = () => {
   );
 
   return (
-    <AuthFrame fileName={takePin ? "vault.js" : takeOtp ? "verify.js" : "signup.js"}>
-      {!takeOtp && !takePin ? (
+    <AuthFrame fileName={takeOtp ? "verify.js" : "signup.js"}>
+      {!takeOtp ? (
         <>
           <h1 className="text-xl mb-1">
             <span className="tok-kw">async function</span> <span className="tok-fn">signup</span>
             <span className="tok-punc">() {"{"}</span>
           </h1>
-          <p className="text-[12.5px] tok-com mb-6">{"// create an account — your notes are encrypted on this device"}</p>
+          <p className="text-[12.5px] tok-com mb-6">{"// create an account — your notes sync across your devices"}</p>
 
           <button
             type="button"
@@ -429,7 +289,7 @@ const SignUpPage = () => {
             </button>
           </form>
         </>
-      ) : takeOtp && !takePin ? (
+      ) : (
         <form onSubmit={verifyOtp} className="space-y-5">
           <button
             type="button"
@@ -470,12 +330,12 @@ const SignUpPage = () => {
           <button
             type="submit"
             className="ide-btn ide-btn-solid w-full justify-center !py-2.5"
-            disabled={isVerifyingOtp || otp.length < 6}
+            disabled={isVerifyingOtp || isSigningUp || otp.length < 6}
           >
-            {isVerifyingOtp ? (
+            {isVerifyingOtp || isSigningUp ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                verifying…
+                {isSigningUp ? "creating account…" : "verifying…"}
               </>
             ) : (
               "verify(otp);"
@@ -504,64 +364,9 @@ const SignUpPage = () => {
             )}
           </div>
         </form>
-      ) : (
-        <form onSubmit={handlePinSubmit} className="flex flex-col w-full">
-          <h1 className="text-xl mb-1">
-            <span className="tok-kw">new</span> <span className="tok-fn">Vault</span>
-            <span className="tok-punc">(</span>pin<span className="tok-punc">)</span>
-          </h1>
-          <p className="text-[12.5px] tok-com mb-4">{"// a 6-digit PIN derives the key that encrypts every note"}</p>
-
-          <div className="ide-note is-err mb-6">
-            <span className="tok-err font-semibold">WARNING:</span>{" "}
-            <span className="text-[var(--fg)]">
-              once set, your PIN can't be reset or recovered. Lose it and your notes stay encrypted forever.
-            </span>
-          </div>
-
-          <div className="mb-5">
-            <p className="text-[12.5px] mb-2">
-              <span className="tok-kw">const</span> pin <span className="tok-punc">=</span>
-            </p>
-            {pinRow(pinDigits, createPinRefs, false)}
-          </div>
-
-          <div className="mb-6">
-            <p className="text-[12.5px] mb-2">
-              <span className="tok-kw">const</span> confirmPin <span className="tok-punc">=</span>
-            </p>
-            {pinRow(confirmPinDigits, confirmPinRefs, true)}
-          </div>
-
-          <div className="mb-6">
-            <RememberToggle checked={rememberMe} onChange={() => setRememberMe(!rememberMe)} />
-          </div>
-
-          <button
-            type="submit"
-            className="ide-btn ide-btn-ok w-full justify-center !py-2.5"
-            disabled={
-              isSigningUp ||
-              pinDigits.join("").length < 6 ||
-              confirmPinDigits.join("").length < 6
-            }
-          >
-            {isSigningUp ? (
-              <>
-                <Loader2 className="size-4 animate-spin" />
-                creating account…
-              </>
-            ) : (
-              <>
-                <ShieldCheck className="size-4" />
-                vault.lock(pin);
-              </>
-            )}
-          </button>
-        </form>
       )}
 
-      {!takeOtp && !takePin && <p className="text-lg tok-punc mt-5">{"}"}</p>}
+      {!takeOtp && <p className="text-lg tok-punc mt-5">{"}"}</p>}
 
       <p className="text-[12.5px] text-center mt-4 tok-dim">
         {"// already have an account? "}

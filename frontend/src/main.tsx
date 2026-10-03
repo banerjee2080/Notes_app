@@ -10,7 +10,7 @@ const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
 // Easter egg for anyone who opens DevTools.
 console.log(
-  "%c JS %c Note.js %c\n\nconsole.log('Hello, fellow developer 👋');\n// Your notes are encrypted before they ever leave this tab.\n// Try the Konami code: ↑ ↑ ↓ ↓ ← → ← → B A",
+  "%c JS %c Note.js %c\n\nconsole.log('Hello, fellow developer 👋');\n// Offline-first: every note is written to IndexedDB before it syncs.\n// Try the Konami code: ↑ ↑ ↓ ↓ ← → ← → B A",
   "background:#f7df1e;color:#111;font-weight:700;font-size:14px;padding:2px 4px;border-radius:3px",
   "font-weight:700;font-size:14px;color:#82aaff",
   "color:#8b93a1;font-family:monospace",

@@ -347,3 +347,70 @@ body {
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; }
 }
+
+/* ---------- Collaborative editor (Tiptap ships no styles of its own) ---------- */
+.collab-editor .ProseMirror {
+  min-height: 340px; padding: 18px 22px; outline: none;
+  font-size: 15px; line-height: 1.7; color: var(--fg); caret-color: var(--kw);
+}
+.collab-editor .ProseMirror p.is-editor-empty:first-child::before {
+  content: attr(data-placeholder); float: left; height: 0; pointer-events: none;
+  color: var(--com); font-style: italic; font-family: var(--font-mono);
+}
+.collab-editor .ProseMirror a { color: var(--fn); }
+.collab-editor .ProseMirror h1::before,
+.collab-editor .ProseMirror h2::before,
+.collab-editor .ProseMirror h3::before { content: "# "; color: var(--kw); opacity: .6; }
+.collab-editor .ProseMirror ul { list-style: disc; padding-left: 1.5em; }
+.collab-editor .ProseMirror ol { list-style: decimal; padding-left: 1.5em; }
+.collab-editor .ProseMirror code {
+  background: var(--panel-2); color: var(--str); border-radius: 4px; padding: 0 4px;
+  font-family: var(--font-mono);
+}
+.collab-editor .ProseMirror pre {
+  background: var(--panel-2); color: var(--str); padding: 10px 12px; border-radius: 4px;
+  font-family: var(--font-mono); overflow-x: auto;
+}
+.collab-editor .ProseMirror pre code { padding: 0; background: none; }
+/* Double-click a code block to open the code editor */
+.collab-editor .ProseMirror[contenteditable="true"] pre { cursor: pointer; }
+.collab-editor .ProseMirror[contenteditable="true"] pre:hover { outline: 1px dashed var(--com); outline-offset: 2px; }
+/* Prism tokens (decorations from noteCodeBlock.ts) */
+.collab-editor .ProseMirror .token.comment,
+.collab-editor .ProseMirror .token.prolog,
+.collab-editor .ProseMirror .token.doctype,
+.collab-editor .ProseMirror .token.cdata { color: var(--com); font-style: italic; }
+.collab-editor .ProseMirror .token.keyword,
+.collab-editor .ProseMirror .token.boolean,
+.collab-editor .ProseMirror .token.important,
+.collab-editor .ProseMirror .token.atrule { color: var(--kw); }
+.collab-editor .ProseMirror .token.function,
+.collab-editor .ProseMirror .token.class-name,
+.collab-editor .ProseMirror .token.builtin { color: var(--fn); }
+.collab-editor .ProseMirror .token.string,
+.collab-editor .ProseMirror .token.char,
+.collab-editor .ProseMirror .token.attr-value,
+.collab-editor .ProseMirror .token.regex { color: var(--str); }
+.collab-editor .ProseMirror .token.number,
+.collab-editor .ProseMirror .token.constant { color: var(--num); }
+.collab-editor .ProseMirror .token.operator,
+.collab-editor .ProseMirror .token.punctuation { color: var(--com); }
+.collab-editor .ProseMirror blockquote {
+  border-left: 3px solid var(--kw); padding-left: 12px; color: var(--com); font-style: italic;
+}
+.collab-editor .ProseMirror img { max-width: 100%; height: auto; }
+.collab-editor .ProseMirror table { border-collapse: collapse; width: 100%; margin: 8px 0; }
+.collab-editor .ProseMirror td,
+.collab-editor .ProseMirror th { border: 1px solid var(--line); padding: 4px 8px; vertical-align: top; }
+.collab-editor .ProseMirror th { background: var(--panel-2); font-weight: 600; }
+
+/* Other people's cursors */
+.collaboration-carets__caret {
+  position: relative; margin: 0 -1px; border-left: 1px solid; border-right: 1px solid;
+  word-break: normal; pointer-events: none;
+}
+.collaboration-carets__label {
+  position: absolute; top: -1.4em; left: -1px; padding: 1px 4px; border-radius: 3px 3px 3px 0;
+  font-size: 11px; font-weight: 600; line-height: normal; white-space: nowrap;
+  color: #0d0d0d; user-select: none; pointer-events: none;
+}

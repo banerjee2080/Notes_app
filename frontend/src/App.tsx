@@ -13,7 +13,6 @@ import RecycleBinPage from "./pages/RecycleBinPage";
 import { useAuthStore } from "./stores/useAuthStore";
 import LoginPage from "./pages/LoginPage";
 import SignUpPage from "./pages/SignUpPage";
-import PinPage from "./pages/PinPage";
 import HistoryPage from "./pages/HistoryPage";
 import NotFoundPage from "./pages/NotFoundPage";
 import CodeSpinner from "./components/ui/CodeSpinner";
@@ -32,10 +31,6 @@ const App = () => {
 
   const { authUser, checkAuth, isCheckingAuth, themeMode, _hasHydrated } =
     useAuthStore();
-
-  useEffect(() => {
-    localStorage.removeItem("pin");
-  }, []);
 
   useEffect(() => {
     if (_hasHydrated) {
@@ -185,10 +180,6 @@ const App = () => {
           element={authUser ? <DelNotePage /> : <Navigate to={"/login"} />}
         />
         <Route
-          path="/pin"
-          element={authUser ? <PinPage /> : <Navigate to={"/login"} />}
-        />
-        <Route
           path="/history"
           element={authUser ? <HistoryPage /> : <Navigate to={"/login"} />}
         />
@@ -200,7 +191,6 @@ const App = () => {
           <Route path="/createNote" element={<CreatePage isModal />} />
           <Route path="/note/:id" element={<NotePage isModal />} />
           <Route path="/delNote/:id" element={<DelNotePage isModal />} />
-          <Route path="/pin" element={<PinPage isModal />} />
         </Routes>
       )}
 

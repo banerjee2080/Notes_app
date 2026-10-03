@@ -1,8 +1,14 @@
 {
   "version": 2,
+  "fluid": true,
+  "regions": ["bom1"],
   "builds": [
     {
       "src": "backend/Server.js",
+      "use": "@vercel/node"
+    },
+    {
+      "src": "backend/collab.js",
       "use": "@vercel/node"
     },
     {
@@ -17,6 +23,10 @@
     {
       "source": "/api/(.*)",
       "destination": "/backend/Server.js"
+    },
+    {
+      "source": "/collab",
+      "destination": "/backend/collab.js"
     },
     {
       "source": "/(.*)",

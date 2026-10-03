@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { Menu, Minus, Square, Copy, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { LANGUAGE_NAMES } from "../../lib/jsLore";
@@ -10,9 +10,7 @@ import { useAuthStore } from "../../stores/useAuthStore";
 const TitleBar = () => {
   const { toggleSidebar, maximized, toggleMaximized } = useUiStore();
   const [nameIdx, setNameIdx] = useState(0);
-  const { lockVault } = useAuthStore();
-  const navigate = useNavigate();
-  const location = useLocation();
+  const { logout } = useAuthStore();
 
   // Easter egg: the JS badge walks through the language's former names.
   const cycleName = () => {
@@ -22,11 +20,9 @@ const TitleBar = () => {
     toast(`${year}: ${name}. ${note}`, { id: "lang-name", icon: "📜" });
   };
 
-  // ✕ locks the vault: wipe the key, then show the PIN screen over this page.
-  const onClose = async () => {
-    await lockVault();
-    toast.success("vault.lock() — key wiped from memory", { id: "vault-lock" });
-    navigate("/pin", { state: { backgroundLocation: location } });
+  // ✕ closes the session. logout() syncs first and warns about unsent notes.
+  const onClose = () => {
+    logout();
   };
 
   const langName = LANGUAGE_NAMES[nameIdx].name;
@@ -89,8 +85,8 @@ const TitleBar = () => {
           type="button"
           onClick={onClose}
           className="ide-icon-btn is-danger !w-7 !h-7 border !border-[var(--line)]"
-          title="vault.lock() — lock your notes"
-          aria-label="Lock vault"
+          title="process.exit() — sign out"
+          aria-label="Sign out"
         >
           <X className="size-3.5" />
         </button>

@@ -16,7 +16,7 @@ const MAX_SENDS_PER_IP = 10; // 10 emails per IP per hour
 const MAX_VERIFY_ATTEMPTS = 5; // 5 guesses per issued code
 const TOKEN_TTL_SECONDS = 600; // verification receipt: 10 minutes
 
-export const ALLOWED_PURPOSES = ["signup", "pin_setup"];
+export const ALLOWED_PURPOSES = ["signup"];
 
 const TOKEN_SECRET = process.env.OTP_TOKEN_SECRET || process.env.JWT_SECRET;
 

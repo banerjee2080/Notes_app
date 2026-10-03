@@ -86,7 +86,7 @@ export const TIMELINE: TimelineEntry[] = [
   { year: "2015", title: "ES6 / ES2015", body: "The biggest update ever: let/const, arrow functions, classes, modules, promises, template literals, destructuring.", code: "const f = (x) => `${x}!`;" },
   { year: "2017", title: "async / await", body: "Asynchronous code finally reads top-to-bottom.", code: "const res = await fetch(url);" },
   { year: "2020", title: "?. and ??", body: "Optional chaining and nullish coalescing end a generation of && chains. BigInt arrives too.", code: "user?.profile?.name ?? 'anon'" },
-  { year: "2022", title: "Top-level await", body: "Modules can await at the top level. Class fields, private #methods and .at() ship.", code: "class Vault { #pin; }" },
+  { year: "2022", title: "Top-level await", body: "Modules can await at the top level. Class fields, private #methods and .at() ship.", code: "class Counter { #n = 0; }" },
   { year: "2025", title: "30 years old", body: "JavaScript turns 30. ES2025 brings iterator helpers and new Set methods like union and intersection.", code: "a.union(b)" },
 ];
 
@@ -107,7 +107,6 @@ export const CONSOLE_HELP: ConsoleHelpEntry[] = [
   ["history", "open the timeline"],
   ["new", "create a note (or Ctrl+N / Alt+N anywhere)"],
   ["theme", "toggle dark / vibrant"],
-  ["lock", "lock the vault (same as the ✕ button)"],
   ["whoami", "who's logged in"],
   ["clear", "clear the console"],
 ];
@@ -134,7 +133,7 @@ export const CONSOLE_ANSWERS: Record<string, ConsoleToken[]> = {
   "null": [{ t: "kw", v: "null" }],
   "brendan": [{ t: "com", v: "// Brendan Eich wrote the first JavaScript prototype in 10 days, May 1995." }],
   "sudo": [{ t: "err", v: "ReferenceError: sudo is not defined" }, { t: "com", v: "// nice try" }],
-  "rm -rf /": [{ t: "err", v: "SyntaxError: Unexpected token '/'" }, { t: "com", v: "// your notes are safe, and encrypted" }],
+  "rm -rf /": [{ t: "err", v: "SyntaxError: Unexpected token '/'" }, { t: "com", v: "// your notes are safe — try `rm <id>` instead" }],
 };
 
 export const GOTCHAS: string[] = [
@@ -157,6 +156,6 @@ export const LOADING_LINES: string[] = [
   "Hoisting variables…",
   "Resolving promises…",
   "Awaiting the event loop…",
-  "Decrypting with AES-GCM…",
+  "Flushing to IndexedDB…",
   "Bundling semicolons…",
 ];

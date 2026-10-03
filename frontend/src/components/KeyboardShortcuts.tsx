@@ -5,8 +5,8 @@ import {
   useOpenNewNote,
 } from "../hooks/useKeyShortcut";
 
-// Pages where "new note" makes no sense: the vault is locked or it's already open.
-const BLOCKED = ["/pin", "/createNote", "/login", "/signup"];
+// Pages where "new note" makes no sense: it's already open, or nobody's signed in.
+const BLOCKED = ["/createNote", "/login", "/signup"];
 
 /** App-wide shortcuts for signed-in users. Renders nothing. */
 const KeyboardShortcuts = () => {
