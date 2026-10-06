@@ -302,9 +302,11 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
     }
   };
 
+  // The window always fits the viewport: header, title and toolbar stay put
+  // and only the note's body scrolls. Phones get it full-screen.
   const containerClasses = isModal
-    ? "fixed inset-0 z-50 flex justify-center items-start md:items-center ide-backdrop p-3 md:p-6 overflow-y-auto"
-    : "min-h-screen py-10 px-4 flex justify-center items-center";
+    ? "fixed inset-0 z-50 flex justify-center items-stretch sm:items-center ide-backdrop sm:p-4 md:p-6 max-sm:pt-[env(safe-area-inset-top)] max-sm:pb-[env(safe-area-inset-bottom)]"
+    : "h-[100dvh] flex justify-center items-stretch sm:items-center sm:p-4 md:p-8";
 
   const close = () => navigate("/");
   useCloseShortcut(close); // Ctrl+Shift+X
@@ -349,10 +351,12 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
 
   return (
     <div className={containerClasses} onClick={() => isModal && close()}>
-      <div className="w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-3xl flex flex-col h-full sm:h-auto sm:max-h-full min-h-0" onClick={(e) => e.stopPropagation()}>
         <CodeWindow
+          className="note-window flex flex-col flex-auto min-h-0"
+          bodyClassName="flex flex-col flex-auto min-h-0 px-3 pt-3 pb-2 sm:p-5 md:p-7"
           fileName={isJs ? toFileName(title) : title.trim() || t({ js: "", common: "Untitled note", pythagoras: "Untitled proposition" })}
-          status={<span className="text-[11px] tok-com">{statusLabel}</span>}
+          status={<span className="hidden sm:inline text-[11px] tok-com whitespace-nowrap">{statusLabel}</span>}
           onClose={close}
           actions={
             <>
@@ -391,7 +395,7 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
                 className="ide-btn ide-btn-ghost !py-1 !px-2 text-xs"
               >
                 <UsersIcon className="size-3.5" />
-                <span>{t({ js: "share", common: "Share" })}</span>
+                <span className="hidden sm:inline">{t({ js: "share", common: "Share" })}</span>
               </button>
               <button
                 type="button"
@@ -401,11 +405,11 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
               >
                 {isOwner ? <Trash2Icon className="size-3.5" /> : <LogOutIcon className="size-3.5" />}
                 {isJs ? (
-                  <span>
+                  <span className="hidden sm:inline">
                     <span className="tok-kw">{isOwner ? "delete" : "leave"}</span> note
                   </span>
                 ) : (
-                  <span>
+                  <span className="hidden sm:inline">
                     {isOwner ? t({ js: "", common: "Delete", pythagoras: "Erase" }) : t({ js: "", common: "Leave" })}
                   </span>
                 )}
@@ -413,7 +417,8 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
             </>
           }
         >
-          <p className="text-[12px] tok-com mb-4">
+          <p className="shrink-0 text-[12px] tok-com mb-3 sm:mb-4">
+            <span className="sm:hidden">{statusLabel} · </span>
             <Remark>
               {t({ js: "last modified ", common: "Edited ", pythagoras: "Last revised " })}
               {timeAgo(note.updated_at)}
@@ -421,8 +426,8 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
               {encrypted && " · end-to-end encrypted"}
             </Remark>
           </p>
-          <div className="space-y-5">
-          <label className="flex items-center gap-2 border-b ide-divider focus-within:border-[var(--kw)] transition-colors pb-2">
+          <div className="flex flex-col flex-auto min-h-0 gap-4 sm:gap-5">
+          <label className="shrink-0 flex items-center gap-2 border-b ide-divider focus-within:border-[var(--kw)] transition-colors pb-2">
             {isJs && (
               <>
                 <span className="tok-kw text-[15px] shrink-0">const</span>
@@ -442,7 +447,7 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
               aria-label="Note title"
               style={{ fieldSizing: "content" }}
               className={`min-w-[10ch] max-w-full bg-transparent outline-none font-semibold placeholder:text-[var(--fg-dim)] placeholder:font-normal ${
-                isJs ? "text-lg md:text-xl tok-str" : "note-title text-2xl md:text-[28px] text-[var(--fg)]"
+                isJs ? "text-lg md:text-xl tok-str" : "note-title text-[22px] sm:text-2xl md:text-[28px] text-[var(--fg)]"
               }`}
             ></input>
             {isJs && <span className="tok-str text-lg shrink-0">"</span>}
@@ -451,7 +456,7 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
             <span className="flex-1" />
           </label>
             {encrypted && secure.keyState !== "ready" ? (
-              <div className="collab-editor border ide-divider rounded-md bg-[var(--win)] px-5 py-8 text-center space-y-3">
+              <div className="collab-editor shrink-0 border ide-divider rounded-md bg-[var(--win)] px-5 py-8 text-center space-y-3">
                 <LockIcon className="size-6 mx-auto tok-kw" />
                 {secure.keyState === "need-vault" ? (
                   <>
@@ -488,8 +493,8 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
             ) : (
               // Never opened collaboratively and the server isn't reachable:
               // show the cached HTML read-only until it is.
-              <div className="collab-editor border ide-divider rounded-md bg-[var(--win)]">
-                <p className="text-[12px] tok-com px-5 pt-3">
+              <div className="collab-editor flex flex-col flex-auto min-h-0 border ide-divider rounded-md bg-[var(--win)]">
+                <p className="shrink-0 text-[12px] tok-com px-5 pt-3">
                   <Remark>
                     {t({
                       js: "waiting for the collaboration server — read-only for now",
@@ -498,14 +503,13 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
                     })}
                   </Remark>
                 </p>
-                <div
-                  className="ProseMirror"
-                  dangerouslySetInnerHTML={{ __html: fallbackHtml }}
-                />
+                <div className="flex-auto min-h-0 overflow-y-auto ide-scroll">
+                  <div className="ProseMirror" dangerouslySetInnerHTML={{ __html: fallbackHtml }} />
+                </div>
               </div>
             )}
           </div>
-          <EditorFooter />
+          <EditorFooter className="shrink-0" />
         </CodeWindow>
       </div>
 

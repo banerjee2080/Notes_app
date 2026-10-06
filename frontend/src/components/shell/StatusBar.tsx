@@ -103,7 +103,7 @@ const StatusBar = () => {
   if (voice) {
     return (
       <div className="relative shrink-0">
-        <div className="flex items-center justify-between gap-3 h-9 px-3 md:px-4 border-t ide-divider bg-[var(--panel)] text-[12.5px] select-none">
+        <div className="flex items-center justify-between gap-3 h-[calc(2.25rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] px-3 md:px-4 border-t ide-divider bg-[var(--panel)] text-[12.5px] select-none">
           <div className="flex items-center gap-2 min-w-0" role="status">
             {isSyncing ? (
               <span className="flex items-center gap-1.5 tok-fn">
@@ -154,7 +154,7 @@ const StatusBar = () => {
     <div className="relative shrink-0">
       {consoleOpen && <ConsoleDrawer onClose={() => setConsoleOpen(false)} />}
 
-      <div className="flex items-center justify-between gap-3 h-9 px-3 md:px-4 border-t ide-divider bg-[var(--panel)] text-[12px] select-none">
+      <div className="flex items-center justify-between gap-3 h-[calc(2.25rem+env(safe-area-inset-bottom))] pb-[env(safe-area-inset-bottom)] px-3 md:px-4 border-t ide-divider bg-[var(--panel)] text-[12px] select-none">
         <div className="flex items-center gap-3 min-w-0">
           <button
             type="button"

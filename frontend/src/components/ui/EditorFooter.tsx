@@ -3,11 +3,11 @@ import { useOnlineStatus } from "../../hooks/useOnlineStatus";
 import { useVoice } from "../../lib/voice";
 
 // Bottom line of the note editor: export + sync status.
-const EditorFooter = ({ readOnly = false }: { readOnly?: boolean }) => {
+const EditorFooter = ({ readOnly = false, className = "" }: { readOnly?: boolean; className?: string }) => {
   const isOnline = useOnlineStatus();
   const { voice } = useVoice();
   return (
-    <div className="mt-4 flex flex-wrap items-center justify-between gap-2 text-[12px]">
+    <div className={`mt-3 sm:mt-4 flex flex-wrap items-center justify-between gap-2 text-[12px] ${className}`}>
       {voice ? (
         <span className="tok-dim">
           {voice.editorFooter}

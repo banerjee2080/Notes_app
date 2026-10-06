@@ -23,10 +23,10 @@ const Navbar = ({
 }: NavbarProps) => {
   const { voice } = useVoice();
   return (
-    <div className="flex items-center gap-2 px-3 md:px-5 py-3 border-b ide-divider shrink-0">
+    <div className="flex items-center gap-2 px-3 md:px-5 py-2.5 sm:py-3 border-b ide-divider shrink-0">
       {setSearchQuery ? (
-        <div className="flex flex-1 flex-wrap sm:flex-nowrap items-center gap-2 min-w-0">
-          <label className="relative flex-1 min-w-[180px]">
+        <div className="flex flex-1 items-center gap-2 min-w-0">
+          <label className="relative flex-1 min-w-0">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--fg-dim)]" />
             <input
               type="text"
@@ -50,10 +50,15 @@ const Navbar = ({
 
           {setDateFilter && (
             <label
-              className="flex items-center gap-1 ide-input !w-auto !py-0 !pr-1 h-[38px] shrink-0"
+              className={`relative flex items-center gap-1 ide-input !w-auto !py-0 h-[38px] shrink-0 max-sm:!px-2.5 sm:!pr-1 ${
+                dateFilter ? "max-sm:!border-[var(--kw)]" : ""
+              }`}
               title={voice ? "Filter by month" : "Filter by month. (Yes, in JS months are 0-indexed. Not here though.)"}
             >
-              <CalendarDays className="size-4 text-[var(--fg-dim)] mr-1" />
+              <CalendarDays className={`size-4 sm:mr-1 ${dateFilter ? "text-[var(--kw)]" : "text-[var(--fg-dim)]"}`} />
+              {dateFilter && (
+                <span className="sm:hidden text-[13px] text-[var(--fg)] tabular-nums">{dateFilter.slice(5)}/{dateFilter.slice(2, 4)}</span>
+              )}
               {!voice && (
                 <>
                   <span className="tok-kw hidden sm:inline">new</span>
@@ -66,14 +71,14 @@ const Navbar = ({
                 value={dateFilter || ""}
                 onChange={(e) => setDateFilter(e.target.value)}
                 aria-label="Filter by month"
-                className="bg-transparent outline-none text-[13px] text-[var(--str)] w-[130px]"
+                className="bg-transparent outline-none text-[13px] text-[var(--str)] w-[130px] max-sm:absolute max-sm:inset-0 max-sm:w-full max-sm:opacity-0"
               />
               {!voice && <span className="tok-punc hidden sm:inline">)</span>}
               {dateFilter && (
                 <button
                   type="button"
                   onClick={() => setDateFilter("")}
-                  className="ml-1 text-[var(--fg-dim)] hover:text-[var(--fg)]"
+                  className="ml-1 text-[var(--fg-dim)] hover:text-[var(--fg)] relative z-10"
                   aria-label="Clear month filter"
                 >
                   <X className="size-3.5" />

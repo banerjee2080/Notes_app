@@ -57,7 +57,7 @@ const Sidebar = () => {
 
       <aside
         className={`z-40 flex flex-col shrink-0 border-r ide-divider bg-[var(--panel)] md:bg-[color-mix(in_srgb,var(--panel)_70%,transparent)]
-          fixed md:static inset-y-0 left-0 w-[260px] transition-[transform,width,margin] duration-300
+          fixed md:static inset-y-0 left-0 w-[min(84vw,300px)] md:w-[260px] transition-[transform,width,margin] duration-300
           ${drawerOpen ? "translate-x-0" : "-translate-x-full"} md:translate-x-0
           ${sidebarOpen ? "" : "md:w-0 md:border-r-0 md:overflow-hidden"}`}
         aria-label="Navigation"
@@ -89,7 +89,7 @@ const Sidebar = () => {
           )}
 
           <ul className={voice ? "space-y-0.5" : "pl-3 space-y-0.5"}>
-            {TREE.map((item) => (
+            {TREE.filter((item) => !(theme === "common" && item.label === "history")).map((item) => (
               <li key={item.to}>
                 <NavLink
                   to={item.to}

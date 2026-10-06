@@ -47,7 +47,7 @@ const TitleBar = () => {
   };
 
   return (
-    <div className="ide-titlebar flex items-center justify-between gap-3 px-3 md:px-4 h-12 shrink-0 select-none">
+    <div className="ide-titlebar flex items-center justify-between gap-3 px-3 md:px-4 h-[calc(3rem+env(safe-area-inset-top))] pt-[env(safe-area-inset-top)] shrink-0 select-none">
       <div className="flex items-center gap-2 min-w-0">
         <button
           type="button"
@@ -130,7 +130,7 @@ const TitleBar = () => {
         <button
           type="button"
           onClick={onClose}
-          className="ide-icon-btn is-danger !w-7 !h-7 border !border-[var(--line)]"
+          className="hidden md:inline-flex ide-icon-btn is-danger !w-7 !h-7 border !border-[var(--line)]"
           title={voice ? "Sign out" : "process.exit() — sign out"}
           aria-label="Sign out"
         >

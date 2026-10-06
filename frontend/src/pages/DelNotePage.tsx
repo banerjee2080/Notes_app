@@ -74,8 +74,8 @@ const DelNotePage = ({ isModal }: { isModal?: boolean }) => {
   };
 
   const containerClasses = isModal
-    ? "fixed inset-0 z-50 flex justify-center items-start md:items-center ide-backdrop p-3 md:p-6 overflow-y-auto"
-    : "min-h-screen py-10 px-4 flex justify-center items-center";
+    ? "fixed inset-0 z-50 flex justify-center items-stretch sm:items-center ide-backdrop sm:p-4 md:p-6 max-sm:pt-[env(safe-area-inset-top)] max-sm:pb-[env(safe-area-inset-bottom)]"
+    : "h-[100dvh] flex justify-center items-stretch sm:items-center sm:p-4 md:p-8";
 
   const closePage = () => {
     navigate("/recycleBin");
@@ -98,8 +98,10 @@ const DelNotePage = ({ isModal }: { isModal?: boolean }) => {
 
   return (
     <div className={containerClasses} onClick={() => isModal && closePage()}>
-      <div className="w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
+      <div className="w-full max-w-3xl flex flex-col h-full sm:h-auto sm:max-h-full min-h-0" onClick={(e) => e.stopPropagation()}>
         <CodeWindow
+          className="note-window flex flex-col flex-auto min-h-0"
+          bodyClassName="flex flex-col flex-auto min-h-0 px-3 pt-3 pb-2 sm:p-5 md:p-7"
           fileName={isJs ? toFileName(note.title) : note.title || "Untitled"}
           status={<span className="ml-1 ide-chip !py-0 !text-[10.5px] tok-warn">{t({ js: "read-only", common: "In the bin", pythagoras: "Erased" })}</span>}
           onClose={closePage}
@@ -116,7 +118,7 @@ const DelNotePage = ({ isModal }: { isModal?: boolean }) => {
             </>
           }
         >
-          <div className="ide-note is-warn mb-5">
+          <div className="shrink-0 ide-note is-warn mb-4 sm:mb-5">
             {isJs ? (
               <>
                 <span className="tok-warn">{"// This note is in RecycleBin()."}</span>{" "}
@@ -138,7 +140,7 @@ const DelNotePage = ({ isModal }: { isModal?: boolean }) => {
           </div>
 
           {isJs ? (
-            <div className="flex items-center gap-2 border-b ide-divider pb-2 mb-4 text-lg">
+            <div className="shrink-0 flex items-center gap-2 border-b ide-divider pb-2 mb-4 text-lg">
               <span className="tok-kw text-[15px]">const</span>
               <span className="text-[15px] text-[var(--fg)]">title</span>
               <span className="tok-punc text-[15px]">=</span>
@@ -147,7 +149,7 @@ const DelNotePage = ({ isModal }: { isModal?: boolean }) => {
             </div>
           ) : (
             <h2
-              className="border-b ide-divider pb-2 mb-4 text-xl md:text-2xl font-semibold opacity-80 truncate"
+              className="shrink-0 border-b ide-divider pb-2 mb-4 text-xl md:text-2xl font-semibold opacity-80 truncate"
               style={{ fontFamily: "var(--font-content)" }}
             >
               {note.title || "Untitled"}
@@ -155,10 +157,10 @@ const DelNotePage = ({ isModal }: { isModal?: boolean }) => {
           )}
 
           <div
-            className="note-prose rounded-md border ide-divider px-5 py-4 min-h-[200px] opacity-80 bg-[color-mix(in_srgb,var(--bg)_40%,var(--win))]"
+            className="note-prose flex-auto min-h-0 overflow-y-auto ide-scroll rounded-md border ide-divider px-4 sm:px-5 py-4 min-h-[200px] opacity-80 bg-[color-mix(in_srgb,var(--bg)_40%,var(--win))]"
             dangerouslySetInnerHTML={{ __html: safeContent }}
           />
-          <EditorFooter readOnly />
+          <EditorFooter readOnly className="shrink-0" />
         </CodeWindow>
       </div>
     </div>

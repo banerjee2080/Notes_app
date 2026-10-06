@@ -245,7 +245,7 @@ const ProfilePage = () => {
           <div className="flex flex-col items-center md:w-56 shrink-0">
             <div className={`relative group ${!isOnline ? "cursor-not-allowed" : ""}`}>
               <div
-                className={`size-36 rounded-xl overflow-hidden border-2 ide-divider relative transition-all duration-300 ${
+                className={`size-28 sm:size-36 rounded-xl overflow-hidden border-2 ide-divider relative transition-all duration-300 ${
                   !isOnline ? "grayscale-[50%]" : "group-hover:border-[var(--kw)]"
                 }`}
               >
@@ -318,7 +318,7 @@ interface PlainProfileProps {
 }
 
 const Row = ({ label, children }: { label: string; children: ReactNode }) => (
-  <div className="grid grid-cols-[minmax(110px,30%)_1fr] gap-3 py-2.5 border-b ide-divider items-center">
+  <div className="grid grid-cols-1 sm:grid-cols-[minmax(110px,30%)_1fr] gap-1.5 sm:gap-3 py-2.5 border-b ide-divider sm:items-center">
     <span className="text-[13px] tok-dim">{label}</span>
     <div className="min-w-0 text-[var(--fg)]">{children}</div>
   </div>

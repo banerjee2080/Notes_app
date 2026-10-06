@@ -295,7 +295,7 @@ export default function CollabEditor({
   const off = !editable;
 
   return (
-    <div className="collab-editor overflow-hidden border ide-divider rounded-md bg-[var(--win)]">
+    <div className="collab-editor flex flex-col flex-auto min-h-0 overflow-hidden border ide-divider rounded-md bg-[var(--win)]">
       {codeDialog && (
         <Suspense fallback={null}>
           <CodeEditorModal
@@ -307,7 +307,7 @@ export default function CollabEditor({
           />
         </Suspense>
       )}
-      <div className="flex flex-wrap gap-1 p-1.5 border-b ide-divider">
+      <div className="editor-toolbar shrink-0 flex gap-1 p-1.5 border-b ide-divider overflow-x-auto sm:flex-wrap [&>*]:shrink-0">
         <ToolbarButton label={t({ js: "undo", common: "Undo" })} title="Undo" disabled={off} run={() => editor.chain().focus().undo().run()} />
         <ToolbarButton label={t({ js: "redo", common: "Redo" })} title="Redo" disabled={off} run={() => editor.chain().focus().redo().run()} />
         <ToolbarButton label="B" title="Bold" disabled={off} run={() => editor.chain().focus().toggleBold().run()} />
@@ -352,7 +352,9 @@ export default function CollabEditor({
           }}
         />
       </div>
-      <EditorContent editor={editor} />
+      <div className="editor-scroll flex-auto min-h-0 overflow-y-auto ide-scroll">
+        <EditorContent editor={editor} />
+      </div>
     </div>
   );
 }

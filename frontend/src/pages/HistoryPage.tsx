@@ -1,7 +1,7 @@
+import { Navigate } from "react-router";
 import AppShell from "../components/shell/AppShell";
 import Navbar from "../components/Navbar";
 import { TIMELINE } from "../lib/jsLore";
-import { COMMON_TIMELINE } from "../lib/commonLore";
 import { PYTH_TIMELINE } from "../lib/pythagorasLore";
 import { renderLatex, useKatex } from "../lib/math/katex";
 import { useCopy } from "../lib/voice";
@@ -14,8 +14,8 @@ interface Entry {
   foot: React.ReactNode;
 }
 
-// Each theme's history: JavaScript since 1995 (JS), writing things down
-// (Common), and the theorem before and after Pythagoras (Pythagoras).
+// The history page: JavaScript since 1995 (JS) or the theorem before and
+// after Pythagoras (Pythagoras). The Common theme has no history page.
 const HistoryPage = () => {
   const { theme, t } = useCopy();
   const katexReady = useKatex(theme === "pythagoras");
@@ -28,12 +28,7 @@ const HistoryPage = () => {
             <code className="mt-2 inline-block text-[12px] px-2 py-0.5 rounded bg-[var(--panel-2)] tok-str">{e.code}</code>
           ),
         }))
-      : theme === "common"
-        ? COMMON_TIMELINE.map((e) => ({
-            ...e,
-            foot: <p className="mt-2 text-[13px] italic tok-fn" style={{ fontFamily: "var(--font-content)" }}>{e.aside}</p>,
-          }))
-        : PYTH_TIMELINE.map((e) => {
+      : PYTH_TIMELINE.map((e) => {
             const html = katexReady ? renderLatex(e.latex, false) : null;
             return {
               ...e,
@@ -45,8 +40,10 @@ const HistoryPage = () => {
             };
           });
 
+  if (theme === "common") return <Navigate to="/" replace />;
+
   return (
-    <AppShell toolbar={<Navbar crumb={t({ js: "history.js", common: "History", pythagoras: "Chronology" })} />}>
+    <AppShell toolbar={<Navbar crumb={t({ js: "history.js", common: "", pythagoras: "Chronology" })} />}>
       <div className="max-w-3xl mx-auto px-4 md:px-6 py-6 md:py-8">
         {theme === "js" ? (
           <>
@@ -62,12 +59,12 @@ const HistoryPage = () => {
         ) : (
           <header className="mb-8">
             <h1 className="text-2xl md:text-3xl font-semibold" style={{ fontFamily: "var(--font-content)" }}>
-              {t({ js: "", common: "A short history of writing things down", pythagoras: "Chronology of a theorem" })}
+              {t({ js: "", common: "", pythagoras: "Chronology of a theorem" })}
             </h1>
             <p className="mt-2 tok-dim text-[15px] max-w-xl" style={{ fontFamily: "var(--font-content)" }}>
               {t({
                 js: "",
-                common: "Five thousand years of notes, from wet clay to this page.",
+                common: "",
                 pythagoras: "Pythagoras was not the first to know it, and Euclid was not the last to prove it.",
               })}
             </p>
@@ -120,7 +117,7 @@ const HistoryPage = () => {
           <p className="mt-8 text-[14px] tok-dim" style={{ fontFamily: "var(--font-content)" }}>
             {t({
               js: "",
-              common: "Your own notes are the next entry.",
+              common: "",
               pythagoras: "Q.E.D. Your own propositions come next.",
             })}
           </p>

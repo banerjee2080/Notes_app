@@ -40,7 +40,7 @@ const Dialog = ({
     // tree, so without this a click here would also hit the note modal's
     // "click outside to close" handler underneath.
     <div
-      className="fixed inset-0 z-[70] flex items-center justify-center p-4"
+      className="fixed inset-0 z-[70] flex items-end sm:items-center justify-center sm:p-4"
       onClick={(e) => e.stopPropagation()}
     >
       <div
@@ -50,7 +50,7 @@ const Dialog = ({
       <div
         role="dialog"
         aria-modal="true"
-        className={`relative w-full ${maxWidth} ide-dialog ${tone === "error" ? "is-error" : ""}`}
+        className={`sheet-sm relative w-full ${maxWidth} ide-dialog ${tone === "error" ? "is-error" : ""}`}
       >
         <div className="ide-dialog-head">
           <div className="flex items-center gap-2 min-w-0 font-medium">

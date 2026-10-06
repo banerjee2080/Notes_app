@@ -59,8 +59,9 @@ const ConfigPopover = () => {
         <Settings className={`size-[18px] transition-transform duration-500 ${open ? "rotate-90" : ""}`} />
       </button>
 
+      {open && <div className="sheet-scrim sm:hidden" onClick={() => setOpen(false)} aria-hidden="true" />}
       {open && voice && (
-        <div className="absolute right-0 top-full mt-2 w-[min(340px,calc(100vw-24px))] z-50 ide-dialog p-4 text-[13.5px] space-y-4">
+        <div className="sheet-sm absolute right-0 top-full mt-2 w-[min(340px,calc(100vw-24px))] z-50 ide-dialog p-4 text-[13.5px] space-y-4">
           <section className="space-y-2">
             <h3 className="text-[11.5px] uppercase tracking-[.12em] tok-dim">Theme</h3>
             <ThemePicker />
@@ -131,7 +132,7 @@ const ConfigPopover = () => {
       )}
 
       {open && !voice && (
-        <div className="absolute right-0 top-full mt-2 w-[min(330px,calc(100vw-24px))] z-50 ide-dialog p-4 text-[13px] leading-7">
+        <div className="sheet-sm absolute right-0 top-full mt-2 w-[min(330px,calc(100vw-24px))] z-50 ide-dialog p-4 text-[13px] leading-7">
           <div className="tok-com">{"// Config: {"}</div>
 
           <div className="pl-4">

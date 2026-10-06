@@ -1,6 +1,9 @@
 import { useCallback, useState } from "react";
 import type { ReactNode } from "react";
 import toast from "react-hot-toast";
+import { Link, useLocation } from "react-router";
+import { Plus } from "lucide-react";
+import { useVoice } from "../../lib/voice";
 import TitleBar from "./TitleBar";
 import Sidebar from "./Sidebar";
 import StatusBar from "./StatusBar";
@@ -31,6 +34,8 @@ const RAIN_TOKENS = ["{}", "=>", ";", "()", "[]", "===", "JS", "?.", "??", "`${}
 const AppShell = ({ toolbar, children }: AppShellProps) => {
   const { maximized } = useUiStore();
   const theme = useThemeStore((s) => s.theme);
+  const location = useLocation();
+  const { voice } = useVoice();
   const [rain, setRain] = useState<RainDrop[] | null>(null);
 
   const onKonami = useCallback(() => {
@@ -66,8 +71,17 @@ const AppShell = ({ toolbar, children }: AppShellProps) => {
           <Sidebar />
           <main className="flex-1 min-w-0 flex flex-col">
             {toolbar}
-            <div className="flex-1 overflow-y-auto ide-scroll">{children}</div>
+            <div className="flex-1 overflow-y-auto ide-scroll max-md:pb-20">{children}</div>
           </main>
+          {/* Phones: new note is one thumb-tap away, not two levels into the drawer. */}
+          <Link
+            to="/createNote"
+            state={{ backgroundLocation: location }}
+            aria-label={voice ? voice.newNote : "New note"}
+            className="fab md:hidden absolute right-4 bottom-4 z-20 size-14 grid place-items-center rounded-full shadow-lg active:scale-95 transition-transform"
+          >
+            <Plus className="size-6" />
+          </Link>
         </div>
         <StatusBar />
       </div>

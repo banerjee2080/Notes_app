@@ -88,11 +88,12 @@ export default function TripleFinder() {
         <Triangle className="size-3.5" />
       </button>
 
+      {open && <div className="sheet-scrim sm:hidden" onClick={() => setOpen(false)} aria-hidden="true" />}
       {open && (
         <div
           role="dialog"
           aria-label="Pythagorean triples"
-          className="absolute right-0 bottom-full mb-2 z-50 w-[min(340px,calc(100vw-24px))] ide-dialog text-[13px] normal-case tracking-normal"
+          className="sheet-sm absolute right-0 bottom-full mb-2 z-50 w-[min(340px,calc(100vw-24px))] ide-dialog text-[13px] normal-case tracking-normal"
         >
           <div className="ide-dialog-head">
             <span className="uppercase tracking-[.12em] text-[12px]">Triples · Euclid's formula</span>
