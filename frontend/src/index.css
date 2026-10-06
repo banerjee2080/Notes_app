@@ -2,7 +2,18 @@
 @import "@fontsource-variable/inter";
 @import "@fontsource-variable/jetbrains-mono";
 @import "@fontsource-variable/jetbrains-mono/wght-italic.css";
+/* Theme faces (Common, Pythagoras). Only downloaded when a theme uses them. */
+@import "@fontsource-variable/atkinson-hyperlegible-next";
+@import "@fontsource-variable/literata";
+@import "@fontsource-variable/literata/wght-italic.css";
+@import "@fontsource/barlow-condensed/400.css";
+@import "@fontsource/barlow-condensed/500.css";
+@import "@fontsource/barlow-condensed/600.css";
+@import "@fontsource-variable/eb-garamond";
+@import "@fontsource-variable/eb-garamond/wght-italic.css";
 @import "tailwindcss";
+@import "./themes.css";
+@import "./components/math/math.css";
 
 /* ------------------------------------------------------------------ *
  *  Note.js design tokens
@@ -11,6 +22,15 @@
  *  every token mixes them with a known-legible base so any
  *  wallpaper still produces readable "syntax colours".
  * ------------------------------------------------------------------ */
+/* Type roles; the JS theme is monospace everywhere but card previews.
+   Plain :root so any [data-theme] rule in themes.css overrides it. */
+:root {
+  --font-ui: var(--font-mono);
+  --font-content: var(--font-mono);
+  --font-prose: var(--font-sans);
+  --radius: 6px;
+}
+
 :root,
 :root[data-mode="dark"] {
   color-scheme: dark;
@@ -103,7 +123,7 @@ body { background: transparent; }
 
 body {
   color: var(--fg);
-  font-family: var(--font-mono);
+  font-family: var(--font-ui);
   font-size: 14px;
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
@@ -151,7 +171,7 @@ body {
 /* ---------- Buttons ---------- */
 .ide-btn {
   display: inline-flex; align-items: center; gap: 0.5rem;
-  font-family: var(--font-mono); font-size: 13px;
+  font-family: var(--font-ui); font-size: 13px;
   padding: 0.45rem 0.85rem; border-radius: 6px;
   border: 1px solid var(--line); background: var(--panel);
   color: var(--fg); transition: background .15s, border-color .15s, color .15s, transform .1s;
@@ -204,7 +224,7 @@ body {
 
 /* ---------- Inputs ---------- */
 .ide-input {
-  width: 100%; font-family: var(--font-mono); font-size: 13.5px;
+  width: 100%; font-family: var(--font-ui); font-size: 13.5px;
   background: color-mix(in srgb, var(--bg) 55%, var(--panel));
   border: 1px solid var(--line); border-radius: 6px;
   color: var(--fg); padding: 0.55rem 0.75rem;
@@ -305,7 +325,7 @@ body {
 ::-webkit-scrollbar-thumb { background: color-mix(in srgb, var(--fg-dim) 35%, transparent); border-radius: 10px; }
 
 /* Rendered note HTML (cards, read-only view) */
-.note-prose { font-family: var(--font-sans); color: var(--fg); line-height: 1.6; font-size: 14px; }
+.note-prose { font-family: var(--font-prose); color: var(--fg); line-height: 1.6; font-size: 14px; }
 .note-prose a { color: var(--fn); text-decoration: underline; }
 .note-prose code, .note-prose pre { font-family: var(--font-mono); background: var(--panel-2); border-radius: 4px; padding: 0 .25rem; }
 .note-prose img { max-width: 100%; border-radius: 6px; }

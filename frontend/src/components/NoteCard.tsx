@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { PenLine, Trash2, Undo2, FileCode2 } from "lucide-react";
+import { PenLine, Trash2, Undo2, FileCode2, FileText, Triangle } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import ConfirmModal from "./ConfirmModal";
 import toast from "react-hot-toast";
@@ -10,6 +10,8 @@ import { triggerSync } from "../lib/syncEngine";
 import { sanitizeHtml } from "../lib/sanitize";
 import { userIdOf } from "../types/user";
 import type { Note } from "../types/notes";
+import { useVoice } from "../lib/voice";
+import { useMathHtml } from "../lib/math/katex";
 
 interface NoteCardProps {
   note: Note;
@@ -25,6 +27,8 @@ const NoteCard = ({ note, mode }: NoteCardProps) => {
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
   const [actionType, setActionType] = useState<CardAction | null>(null);
   const safeContent = useMemo(() => sanitizeHtml(note.content), [note.content]);
+  const previewHtml = useMathHtml(safeContent);
+  const { theme, voice } = useVoice();
 
   const requestAction = (e: React.MouseEvent, action: CardAction) => {
     e.preventDefault();
@@ -89,34 +93,44 @@ const NoteCard = ({ note, mode }: NoteCardProps) => {
         {/* file header */}
         <div className="flex items-center justify-between gap-2 px-4 pt-3 pb-2 text-[12px]">
           <span className="flex items-center gap-1.5 min-w-0 tok-dim">
-            <FileCode2 className="size-3.5 tok-js shrink-0" />
-            <span className="truncate">{toFileName(note.title)}</span>
+            {theme === "pythagoras" ? (
+              <Triangle className="size-3.5 tok-js shrink-0" />
+            ) : voice ? (
+              <FileText className="size-3.5 tok-js shrink-0" />
+            ) : (
+              <FileCode2 className="size-3.5 tok-js shrink-0" />
+            )}
+            {!voice && <span className="truncate">{toFileName(note.title)}</span>}
           </span>
           <span className="tok-com shrink-0" title={formatDate(note.createdAt || note.updated_at)}>
-            {"// "}
+            {!voice && "// "}
             {timeAgo(note.updated_at || note.createdAt)}
           </span>
         </div>
 
-        {/* code body with a line-number gutter */}
+        {/* body; the JS theme draws it as code with a line-number gutter */}
         <div className="flex flex-1 px-4 pb-3 gap-3">
-          <div className="gutter text-[12px] leading-6 pt-px">
-            1<br />2<br />3<br />4
-          </div>
+          {!voice && (
+            <div className="gutter text-[12px] leading-6 pt-px">
+              1<br />2<br />3<br />4
+            </div>
+          )}
           <div className="min-w-0 flex-1">
-            <h2 className="text-[15px] leading-6 font-semibold text-[var(--fg)] line-clamp-1">
-              {note.title || <span className="tok-kw">undefined</span>}
+            <h2 className={`leading-6 font-semibold text-[var(--fg)] line-clamp-1 ${voice ? "text-[16px]" : "text-[15px]"}`}>
+              {note.title || (voice ? <span className="tok-dim">Untitled</span> : <span className="tok-kw">undefined</span>)}
             </h2>
             <div
               className="note-prose !text-[13px] !leading-6 text-[var(--fg-muted)] line-clamp-3 [&>*]:m-0 [&>p]:inline [&_img]:hidden"
-              dangerouslySetInnerHTML={{ __html: safeContent }}
+              dangerouslySetInnerHTML={{ __html: previewHtml }}
             />
           </div>
         </div>
 
         <div className="flex items-center justify-between px-4 py-2 border-t ide-divider bg-[color-mix(in_srgb,var(--bg)_25%,transparent)]">
           <span className="text-[11px] tok-dim">
-            {isBin ? (
+            {voice ? (
+              <span className={isBin ? "tok-warn" : "tok-ok"}>{isBin ? voice.cardInBin : voice.cardSaved}</span>
+            ) : isBin ? (
               <span className="tok-warn">{"// awaiting garbage collection"}</span>
             ) : (
               <>
@@ -127,7 +141,7 @@ const NoteCard = ({ note, mode }: NoteCardProps) => {
           </span>
           <div className="flex items-center gap-1">
             {!isBin && (
-              <span className="ide-icon-btn !w-7 !h-7" title="edit()">
+              <span className="ide-icon-btn !w-7 !h-7" title={voice ? "Edit" : "edit()"}>
                 <PenLine className="size-3.5" />
               </span>
             )}
@@ -135,7 +149,7 @@ const NoteCard = ({ note, mode }: NoteCardProps) => {
               type="button"
               onClick={(e) => requestAction(e, isBin ? "restore" : "delete")}
               className={`ide-icon-btn !w-7 !h-7 relative z-10 ${isBin ? "!text-[var(--ok)]" : "is-danger"}`}
-              title={isBin ? "restore()" : "delete note"}
+              title={isBin ? (voice ? "Restore" : "restore()") : "Delete note"}
               aria-label={isBin ? "Restore note" : "Delete note"}
             >
               {isBin ? <Undo2 className="size-3.5" /> : <Trash2 className="size-3.5" />}
@@ -148,13 +162,19 @@ const NoteCard = ({ note, mode }: NoteCardProps) => {
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
         onConfirm={confirmAction}
-        title={actionType === "delete" ? "Delete Note" : "Restore Note"}
+        title={
+          actionType === "delete"
+            ? theme === "pythagoras" ? "Erase this proposition?" : "Delete note"
+            : theme === "pythagoras" ? "Restore this proposition?" : "Restore note"
+        }
         message={
           actionType === "delete"
-            ? "This note moves to RecycleBin() and is garbage-collected after 30 days. Continue?"
-            : "Are you sure you want to restore this note?"
+            ? voice
+              ? `This note moves to the ${voice.nav.bin.toLowerCase()} and is deleted for good after 30 days. Continue?`
+              : "This note moves to RecycleBin() and is garbage-collected after 30 days. Continue?"
+            : "Restore this note to your notes?"
         }
-        confirmText={actionType === "delete" ? "Delete" : "Restore"}
+        confirmText={actionType === "delete" ? (theme === "pythagoras" ? "Erase" : "Delete") : "Restore"}
         isDestructive={actionType === "delete"}
       />
     </div>

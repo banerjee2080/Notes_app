@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg width="201.79mm" height="242.95mm" version="1.1" viewBox="0 0 201.79 242.95" xmlns="http://www.w3.org/2000/svg">
+ <g transform="translate(-3.9688 -26.988)">
+  <path d="m129.37 160.23a30.292 28.762 0 0 1 4.0583-14.381l26.233 14.381z" stroke-miterlimit="44.8" stroke-width="2.8"/>
+  <rect x="49.266" y="160.24" width="110.4" height="109" fill="#ffdc2b"/>
+  <rect transform="rotate(26.314)" x="64.66" y="71.245" width="50.55" height="50.55" stroke-miterlimit="44.8" stroke-width="2.8"/>
+  <rect transform="rotate(27.24)" x="116.36" y="-29.552" width="98.93" height="98.93" fill="#fa5438" stroke-miterlimit="44.8" stroke-width="2.8"/>
+  <rect x="49.266" y="160.24" width="22.439" height="109" fill="#002e7f"/>
+  <g stroke-miterlimit="44.8" stroke-width="2.8">
+   <path d="m71.703 114.94-22.437 45.297" fill="none" stroke="#ffd037"/>
+   <path d="m159.66 188.99a30.292 28.762 0 0 1-21.419-8.4241 30.292 28.762 0 0 1-8.8722-20.338h30.292z" fill="#002e7f"/>
+   <path d="m159.66 160.23-110.4 6e-3" stroke="#fa5438"/>
+   <path transform="matrix(.8891 .45772 .45772 -.8891 0 0)" d="m215.29-40.616a30.292 28.762 0 0 1-21.419-8.4241 30.292 28.762 0 0 1-8.8722-20.338h30.292z" fill="#ffdc2b"/>
+   <path d="m71.703 114.94c87.959 45.29 58.639 30.194 87.959 45.29" fill="none" stroke="#002e7f"/>
+  </g>
+  <g fill="#fa5438" stroke-miterlimit="44.8">
+   <path d="m159.66 160.23 2.7e-4 109.01" stroke="#000" stroke-dasharray="2.80001, 2.80001" stroke-width="2.8"/>
+   <path d="m71.705 114.94v154.3" stroke="#fa5438" stroke-dasharray="3, 1.5" stroke-width="1.5"/>
+   <g stroke-width="2.8">
+    <path d="m159.66 160.23 45.282-87.958" stroke="#002e7f" stroke-dasharray="2.80001, 2.80001"/>
+    <path d="m71.705 114.94 87.957 154.3" stroke="#000"/>
+    <path d="m49.266 160.24 155.68-87.969" stroke="#000"/>
+   </g>
+  </g>
+ </g>
+</svg>

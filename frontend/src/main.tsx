@@ -5,6 +5,15 @@ import App from "./App";
 import { Toaster, ToastBar, type ToastType } from "react-hot-toast";
 import { BrowserRouter } from "react-router";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { useThemeStore } from "./stores/useThemeStore";
+import { VOICES } from "./lib/voice";
+import ToastSound from "./components/ui/ToastSound";
+
+// Set the theme before the first paint so there's no flash of the wrong one.
+// (App keeps these in sync afterwards.)
+document.documentElement.dataset.theme = useThemeStore.getState().theme;
+document.documentElement.dataset.mode =
+  localStorage.getItem("themeMode") === "light" ? "light" : "dark";
 
 const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -55,7 +64,7 @@ createRoot(rootElement).render(
             border: "1px solid var(--line)",
             borderRadius: "6px",
             boxShadow: "var(--shadow)",
-            fontFamily: "var(--font-mono)",
+            fontFamily: "var(--font-ui)",
             fontSize: "12.5px",
             maxWidth: "460px",
             padding: "6px 10px",
@@ -71,6 +80,20 @@ createRoot(rootElement).render(
                 typeof t.message === "function" ? t.message(t) : t.message;
               const p = TOAST_PREFIX[t.type] || BLANK_PREFIX;
               const custom = t.type === "blank" && t.icon;
+              // Common / Pythagoras: plain sentences, no console.log("…").
+              const theme = useThemeStore.getState().theme;
+              if (theme !== "js") {
+                const marks = VOICES[theme].toastMark;
+                const mark = marks[t.type as keyof typeof marks] ?? marks.blank;
+                return (
+                  <ToastSound id={t.id} type={t.type}>
+                    <div className="flex items-start gap-2 py-0.5" role="status" aria-live="polite">
+                      <span className={`shrink-0 font-bold ${p.cls}`}>{custom ? icon : mark}</span>
+                      <span className="leading-5">{message}</span>
+                    </div>
+                  </ToastSound>
+                );
+              }
               return (
                 <div className="flex items-start gap-2 py-0.5">
                   {custom ? (

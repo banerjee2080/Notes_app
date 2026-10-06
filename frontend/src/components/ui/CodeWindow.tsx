@@ -1,4 +1,5 @@
-import { FileCode2, X } from "lucide-react";
+import { X } from "lucide-react";
+import { NoteIcon } from "./Themed";
 import type { ReactNode } from "react";
 import { CLOSE_SHORTCUT_LABEL } from "../../hooks/useCloseShortcut";
 
@@ -13,7 +14,8 @@ interface CodeWindowProps {
   bodyClassName?: string;
 }
 
-// A floating editor window: tab strip with a file name, optional status
+// A floating editor window: tab strip with a file name (a plain title in
+// the non-JS themes), optional status
 // (unsaved dot / saved tick), actions on the right, content below.
 const CodeWindow = ({
   fileName,
@@ -31,7 +33,7 @@ const CodeWindow = ({
         <div className="flex items-stretch min-w-0">
           <div className="flex items-center gap-2 px-4 py-2.5 text-[13px] bg-[var(--win)] border-r ide-divider relative min-w-0">
             <span className="absolute inset-x-0 top-0 h-[2px] bg-[var(--kw)]" />
-            {icon || <FileCode2 className="size-4 tok-js shrink-0" />}
+            {icon || <NoteIcon className="size-4 tok-js shrink-0" />}
             <span className="truncate text-[var(--fg)]">{fileName}</span>
             {status}
             {onClose && (

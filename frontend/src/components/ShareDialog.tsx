@@ -8,6 +8,8 @@ import { shareLinkFor, wrapForInvite } from "../lib/noteKeys";
 import { useAuthStore } from "../stores/useAuthStore";
 import { userIdOf } from "../types/user";
 import type { NoteRole } from "../types/notes";
+import { useCopy } from "../lib/voice";
+import { Remark } from "./ui/Themed";
 
 type InviteRole = Exclude<NoteRole, "owner">;
 type LinkRole = "editor" | "viewer";
@@ -69,6 +71,7 @@ const Avatar = ({ person }: { person: Person }) => (
 
 export default function ShareDialog({ noteId, onClose, noteKey, onRotateKey }: ShareDialogProps) {
   const { authUser } = useAuthStore();
+  const { t } = useCopy();
   const myId = userIdOf(authUser);
   const [state, setState] = useState<SharingState | null>(null);
   const [email, setEmail] = useState("");
@@ -175,13 +178,13 @@ export default function ShareDialog({ noteId, onClose, noteKey, onRotateKey }: S
 
   return (
     <Dialog
-      title="share(note)"
+      title={t({ js: "share(note)", common: "Share note", pythagoras: "Share with the circle" })}
       icon={<UsersIcon className="size-4" />}
       onClose={onClose}
       maxWidth="max-w-lg"
     >
       {!state ? (
-        <p className="text-xs tok-com">{"// loading…"}</p>
+        <p className="text-xs tok-com"><Remark>{t({ js: "loading…", common: "Loading…" })}</Remark></p>
       ) : (
         <div className="space-y-5">
           {canManage && (
@@ -206,14 +209,14 @@ export default function ShareDialog({ noteId, onClose, noteKey, onRotateKey }: S
                 <option value="viewer">can view</option>
               </select>
               <button type="submit" disabled={busy} className="ide-btn ide-btn-primary">
-                invite
+                {t({ js: "invite", common: "Invite" })}
               </button>
             </form>
           )}
 
           {canManage && (
             <section>
-              <h3 className="text-xs tok-com mb-2">{"// people with access"}</h3>
+              <h3 className="text-xs tok-com mb-2"><Remark>{t({ js: "people with access", common: "People with access" })}</Remark></h3>
               <ul className="space-y-2 max-h-64 overflow-y-auto pr-1">
                 {state.owner && (
                   <li className="flex items-center gap-3 text-sm">
@@ -260,14 +263,14 @@ export default function ShareDialog({ noteId, onClose, noteKey, onRotateKey }: S
                   );
                 })}
                 {!state.collaborators?.length && (
-                  <li className="text-xs tok-com">{"// not shared with anyone yet"}</li>
+                  <li className="text-xs tok-com"><Remark>{t({ js: "not shared with anyone yet", common: "Not shared with anyone yet" })}</Remark></li>
                 )}
               </ul>
             </section>
           )}
 
           <section>
-            <h3 className="text-xs tok-com mb-2">{"// general access"}</h3>
+            <h3 className="text-xs tok-com mb-2"><Remark>{t({ js: "general access", common: "General access" })}</Remark></h3>
             <div className="flex items-center gap-3 text-sm">
               <span className="size-8 rounded-full grid place-items-center shrink-0 border ide-divider">
                 {linkIsOpen ? <GlobeIcon className="size-4" /> : <LockIcon className="size-4" />}
@@ -306,21 +309,25 @@ export default function ShareDialog({ noteId, onClose, noteKey, onRotateKey }: S
               )}
             </div>
             <p className="text-xs tok-com mt-2">
-              {linkIsOpen
-                ? "// anyone signed in who opens the link gets access"
-                : "// only people added above can open the link"}
+              <Remark>
+                {linkIsOpen
+                  ? "Anyone signed in who opens the link gets access."
+                  : "Only people added above can open the link."}
+              </Remark>
             </p>
             {isEncrypted && (
               <p className="text-xs mt-2 flex items-start gap-1.5">
                 <ShieldCheckIcon className="size-3.5 shrink-0 mt-0.5 tok-kw" />
                 <span className="tok-com">
-                  {"// end-to-end encrypted: the copied link carries the key after '#', which never reaches the server. Anyone holding the link can read the note, so share it like a password."}
+                  <Remark>
+                    End-to-end encrypted: the copied link carries the key after “#”, which never reaches the server. Anyone holding the link can read the note, so share it like a password.
+                  </Remark>
                 </span>
               </p>
             )}
             {!canManage && (
               <p className="text-xs tok-com mt-1">
-                {"// only the owner or an admin can change who has access"}
+                <Remark>Only the owner or an admin can change who has access.</Remark>
               </p>
             )}
           </section>
@@ -328,7 +335,7 @@ export default function ShareDialog({ noteId, onClose, noteKey, onRotateKey }: S
           <div className="flex justify-end">
             <button type="button" onClick={copyLink} className="ide-btn ide-btn-primary">
               {copied ? <CheckIcon className="size-3.5" /> : <LinkIcon className="size-3.5" />}
-              {copied ? "copied" : "copy link"}
+              {copied ? t({ js: "copied", common: "Copied" }) : t({ js: "copy link", common: "Copy link" })}
             </button>
           </div>
         </div>

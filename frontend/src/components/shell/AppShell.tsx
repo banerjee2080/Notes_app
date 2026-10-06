@@ -6,6 +6,8 @@ import Sidebar from "./Sidebar";
 import StatusBar from "./StatusBar";
 import { useUiStore } from "../../stores/useUiStore";
 import { useKonami } from "../../hooks/useKonami";
+import { useThemeStore } from "../../stores/useThemeStore";
+import ThreeFourFive from "../pythagoras/ThreeFourFive";
 
 interface AppShellProps {
   /** Toolbar rendered above the page content (usually <Navbar />). */
@@ -28,9 +30,11 @@ const RAIN_TOKENS = ["{}", "=>", ";", "()", "[]", "===", "JS", "?.", "??", "`${}
 // The floating IDE window from the mockup. Every logged-in page renders inside.
 const AppShell = ({ toolbar, children }: AppShellProps) => {
   const { maximized } = useUiStore();
+  const theme = useThemeStore((s) => s.theme);
   const [rain, setRain] = useState<RainDrop[] | null>(null);
 
   const onKonami = useCallback(() => {
+    if (useThemeStore.getState().theme !== "js") return; // the JS theme's egg
     const drops = Array.from({ length: 42 }, (_, i): RainDrop => ({
       id: i,
       token: RAIN_TOKENS[i % RAIN_TOKENS.length],
@@ -67,6 +71,8 @@ const AppShell = ({ toolbar, children }: AppShellProps) => {
         </div>
         <StatusBar />
       </div>
+
+      {theme === "pythagoras" && <ThreeFourFive />}
 
       {rain && (
         <div className="pointer-events-none fixed inset-0 z-[90] overflow-hidden" aria-hidden="true">

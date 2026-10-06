@@ -260,7 +260,7 @@ export const useAuthStore = create<AuthState>()(
             image,
           );
           set({ authUser: res.data, _cachedAt: Date.now() });
-          toast.success("Theme changed successfully");
+          toast.success("Wallpaper updated");
         } catch (error) {
           toast.error(errorMessage(error));
         } finally {

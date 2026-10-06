@@ -21,11 +21,18 @@ import api from "../lib/axios";
 import { errorMessage } from "../lib/errors";
 import { languageFromClass, lastLanguageId } from "../lib/code/languages";
 import {
+  isBlockMathShortcut,
   isCodeEditorShortcut,
   isFocusContentShortcut,
+  isInlineMathShortcut,
+  MATH_BLOCK_SHORTCUT_LABEL,
+  MATH_INLINE_SHORTCUT_LABEL,
   useKeyShortcut,
 } from "../hooks/useKeyShortcut";
 import { NoteCodeBlock } from "./code/noteCodeBlock";
+import { MathExtensions, insertMath } from "./math/mathNodes";
+import { INSERT_MATH_EVENT, type InsertMathDetail } from "../lib/math/insertMathEvent";
+import { useCopy } from "../lib/voice";
 import type { CollabSession } from "../hooks/useCollabNote";
 
 // The code editor (CodeMirror, formatters, runner client) is only
@@ -117,6 +124,7 @@ export default function CollabEditor({
     onHtmlChangeRef.current = onHtmlChange;
   });
   const fileInput = useRef<HTMLInputElement>(null);
+  const { t } = useCopy();
 
   // Set while the code editor dialog is open.
   const [codeDialog, setCodeDialog] = useState<CodeDialogState | null>(null);
@@ -151,6 +159,7 @@ export default function CollabEditor({
         // The code block is replaced by NoteCodeBlock (adds Prism highlighting).
         StarterKit.configure({ undoRedo: false, codeBlock: false }),
         NoteCodeBlock,
+        ...MathExtensions,
         Image,
         TableKit,
         TextAlign.configure({ types: ["heading", "paragraph"] }),
@@ -198,6 +207,23 @@ export default function CollabEditor({
     },
     !codeDialog && editable,
   );
+
+  // Ctrl/Alt+M: equation in the line; with Shift: on its own line.
+  const mathKeysOn = !codeDialog && editable;
+  useKeyShortcut(isInlineMathShortcut, () => editor && insertMath(editor, "inline"), mathKeysOn);
+  useKeyShortcut(isBlockMathShortcut, () => editor && insertMath(editor, "block"), mathKeysOn);
+
+  // Other parts of the app (the Pythagoras triple finder) hand us equations.
+  useEffect(() => {
+    if (!editor || !editable) return;
+    const onInsert = (e: Event) => {
+      const { latex, kind } = (e as CustomEvent<InsertMathDetail>).detail;
+      insertMath(editor, kind, latex);
+      e.preventDefault(); // tells the sender a note took it
+    };
+    window.addEventListener(INSERT_MATH_EVENT, onInsert);
+    return () => window.removeEventListener(INSERT_MATH_EVENT, onInsert);
+  }, [editor, editable]);
 
   // The </> button: selected text -> inline code; otherwise the code editor.
   const codeButton = () => {
@@ -282,26 +308,38 @@ export default function CollabEditor({
         </Suspense>
       )}
       <div className="flex flex-wrap gap-1 p-1.5 border-b ide-divider">
-        <ToolbarButton label="undo" disabled={off} run={() => editor.chain().focus().undo().run()} />
-        <ToolbarButton label="redo" disabled={off} run={() => editor.chain().focus().redo().run()} />
-        <ToolbarButton label="B" disabled={off} run={() => editor.chain().focus().toggleBold().run()} />
-        <ToolbarButton label="I" disabled={off} run={() => editor.chain().focus().toggleItalic().run()} />
-        <ToolbarButton label="U" disabled={off} run={() => editor.chain().focus().toggleUnderline().run()} />
-        <ToolbarButton label="H2" disabled={off} run={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} />
-        <ToolbarButton label="• list" disabled={off} run={() => editor.chain().focus().toggleBulletList().run()} />
-        <ToolbarButton label="1. list" disabled={off} run={() => editor.chain().focus().toggleOrderedList().run()} />
+        <ToolbarButton label={t({ js: "undo", common: "Undo" })} title="Undo" disabled={off} run={() => editor.chain().focus().undo().run()} />
+        <ToolbarButton label={t({ js: "redo", common: "Redo" })} title="Redo" disabled={off} run={() => editor.chain().focus().redo().run()} />
+        <ToolbarButton label="B" title="Bold" disabled={off} run={() => editor.chain().focus().toggleBold().run()} />
+        <ToolbarButton label="I" title="Italic" disabled={off} run={() => editor.chain().focus().toggleItalic().run()} />
+        <ToolbarButton label="U" title="Underline" disabled={off} run={() => editor.chain().focus().toggleUnderline().run()} />
+        <ToolbarButton label={t({ js: "H2", common: "Heading" })} title="Heading" disabled={off} run={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} />
+        <ToolbarButton label={t({ js: "• list", common: "• List" })} title="Bulleted list" disabled={off} run={() => editor.chain().focus().toggleBulletList().run()} />
+        <ToolbarButton label={t({ js: "1. list", common: "1. List" })} title="Numbered list" disabled={off} run={() => editor.chain().focus().toggleOrderedList().run()} />
         <ToolbarButton
-          label="</>"
+          label={t({ js: "</>", common: "Code" })}
           disabled={off}
           run={codeButton}
           title="Code editor (Ctrl+Shift+C) — or inline code for selected text"
         />
         <ToolbarButton
-          label="table"
+          label="x²"
+          disabled={off}
+          run={() => insertMath(editor, "inline")}
+          title={`Equation in the line (${MATH_INLINE_SHORTCUT_LABEL}) — or type $a^2$`}
+        />
+        <ToolbarButton
+          label="∑"
+          disabled={off}
+          run={() => insertMath(editor, "block")}
+          title={`Equation on its own line (${MATH_BLOCK_SHORTCUT_LABEL}) — or type $$ and a space`}
+        />
+        <ToolbarButton
+          label={t({ js: "table", common: "Table" })}
           disabled={off}
           run={() => editor.chain().focus().insertTable({ rows: 3, cols: 3, withHeaderRow: true }).run()}
         />
-        <ToolbarButton label="image" disabled={off} run={() => fileInput.current?.click()} />
+        <ToolbarButton label={t({ js: "image", common: "Image" })} disabled={off} run={() => fileInput.current?.click()} />
         <input
           ref={fileInput}
           type="file"

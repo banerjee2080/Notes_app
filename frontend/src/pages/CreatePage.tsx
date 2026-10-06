@@ -9,6 +9,7 @@ import { registerBackgroundSync } from "../lib/syncEngine";
 import { useAuthStore } from "../stores/useAuthStore";
 import { userIdOf } from "../types/user";
 import type { Note } from "../types/notes";
+import { useCopy } from "../lib/voice";
 
 // "New note" creates an empty note straight away and opens it in the
 // collaborative editor (NotePage), so it can be shared from the first second.
@@ -17,6 +18,7 @@ const CreatePage = ({ isModal }: { isModal?: boolean }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const { authUser } = useAuthStore();
+  const { t } = useCopy();
   // Kept in state so StrictMode's second effect run reuses the same id
   // instead of creating a second note.
   const [noteId] = useState(() => uuidv4());
@@ -76,7 +78,7 @@ const CreatePage = ({ isModal }: { isModal?: boolean }) => {
           : "min-h-screen flex justify-center items-center"
       }
     >
-      <CodeSpinner label="new Note()…" />
+      <CodeSpinner label={t({ js: "new Note()…", common: "Creating your note…", pythagoras: "Constructing a note…" })} />
     </div>
   );
 };

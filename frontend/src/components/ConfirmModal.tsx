@@ -1,5 +1,6 @@
 import { TriangleAlert, CircleHelp } from "lucide-react";
 import Dialog from "./ui/Dialog";
+import { useCopy } from "../lib/voice";
 
 interface ConfirmModalProps {
   isOpen: boolean;
@@ -11,8 +12,8 @@ interface ConfirmModalProps {
   isDestructive?: boolean;
 }
 
-// "Uncaught TypeError"-style confirmation. Same props as before, so every
-// caller (delete / restore / empty bin) keeps working unchanged.
+// Every confirmation (delete / restore / empty bin / encrypt). The JS theme
+// dresses it as an exception with try/catch buttons; the others say it plainly.
 const ConfirmModal = ({
   isOpen,
   onClose,
@@ -22,6 +23,7 @@ const ConfirmModal = ({
   confirmText,
   isDestructive = false,
 }: ConfirmModalProps) => {
+  const { isJs, t } = useCopy();
   if (!isOpen) return null;
 
   // "Empty Bin" -> emptyBin()
@@ -30,6 +32,11 @@ const ConfirmModal = ({
       .split(/\s+/)
       .map((w, i) => (i === 0 ? w.toLowerCase() : w[0].toUpperCase() + w.slice(1).toLowerCase()))
       .join("") + "()";
+
+  const confirm = () => {
+    onConfirm();
+    onClose();
+  };
 
   return (
     <Dialog
@@ -43,32 +50,45 @@ const ConfirmModal = ({
           <CircleHelp className="size-4 shrink-0 tok-fn" />
         )
       }
-      title={isDestructive ? `Uncaught Warning: ${title}` : `confirm("${title}")`}
+      title={isJs ? (isDestructive ? `Uncaught Warning: ${title}` : `confirm("${title}")`) : title}
       footer={
-        <>
-          <button type="button" onClick={onClose} className="ide-btn min-w-[120px] justify-center">
-            <span>
-              <span className="tok-kw">catch</span>
-              <span className="tok-punc"> (e) {"{}"}</span>
-            </span>
-          </button>
-          <button
-            type="button"
-            autoFocus
-            onClick={() => {
-              onConfirm();
-              onClose();
-            }}
-            className={`ide-btn min-w-[120px] justify-center ${isDestructive ? "ide-btn-danger" : "ide-btn-primary"}`}
-          >
-            <span>
-              <span className="tok-kw">try</span>
-              <span className="tok-punc"> {"{ "}</span>
-              {fnName}
-              <span className="tok-punc">{" }"}</span>
-            </span>
-          </button>
-        </>
+        isJs ? (
+          <>
+            <button type="button" onClick={onClose} className="ide-btn min-w-[120px] justify-center">
+              <span>
+                <span className="tok-kw">catch</span>
+                <span className="tok-punc"> (e) {"{}"}</span>
+              </span>
+            </button>
+            <button
+              type="button"
+              autoFocus
+              onClick={confirm}
+              className={`ide-btn min-w-[120px] justify-center ${isDestructive ? "ide-btn-danger" : "ide-btn-primary"}`}
+            >
+              <span>
+                <span className="tok-kw">try</span>
+                <span className="tok-punc"> {"{ "}</span>
+                {fnName}
+                <span className="tok-punc">{" }"}</span>
+              </span>
+            </button>
+          </>
+        ) : (
+          <>
+            <button type="button" onClick={onClose} className="ide-btn min-w-[110px] justify-center">
+              {t({ js: "", common: "Cancel", pythagoras: "Let it stand" })}
+            </button>
+            <button
+              type="button"
+              autoFocus
+              onClick={confirm}
+              className={`ide-btn min-w-[110px] justify-center ${isDestructive ? "ide-btn-danger" : "ide-btn-primary"}`}
+            >
+              {confirmText}
+            </button>
+          </>
+        )
       }
     >
       <p className="text-[13.5px] leading-relaxed text-[var(--fg)]">{message}</p>

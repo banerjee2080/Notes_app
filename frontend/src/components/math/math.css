@@ -1,0 +1,108 @@
+/* Equations in the editor, in previews, and the equation editor panel. */
+
+.math-host { display: contents; }
+.math-node.math-inline { display: inline; }
+.math-node.math-block { display: block; margin: .8em 0; text-align: center; }
+
+.math-render { border-radius: 4px; padding: 0 2px; transition: background-color .12s, box-shadow .12s; }
+.math-block .math-render { display: block; padding: .55em .75em; border-radius: 6px; overflow-x: auto; overflow-y: hidden; }
+.ProseMirror[contenteditable="true"] .math-render { cursor: pointer; }
+.ProseMirror[contenteditable="true"] .math-render:hover { background: color-mix(in srgb, var(--kw) 9%, transparent); }
+.math-node.is-selected .math-render,
+.math-node.is-editing .math-render {
+  background: color-mix(in srgb, var(--kw) 14%, transparent);
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--kw) 45%, transparent);
+}
+/* ProseMirror's own node-selection outline would double up with ours. */
+.collab-editor .ProseMirror .math-node.ProseMirror-selectednode { outline: none; }
+
+.math-empty {
+  font-family: var(--font-ui); font-style: italic; font-size: .82em; color: var(--fg-dim);
+  border: 1px dashed var(--line); border-radius: 4px; padding: 0 .45em;
+}
+.math-source { font-family: var(--font-mono); font-size: .9em; color: var(--str); }
+
+.katex { font-size: 1.08em; }
+.math-block .katex-display, .note-prose .katex-display { margin: 0; }
+.katex-error { color: var(--err) !important; font-family: var(--font-mono); font-size: .85em; }
+.note-prose [data-type="block-math"] { display: block; text-align: center; margin: .25em 0; }
+
+/* ---------- Editor panel ---------- */
+.math-editor {
+  position: fixed; z-index: 120;
+  width: min(460px, calc(100vw - 16px));
+  font-family: var(--font-ui); color: var(--fg);
+}
+.math-editor.is-block { width: min(600px, calc(100vw - 16px)); }
+
+.math-editor-head {
+  display: flex; align-items: center; justify-content: space-between; gap: .5rem;
+  padding: 6px 8px; border-bottom: 1px solid var(--line);
+  background: color-mix(in srgb, var(--panel) 70%, transparent);
+}
+.math-tabs { display: inline-flex; padding: 2px; border-radius: 7px; background: var(--panel-2); }
+.math-tabs button {
+  font: 500 12px var(--font-ui); padding: 3px 11px; border-radius: 5px; color: var(--fg-muted);
+  transition: background-color .12s, color .12s;
+}
+.math-tabs button[aria-selected="true"] { background: var(--win); color: var(--fg); box-shadow: 0 1px 2px rgba(0, 0, 0, .14); }
+.math-tabs button:disabled { opacity: .45; cursor: not-allowed; }
+.math-tabs button:focus-visible { outline: 2px solid var(--kw); outline-offset: 1px; }
+
+.math-editor-field { display: flex; align-items: center; min-height: 68px; padding: 12px 14px; }
+.math-editor-field math-field {
+  width: 100%; font-size: 1.5rem; color: var(--fg);
+  background: transparent; border: 0; outline: none;
+  --caret-color: var(--fn);
+  --primary: var(--kw);
+  --selection-background-color: var(--selection);
+  --selection-color: var(--fg);
+  --contains-highlight-background-color: color-mix(in srgb, var(--kw) 10%, transparent);
+  --placeholder-color: var(--fg-dim);
+  --smart-fence-color: var(--fg-dim);
+  --smart-fence-opacity: .6;
+}
+.math-editor-field math-field:focus,
+.math-editor-field math-field:focus-within { outline: none; }
+.math-editor-field math-field::part(virtual-keyboard-toggle) { display: none; } /* ours sits in the header */
+.math-editor-field math-field::part(menu-toggle) { color: var(--fg-dim); }
+.math-editor.is-block .math-editor-field math-field { font-size: 1.65rem; }
+
+.math-editor-latex textarea {
+  display: block; width: 100%; resize: vertical; outline: none; border: 0;
+  border-bottom: 1px solid var(--line); padding: 10px 14px;
+  font: 13.5px/1.6 var(--font-mono); color: var(--str);
+  background: color-mix(in srgb, var(--bg) 45%, var(--panel));
+}
+.math-editor-latex textarea::placeholder { color: var(--fg-dim); }
+.math-editor-preview { min-height: 52px; padding: 12px 14px; text-align: center; overflow-x: auto; }
+
+.math-editor-hints {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 4px 7px;
+  padding: 6px 10px; border-top: 1px solid var(--line);
+  font-size: 11px; color: var(--fg-dim);
+  background: color-mix(in srgb, var(--panel) 55%, transparent);
+}
+.math-editor-hints kbd {
+  font: 10.5px var(--font-mono); padding: 0 4px; margin-right: 1px;
+  border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 3px;
+  background: var(--panel); color: var(--fg-muted);
+}
+
+/* MathLive's on-screen keyboard, in the current theme's colours. */
+.ML__keyboard {
+  --keyboard-background: var(--panel);
+  --keyboard-border: var(--line);
+  --keyboard-toolbar-text: var(--fg-muted);
+  --keyboard-toolbar-text-active: var(--kw);
+  --keycap-background: var(--win);
+  --keycap-background-hover: var(--panel-2);
+  --keycap-border: var(--line);
+  --keycap-border-bottom: var(--line);
+  --keycap-text: var(--fg);
+  --keycap-secondary-background: var(--panel-2);
+  --keycap-secondary-text: var(--fg);
+  --keycap-primary-background: var(--kw);
+  --keycap-primary-text: var(--win);
+  --keyboard-zindex: 130;
+}

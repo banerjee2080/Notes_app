@@ -14,7 +14,8 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import { useGoogleLogin } from "@react-oauth/google";
-import AuthFrame, { CodeField, GoogleGlyph } from "../components/ui/AuthFrame";
+import AuthFrame, { AuthHeading, CodeField, GoogleGlyph } from "../components/ui/AuthFrame";
+import { useCopy } from "../lib/voice";
 import api from "../lib/axios";
 import { errorMessage, errorStatus, errorBody } from "../lib/errors";
 
@@ -30,6 +31,7 @@ interface SignUpForm {
 type PasswordField = "password" | "confirmPassword";
 
 const SignUpPage = () => {
+  const { isJs, t } = useCopy();
   const [formData, setFromData] = useState<SignUpForm>({
     fullName: "",
     email: "",
@@ -202,14 +204,32 @@ const SignUpPage = () => {
   );
 
   return (
-    <AuthFrame fileName={takeOtp ? "verify.js" : "signup.js"}>
+    <AuthFrame
+      fileName={
+        takeOtp
+          ? t({ js: "verify.js", common: "Check your email", pythagoras: "The oath" })
+          : t({ js: "signup.js", common: "Create account", pythagoras: "Join the school" })
+      }
+    >
       {!takeOtp ? (
         <>
-          <h1 className="text-xl mb-1">
-            <span className="tok-kw">async function</span> <span className="tok-fn">signup</span>
-            <span className="tok-punc">() {"{"}</span>
-          </h1>
-          <p className="text-[12.5px] tok-com mb-6">{"// create an account — your notes sync across your devices"}</p>
+          <AuthHeading
+            js={
+              <>
+                <h1 className="text-xl mb-1">
+                  <span className="tok-kw">async function</span> <span className="tok-fn">signup</span>
+                  <span className="tok-punc">() {"{"}</span>
+                </h1>
+                <p className="text-[12.5px] tok-com mb-6">{"// create an account — your notes sync across your devices"}</p>
+              </>
+            }
+            title={t({ js: "", common: "Create your account", pythagoras: "Join the mathematikoi" })}
+            sub={t({
+              js: "",
+              common: "Your notes will sync across all your devices.",
+              pythagoras: "The Pythagoreans who studied, rather than only listened, were the mathematikoi, “those who learn”.",
+            })}
+          />
 
           <button
             type="button"
@@ -217,25 +237,29 @@ const SignUpPage = () => {
             className="ide-btn w-full justify-center !py-2.5 mb-5"
           >
             <GoogleGlyph />
-            <span>
-              <span className="tok-fn">signUpWith</span>
-              <span className="tok-punc">(</span>Google<span className="tok-punc">)</span>
-            </span>
+            {isJs ? (
+              <span>
+                <span className="tok-fn">signUpWith</span>
+                <span className="tok-punc">(</span>Google<span className="tok-punc">)</span>
+              </span>
+            ) : (
+              <span>Sign up with Google</span>
+            )}
           </button>
 
           <div className="flex items-center gap-3 mb-5 text-[11px] tok-dim">
             <span className="flex-1 border-t ide-divider" />
-            {"// or"}
+            {isJs ? "// or" : "or"}
             <span className="flex-1 border-t ide-divider" />
           </div>
 
           <form onSubmit={handleSubmit} className="space-y-4">
-            <CodeField kw="let" name="fullName">
+            <CodeField kw="let" name="fullName" label="Full name">
               <div className="relative">
                 <User className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--fg-dim)]" />
                 <input
                   type="text"
-                  placeholder="'Ada Lovelace'"
+                  placeholder={isJs ? "'Ada Lovelace'" : t({ js: "", common: "Ada Lovelace", pythagoras: "Theano of Croton" })}
                   className="ide-input !pl-9"
                   autoComplete="name"
                   value={formData.fullName}
@@ -244,12 +268,12 @@ const SignUpPage = () => {
               </div>
             </CodeField>
 
-            <CodeField kw="let" name="email">
+            <CodeField kw="let" name="email" label="Email">
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--fg-dim)]" />
                 <input
                   type="email"
-                  placeholder="'you@example.com'"
+                  placeholder={isJs ? "'you@example.com'" : "you@example.com"}
                   className="ide-input !pl-9"
                   autoComplete="email"
                   value={formData.email}
@@ -258,17 +282,17 @@ const SignUpPage = () => {
               </div>
             </CodeField>
 
-            <CodeField kw="let" name="password">
-              {passwordInput(formData.password, "password", showPassword, setShowPassword, "'at least 6 chars'", "new-password")}
+            <CodeField kw="let" name="password" label="Password">
+              {passwordInput(formData.password, "password", showPassword, setShowPassword, isJs ? "'at least 6 chars'" : "At least 6 characters", "new-password")}
             </CodeField>
 
-            <CodeField kw="let" name="confirmPassword">
+            <CodeField kw="let" name="confirmPassword" label="Confirm password">
               {passwordInput(
                 formData.confirmPassword,
                 "confirmPassword",
                 showConfirmPassword,
                 setShowConfirmPassword,
-                "'same again'",
+                isJs ? "'same again'" : "Same again",
                 "new-password",
               )}
             </CodeField>
@@ -281,10 +305,10 @@ const SignUpPage = () => {
               {isSendingOtp ? (
                 <>
                   <Loader2 className="size-4 animate-spin" />
-                  await sendOtp(email)…
+                  {t({ js: "await sendOtp(email)…", common: "Sending code…" })}
                 </>
               ) : (
-                "await sendOtp(email);"
+                t({ js: "await sendOtp(email);", common: "Continue", pythagoras: "Take the oath" })
               )}
             </button>
           </form>
@@ -297,21 +321,32 @@ const SignUpPage = () => {
             className="ide-btn ide-btn-ghost !px-2 !py-1 text-xs -ml-2"
           >
             <ArrowLeft className="size-3.5" />
-            history.back()
+            {t({ js: "history.back()", common: "Back" })}
           </button>
 
-          <div>
-            <h1 className="text-xl mb-1">
-              <span className="tok-kw">await</span> <span className="tok-fn">verify</span>
-              <span className="tok-punc">(</span>otp<span className="tok-punc">)</span>
-            </h1>
-            <p className="text-[12.5px] tok-com">
-              {"// we sent a 6-digit code to "}
-              <span className="tok-str not-italic">"{formData.email}"</span>
-            </p>
-          </div>
+          {isJs ? (
+            <div>
+              <h1 className="text-xl mb-1">
+                <span className="tok-kw">await</span> <span className="tok-fn">verify</span>
+                <span className="tok-punc">(</span>otp<span className="tok-punc">)</span>
+              </h1>
+              <p className="text-[12.5px] tok-com">
+                {"// we sent a 6-digit code to "}
+                <span className="tok-str not-italic">"{formData.email}"</span>
+              </p>
+            </div>
+          ) : (
+            <div>
+              <h1 className="text-[26px] font-semibold leading-tight mb-1" style={{ fontFamily: "var(--font-content)" }}>
+                {t({ js: "", common: "Check your email", pythagoras: "Your oath, by email" })}
+              </h1>
+              <p className="text-[14px] tok-dim">
+                We sent a 6-digit code to <span className="text-[var(--fg)] font-medium">{formData.email}</span>
+              </p>
+            </div>
+          )}
 
-          <CodeField kw="const" name="otp">
+          <CodeField kw="const" name="otp" label="Code">
             <div className="relative">
               <ShieldCheck className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--fg-dim)]" />
               <input
@@ -335,23 +370,34 @@ const SignUpPage = () => {
             {isVerifyingOtp || isSigningUp ? (
               <>
                 <Loader2 className="size-4 animate-spin" />
-                {isSigningUp ? "creating account…" : "verifying…"}
+                {isSigningUp
+                  ? t({ js: "creating account…", common: "Creating account…" })
+                  : t({ js: "verifying…", common: "Verifying…" })}
               </>
             ) : (
-              "verify(otp);"
+              t({ js: "verify(otp);", common: "Verify", pythagoras: "Swear it" })
             )}
           </button>
 
           <div className="text-center text-[12.5px]">
             {resendTimer > 0 ? (
-              <p className="tok-dim">
-                <span className="tok-fn">setTimeout</span>
-                <span className="tok-punc">(</span>resend<span className="tok-punc">, </span>
-                <span className="tok-num">
-                  {Math.floor(resendTimer / 60)}:{(resendTimer % 60).toString().padStart(2, "0")}
-                </span>
-                <span className="tok-punc">)</span>
-              </p>
+              isJs ? (
+                <p className="tok-dim">
+                  <span className="tok-fn">setTimeout</span>
+                  <span className="tok-punc">(</span>resend<span className="tok-punc">, </span>
+                  <span className="tok-num">
+                    {Math.floor(resendTimer / 60)}:{(resendTimer % 60).toString().padStart(2, "0")}
+                  </span>
+                  <span className="tok-punc">)</span>
+                </p>
+              ) : (
+                <p className="tok-dim">
+                  Resend the code in{" "}
+                  <span className="tabular-nums text-[var(--fg)]">
+                    {Math.floor(resendTimer / 60)}:{(resendTimer % 60).toString().padStart(2, "0")}
+                  </span>
+                </p>
+              )
             ) : (
               <button
                 type="button"
@@ -359,19 +405,21 @@ const SignUpPage = () => {
                 disabled={isSendingOtp}
                 className="tok-fn hover:underline disabled:opacity-50"
               >
-                {isSendingOtp ? "sending…" : "resendOtp()"}
+                {isSendingOtp
+                  ? t({ js: "sending…", common: "Sending…" })
+                  : t({ js: "resendOtp()", common: "Resend code" })}
               </button>
             )}
           </div>
         </form>
       )}
 
-      {!takeOtp && <p className="text-lg tok-punc mt-5">{"}"}</p>}
+      {!takeOtp && isJs && <p className="text-lg tok-punc mt-5">{"}"}</p>}
 
       <p className="text-[12.5px] text-center mt-4 tok-dim">
-        {"// already have an account? "}
+        {t({ js: "// already have an account? ", common: "Already have an account? ", pythagoras: "Already a student? " })}
         <Link to="/login" className="tok-fn hover:underline">
-          login()
+          {t({ js: "login()", common: "Sign in", pythagoras: "Enter the Academy" })}
         </Link>
       </p>
     </AuthFrame>

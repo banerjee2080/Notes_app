@@ -11,12 +11,17 @@ import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import ConfirmModal from "../components/ConfirmModal";
 import { emptyBin } from "../lib/noteCommands";
 import type { Note } from "../types/notes";
+import { useCopy } from "../lib/voice";
+import { Remark } from "../components/ui/Themed";
 
 const RecycleBinPage = () => {
   const [deletedNotes, setDeletedNotes] = useState<Note[]>([]);
   const { authUser } = useAuthStore();
   const isOnline = useOnlineStatus();
   const [isConfirmModalOpen, setIsConfirmModalOpen] = useState(false);
+  const { isJs, t } = useCopy();
+  // Read once per render pass, outside the list, so rendering stays pure.
+  const [now] = useState(() => Date.now());
 
   useEffect(() => {
     const userId = authUser?._id;
@@ -96,22 +101,28 @@ const RecycleBinPage = () => {
       // binned notes in IndexedDB must survive.
       await emptyBin(authUser._id);
       setDeletedNotes([]);
-      toast.success("Recycle bin cleared successfully.");
+      toast.success("Bin emptied");
     } catch (error) {
-      toast.error("Error in clearing the recycle bin ");
+      toast.error("Couldn't empty the bin");
       console.log("Error in clearing the recycle bin ", error);
     }
   };
 
   return (
-    <AppShell toolbar={<Navbar crumb="RecycleBin.js" />}>
+    <AppShell toolbar={<Navbar crumb={t({ js: "RecycleBin.js", common: "Bin", pythagoras: "Erased" })} />}>
       <div className="max-w-6xl mx-auto px-3 md:px-6 py-5 md:py-6">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-          <h1 className="text-lg md:text-xl">
-            <span className="tok-kw">function</span>{" "}
-            <span className="tok-fn">RecycleBin</span>
-            <span className="tok-punc">() {"{"}</span>
-          </h1>
+          {isJs ? (
+            <h1 className="text-lg md:text-xl">
+              <span className="tok-kw">function</span>{" "}
+              <span className="tok-fn">RecycleBin</span>
+              <span className="tok-punc">() {"{"}</span>
+            </h1>
+          ) : (
+            <h1 className="text-2xl font-semibold" style={{ fontFamily: "var(--font-content)" }}>
+              {t({ js: "", common: "Bin", pythagoras: "Erased propositions" })}
+            </h1>
+          )}
 
           {deletedNotes.length > 0 && (
             <button
@@ -122,40 +133,66 @@ const RecycleBinPage = () => {
               title={isOnline ? "Permanently delete everything" : "Needs a connection"}
             >
               <Trash2Icon className="size-4" />
-              <span>
-                globalThis.<span className="tok-fn">gc</span>()
-              </span>
+              {isJs ? (
+                <span>
+                  globalThis.<span className="tok-fn">gc</span>()
+                </span>
+              ) : (
+                <span>{t({ js: "", common: "Empty bin", pythagoras: "Wipe the slate" })}</span>
+              )}
             </button>
           )}
         </div>
 
         <p className="ide-note mb-6 tok-com">
-          {"// Deleted notes wait here for 30 days, then they're garbage-collected for good."}
+          <Remark>
+            {t({
+              js: "Deleted notes wait here for 30 days, then they're garbage-collected for good.",
+              common: "Deleted notes wait here for 30 days, then they're gone for good.",
+              pythagoras: "Erased propositions wait here for 30 days, then the slate is wiped for good.",
+            })}
+          </Remark>
           {!isOnline && deletedNotes.length > 0 && (
-            <span className="tok-warn"> {"// emptying the bin needs a connection"}</span>
+            <span className="tok-warn">
+              {" "}
+              <Remark>{t({ js: "emptying the bin needs a connection", common: "Emptying the bin needs a connection." })}</Remark>
+            </span>
           )}
         </p>
 
         {deletedNotes.length === 0 ? (
           <div className="max-w-md mx-auto mt-8 ide-card !bg-[var(--panel)] px-6 py-8 text-center animate-slide-up">
             <Recycle className="size-10 mx-auto mb-4 tok-ok opacity-80" />
-            <p className="text-[13.5px]">
-              <span className="tok-kw">return</span> <span className="tok-punc">[];</span>
-            </p>
-            <p className="text-xs tok-com mt-2">{"// heap is clean — nothing to collect"}</p>
+            {isJs ? (
+              <>
+                <p className="text-[13.5px]">
+                  <span className="tok-kw">return</span> <span className="tok-punc">[];</span>
+                </p>
+                <p className="text-xs tok-com mt-2">{"// heap is clean — nothing to collect"}</p>
+              </>
+            ) : (
+              <>
+                <p className="text-[17px] font-semibold" style={{ fontFamily: "var(--font-content)" }}>
+                  {t({ js: "", common: "The bin is empty", pythagoras: "The slate is clean" })}
+                </p>
+                <p className="text-[13px] tok-dim mt-1">
+                  {t({ js: "", common: "Nothing to restore or delete.", pythagoras: "Nothing erased, nothing to recover." })}
+                </p>
+              </>
+            )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
             {deletedNotes.map((deletedNote) => {
               const daysPassed = Math.floor(
-                (Date.now() - new Date(deletedNote.updated_at).getTime()) / (1000 * 60 * 60 * 24),
+                (now - new Date(deletedNote.updated_at).getTime()) / (1000 * 60 * 60 * 24),
               );
               const daysLeft = Math.max(0, 30 - daysPassed);
               return (
                 <div key={deletedNote.id} className="flex flex-col gap-1.5 animate-slide-up">
                   <NoteCard mode="delete" note={deletedNote} />
                   <span className={`text-[11.5px] text-center ${daysLeft <= 3 ? "tok-err" : "tok-com"}`}>
-                    {"// GC in "}
+                    {t({ js: "// GC in ", common: "Deleted for good in ", pythagoras: "Wiped in " })}
                     {daysLeft} {daysLeft === 1 ? "day" : "days"}
                   </span>
                 </div>
@@ -164,16 +201,19 @@ const RecycleBinPage = () => {
           </div>
         )}
 
-        <div className="mt-6 text-lg tok-punc">{"}"}</div>
+        {isJs && <div className="mt-6 text-lg tok-punc">{"}"}</div>}
       </div>
 
       <ConfirmModal
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
         onConfirm={confirmClear}
-        title="Empty Recycle Bin"
-        message="This permanently deletes every note in the bin, on this device and in the cloud. There is no undo()."
-        confirmText="Empty Bin"
+        title={t({ js: "Empty Recycle Bin", common: "Empty the bin?", pythagoras: "Wipe the slate?" })}
+        message={t({
+          js: "This permanently deletes every note in the bin, on this device and in the cloud. There is no undo().",
+          common: "This permanently deletes every note in the bin, on this device and in the cloud. It can't be undone.",
+        })}
+        confirmText={t({ js: "Empty Bin", common: "Empty bin", pythagoras: "Wipe it" })}
         isDestructive={true}
       />
     </AppShell>

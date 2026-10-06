@@ -8,6 +8,9 @@ import { useOnlineStatus } from "../hooks/useOnlineStatus";
 import { useNotes } from "../hooks/useNotes";
 import AppShell from "../components/shell/AppShell";
 import Navbar from "../components/Navbar";
+import ThemePicker from "../components/shell/ThemePicker";
+import { ThemeBadge } from "../components/ui/Themed";
+import { useCopy, type Copy } from "../lib/voice";
 
 /** A note-count milestone shown as a chip on the profile. */
 interface Achievement {
@@ -16,15 +19,34 @@ interface Achievement {
   hint: string;
 }
 
-// Small, honest "achievements" based on how many notes you have.
-const ACHIEVEMENTS: Achievement[] = [
-  { at: 1, name: "Hello, World", hint: "wrote your first note" },
-  { at: 5, name: "Hoisted", hint: "5 notes up top" },
-  { at: 10, name: "Callback Hell Survivor", hint: "10 notes deep" },
-  { at: 25, name: "Event Loop", hint: "25 notes and still spinning" },
-  { at: 50, name: "Full Stack", hint: "50 notes" },
-  { at: 100, name: "npm install brain", hint: "100 notes" },
-];
+// Small, honest "achievements" based on how many notes you have, named
+// in each theme's own terms.
+const ACHIEVEMENTS: Copy<Achievement[]> = {
+  js: [
+    { at: 1, name: "Hello, World", hint: "wrote your first note" },
+    { at: 5, name: "Hoisted", hint: "5 notes up top" },
+    { at: 10, name: "Callback Hell Survivor", hint: "10 notes deep" },
+    { at: 25, name: "Event Loop", hint: "25 notes and still spinning" },
+    { at: 50, name: "Full Stack", hint: "50 notes" },
+    { at: 100, name: "npm install brain", hint: "100 notes" },
+  ],
+  common: [
+    { at: 1, name: "First page", hint: "wrote your first note" },
+    { at: 5, name: "A handful", hint: "5 notes" },
+    { at: 10, name: "Ten pages", hint: "10 notes" },
+    { at: 25, name: "Notebook", hint: "25 notes" },
+    { at: 50, name: "Bookshelf", hint: "50 notes" },
+    { at: 100, name: "Commonplace book", hint: "100 notes" },
+  ],
+  pythagoras: [
+    { at: 1, name: "Axiom", hint: "your first proposition" },
+    { at: 5, name: "Lemma", hint: "5 propositions" },
+    { at: 10, name: "Tetractys", hint: "10 = 1 + 2 + 3 + 4" },
+    { at: 25, name: "Theorem", hint: "25 propositions" },
+    { at: 50, name: "Corollary", hint: "50 propositions" },
+    { at: 100, name: "Elements", hint: "100 propositions" },
+  ],
+};
 
 interface PropProps {
   /** The key, rendered before the colon. */
@@ -61,6 +83,7 @@ const ProfilePage = () => {
   const isOnline = useOnlineStatus();
   const { notes } = useNotes();
   const wallpaperRef = useRef<HTMLInputElement>(null);
+  const { isJs, t } = useCopy();
 
   const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -83,15 +106,36 @@ const ProfilePage = () => {
   if (!authUser) return null;
 
   const noteCount = notes?.length ?? 0;
-  const unlocked = ACHIEVEMENTS.filter((a) => noteCount >= a.at);
-  const nextUp = ACHIEVEMENTS.find((a) => noteCount < a.at);
+  const achievements = t(ACHIEVEMENTS);
+  const unlocked = achievements.filter((a) => noteCount >= a.at);
+  const nextUp = achievements.find((a) => noteCount < a.at);
   const joined = authUser.createdAt?.split("T")[0];
 
   return (
-    <AppShell toolbar={<Navbar crumb="profile.js" />}>
+    <AppShell toolbar={<Navbar crumb={t({ js: "profile.js", common: "Profile", pythagoras: "Geometer" })} />}>
       <div className="max-w-4xl mx-auto px-3 md:px-6 py-6 md:py-8">
         <div className="flex flex-col-reverse md:flex-row gap-8 md:gap-10">
-          {/* Object literal */}
+          {!isJs && (
+            <PlainProfile
+              name={authUser.fullName}
+              email={authUser.email}
+              joined={joined ? timeAgo(authUser.createdAt) : null}
+              noteCount={noteCount}
+              unlocked={unlocked}
+              nextUp={nextUp}
+              isDark={themeMode === "dark"}
+              toggleThemeMode={toggleThemeMode}
+              onWallpaper={() => wallpaperRef.current?.click()}
+              wallpaperDisabled={!isOnline || isThemeChanging}
+              isThemeChanging={isThemeChanging}
+              isOnline={isOnline}
+              onBin={() => navigate("/recycleBin")}
+              onLogout={logout}
+            />
+          )}
+          {/* Object literal (JS theme); the file input is shared */}
+          <input type="file" accept="image/*" ref={wallpaperRef} className="hidden" onChange={handleWallpaper} />
+          {isJs && (
           <div className="flex-1 min-w-0 text-[13.5px] leading-6">
             <div className="text-base md:text-lg mb-2">
               <span className="tok-kw">const</span> <span className="tok-fn">profile</span>{" "}
@@ -145,7 +189,6 @@ const ProfilePage = () => {
                     className="w-16 h-9 rounded border ide-divider bg-cover bg-center"
                     style={{ backgroundImage: `url('${authUser.backgroundImg || "/bg.png"}')` }}
                   />
-                  <input type="file" accept="image/*" ref={wallpaperRef} className="hidden" onChange={handleWallpaper} />
                   <button
                     type="button"
                     disabled={!isOnline || isThemeChanging}
@@ -196,6 +239,7 @@ const ProfilePage = () => {
               </button>
             </div>
           </div>
+          )}
 
           {/* Avatar */}
           <div className="flex flex-col items-center md:w-56 shrink-0">
@@ -222,12 +266,14 @@ const ProfilePage = () => {
                   ) : (
                     <>
                       <Camera className={`size-7 ${isOnline ? "text-white" : "text-white/50"}`} />
-                      <span className="text-[11px] text-white/90">{isOnline ? "avatar = upload()" : "offline"}</span>
+                      <span className="text-[11px] text-white/90">
+                        {isOnline ? t({ js: "avatar = upload()", common: "Change photo" }) : t({ js: "offline", common: "Offline" })}
+                      </span>
                     </>
                   )}
                 </label>
               </div>
-              <span className="js-badge absolute -bottom-2 -right-2 w-8 h-8 text-sm shadow-lg">JS</span>
+              <ThemeBadge className="absolute -bottom-2 -right-2 w-8 h-8 text-sm shadow-lg" />
               <input
                 type="file"
                 id="avatar-upload"
@@ -238,11 +284,12 @@ const ProfilePage = () => {
               />
             </div>
             <p className="mt-5 text-xs tok-com text-center">
+              {isJs && "// "}
               {!isOnline
-                ? "// profile updates unavailable offline"
+                ? t({ js: "profile updates unavailable offline", common: "Profile changes need a connection" })
                 : isUpdatingProfile
-                  ? "// uploading…"
-                  : "// click the image to update"}
+                  ? t({ js: "uploading…", common: "Uploading…" })
+                  : t({ js: "click the image to update", common: "Click the photo to change it" })}
             </p>
           </div>
         </div>
@@ -252,5 +299,108 @@ const ProfilePage = () => {
 };
 
 const a11yNext = (a: Achievement): string => `Next: ${a.hint}`;
+
+interface PlainProfileProps {
+  name: string;
+  email: string;
+  joined: string | null;
+  noteCount: number;
+  unlocked: Achievement[];
+  nextUp: Achievement | undefined;
+  isDark: boolean;
+  toggleThemeMode: () => void;
+  onWallpaper: () => void;
+  wallpaperDisabled: boolean;
+  isThemeChanging: boolean;
+  isOnline: boolean;
+  onBin: () => void;
+  onLogout: () => void;
+}
+
+const Row = ({ label, children }: { label: string; children: ReactNode }) => (
+  <div className="grid grid-cols-[minmax(110px,30%)_1fr] gap-3 py-2.5 border-b ide-divider items-center">
+    <span className="text-[13px] tok-dim">{label}</span>
+    <div className="min-w-0 text-[var(--fg)]">{children}</div>
+  </div>
+);
+
+// The profile in plain words, for the Common and Pythagoras themes.
+function PlainProfile(p: PlainProfileProps) {
+  const { t, theme } = useCopy();
+  return (
+    <div className="flex-1 min-w-0 text-[14px]">
+      <h1 className="text-2xl md:text-3xl font-semibold mb-1" style={{ fontFamily: "var(--font-content)" }}>
+        {p.name}
+      </h1>
+      <p className="tok-dim mb-5">
+        {t({ js: "", common: "Your account and preferences", pythagoras: "Member of the school" })}
+      </p>
+
+      <Row label="Email">
+        <span className="break-all">{p.email}</span>
+      </Row>
+      <Row label={t({ js: "", common: "Member since", pythagoras: "Enrolled" })}>{p.joined ?? "—"}</Row>
+      <Row label={t({ js: "", common: "Notes", pythagoras: "Propositions" })}>
+        <span className="tabular-nums">{p.noteCount}</span>
+      </Row>
+      <Row label="Theme">
+        <div className="max-w-sm">
+          <ThemePicker />
+        </div>
+      </Row>
+      <Row label="Appearance">
+        <div className="math-tabs" role="radiogroup" aria-label="Appearance">
+          <button type="button" role="radio" aria-checked={!p.isDark} aria-selected={!p.isDark} onClick={() => p.isDark && p.toggleThemeMode()}>
+            <Sun className="size-3.5 inline -mt-0.5 mr-1" />Light
+          </button>
+          <button type="button" role="radio" aria-checked={p.isDark} aria-selected={p.isDark} onClick={() => !p.isDark && p.toggleThemeMode()}>
+            <Moon className="size-3.5 inline -mt-0.5 mr-1" />Dark
+          </button>
+        </div>
+      </Row>
+      <Row label="Wallpaper">
+        <div className="flex flex-wrap items-center gap-2">
+          <button type="button" disabled={p.wallpaperDisabled} onClick={p.onWallpaper} className="ide-btn !py-1 !px-2 text-xs">
+            {p.isThemeChanging ? <Loader2 className="size-3.5 animate-spin" /> : <Upload className="size-3.5" />}
+            {p.isThemeChanging ? "Uploading…" : "Upload your own"}
+          </button>
+          <span className="text-[12px] tok-dim">
+            {p.isOnline ? "Replaces the theme's artwork" : "Needs a connection"}
+          </span>
+        </div>
+      </Row>
+      <Row label={t({ js: "", common: "Milestones", pythagoras: "Proofs earned" })}>
+        <div className="flex flex-wrap gap-2">
+          {p.unlocked.length === 0 && (
+            <span className="text-[12.5px] tok-dim">
+              {t({ js: "", common: "Write a note to earn your first.", pythagoras: "State an axiom to earn your first." })}
+            </span>
+          )}
+          {p.unlocked.map((a) => (
+            <span key={a.name} className="ide-chip !text-[var(--fg)]" title={a.hint}>
+              <span className="tok-js">{theme === "pythagoras" ? "△" : "★"}</span> {a.name}
+            </span>
+          ))}
+          {p.nextUp && (
+            <span className="ide-chip opacity-60" title={a11yNext(p.nextUp)}>
+              {theme === "pythagoras" ? "▽" : "☆"} {p.nextUp.at - p.noteCount} to go
+            </span>
+          )}
+        </div>
+      </Row>
+
+      <div className="flex flex-wrap gap-3 mt-6">
+        <button type="button" onClick={p.onBin} className="ide-btn">
+          <Trash2 className="size-4 tok-warn" />
+          {t({ js: "", common: "Open the bin", pythagoras: "Erased propositions" })}
+        </button>
+        <button type="button" onClick={p.onLogout} className="ide-btn ide-btn-danger">
+          <LogOut className="size-4" />
+          {t({ js: "", common: "Sign out", pythagoras: "Depart" })}
+        </button>
+      </div>
+    </div>
+  );
+}
 
 export default ProfilePage;

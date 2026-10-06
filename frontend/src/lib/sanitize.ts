@@ -16,6 +16,8 @@ const ALLOWED_ATTR = [
   "href", "target", "rel", "src", "alt", "title",
   "width", "height", "class", "style",
   "colspan", "rowspan", "align",
+  // Equations: <span|div data-type="inline-math|block-math" data-latex="…">
+  "data-type", "data-latex",
 ];
 
 // Only these URL schemes may appear in href/src.
@@ -56,6 +58,7 @@ const BASE_CONFIG: Config = {
   // attributes URI-safe keeps the strict scheme check where it belongs.
   ADD_URI_SAFE_ATTR: [
     "colspan", "rowspan", "width", "height", "align", "target", "rel",
+    "data-type", "data-latex",
   ],
 };
 

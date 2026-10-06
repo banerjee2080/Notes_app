@@ -10,6 +10,8 @@ import CodeWindow from "../components/ui/CodeWindow";
 import CodeSpinner from "../components/ui/CodeSpinner";
 import EditorFooter from "../components/ui/EditorFooter";
 import { toFileName } from "../lib/utils";
+import { useCopy } from "../lib/voice";
+import { Remark } from "../components/ui/Themed";
 import { useCloseShortcut } from "../hooks/useCloseShortcut";
 import { userIdOf } from "../types/user";
 import type { Note } from "../types/notes";
@@ -19,7 +21,7 @@ const DelNotePage = ({ isModal }: { isModal?: boolean }) => {
   const [note, setNote] = useState<Partial<Note>>({});
   const [loading, setLoading] = useState(true);
   const safeContent = useMemo(
-    () => sanitizeHtml(note.content || "No content"),
+    () => sanitizeHtml(note.content || "<p>No content</p>"),
     [note.content],
   );
 
@@ -28,6 +30,7 @@ const DelNotePage = ({ isModal }: { isModal?: boolean }) => {
   const { id = "" } = useParams();
   const navigate = useNavigate();
   const { authUser } = useAuthStore();
+  const { isJs, t } = useCopy();
 
   useEffect(() => {
     const fetchNote = async () => {
@@ -88,7 +91,7 @@ const DelNotePage = ({ isModal }: { isModal?: boolean }) => {
             : "min-h-screen flex justify-center items-center"
         }
       >
-        <CodeSpinner label="Reading from IndexedDB…" />
+        <CodeSpinner label={t({ js: "Reading from IndexedDB…", common: "Opening the note…", pythagoras: "Unrolling the scroll…" })} />
       </div>
     );
   }
@@ -97,36 +100,59 @@ const DelNotePage = ({ isModal }: { isModal?: boolean }) => {
     <div className={containerClasses} onClick={() => isModal && closePage()}>
       <div className="w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
         <CodeWindow
-          fileName={toFileName(note.title)}
-          status={<span className="ml-1 ide-chip !py-0 !text-[10.5px] tok-warn">read-only</span>}
+          fileName={isJs ? toFileName(note.title) : note.title || "Untitled"}
+          status={<span className="ml-1 ide-chip !py-0 !text-[10.5px] tok-warn">{t({ js: "read-only", common: "In the bin", pythagoras: "Erased" })}</span>}
           onClose={closePage}
           actions={
             <>
               <button type="button" onClick={closePage} className="ide-btn ide-btn-ghost !py-1 !px-2 text-xs">
                 <ArrowLeftIcon className="size-3.5" />
-                <span className="hidden sm:inline">cd ..</span>
+                <span className="hidden sm:inline">{t({ js: "cd ..", common: "Back" })}</span>
               </button>
               <button type="button" onClick={handleRestore} className="ide-btn ide-btn-ok !py-1 !px-2 text-xs">
                 <Undo2Icon className="size-3.5" />
-                restore()
+                {t({ js: "restore()", common: "Restore" })}
               </button>
             </>
           }
         >
           <div className="ide-note is-warn mb-5">
-            <span className="tok-warn">{"// This note is in RecycleBin()."}</span>{" "}
-            <span className="tok-com">
-              {"It will be garbage-collected 30 days after deletion unless you restore() it."}
-            </span>
+            {isJs ? (
+              <>
+                <span className="tok-warn">{"// This note is in RecycleBin()."}</span>{" "}
+                <span className="tok-com">
+                  {"It will be garbage-collected 30 days after deletion unless you restore() it."}
+                </span>
+              </>
+            ) : (
+              <span className="text-[var(--fg)]">
+                <Remark>
+                  {t({
+                    js: "",
+                    common: "This note is in the bin. It will be deleted for good 30 days after it was deleted, unless you restore it.",
+                    pythagoras: "This proposition has been erased. In 30 days it is gone for good, unless you restore it.",
+                  })}
+                </Remark>
+              </span>
+            )}
           </div>
 
-          <div className="flex items-center gap-2 border-b ide-divider pb-2 mb-4 text-lg">
-            <span className="tok-kw text-[15px]">const</span>
-            <span className="text-[15px] text-[var(--fg)]">title</span>
-            <span className="tok-punc text-[15px]">=</span>
-            <span className="tok-str font-semibold truncate opacity-80">"{note.title || "Untitled Note"}"</span>
-            <span className="tok-punc text-[15px]">;</span>
-          </div>
+          {isJs ? (
+            <div className="flex items-center gap-2 border-b ide-divider pb-2 mb-4 text-lg">
+              <span className="tok-kw text-[15px]">const</span>
+              <span className="text-[15px] text-[var(--fg)]">title</span>
+              <span className="tok-punc text-[15px]">=</span>
+              <span className="tok-str font-semibold truncate opacity-80">"{note.title || "Untitled Note"}"</span>
+              <span className="tok-punc text-[15px]">;</span>
+            </div>
+          ) : (
+            <h2
+              className="border-b ide-divider pb-2 mb-4 text-xl md:text-2xl font-semibold opacity-80 truncate"
+              style={{ fontFamily: "var(--font-content)" }}
+            >
+              {note.title || "Untitled"}
+            </h2>
+          )}
 
           <div
             className="note-prose rounded-md border ide-divider px-5 py-4 min-h-[200px] opacity-80 bg-[color-mix(in_srgb,var(--bg)_40%,var(--win))]"

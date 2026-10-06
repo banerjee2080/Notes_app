@@ -12,6 +12,9 @@ import DelNotePage from "./pages/DelNotePage";
 import RecycleBinPage from "./pages/RecycleBinPage";
 import { useAuthStore } from "./stores/useAuthStore";
 import { useVaultStore } from "./stores/useVaultStore";
+import { useThemeStore } from "./stores/useThemeStore";
+import { themeInfo } from "./lib/themes";
+import { pickCopy } from "./lib/voice";
 import LoginPage from "./pages/LoginPage";
 import SignUpPage from "./pages/SignUpPage";
 import HistoryPage from "./pages/HistoryPage";
@@ -68,6 +71,7 @@ const App = () => {
 
   const { authUser, checkAuth, isCheckingAuth, themeMode, _hasHydrated } =
     useAuthStore();
+  const theme = useThemeStore((s) => s.theme);
 
   useEffect(() => {
     if (_hasHydrated) {
@@ -158,32 +162,55 @@ const App = () => {
     document.documentElement.dataset.mode = isDark ? "dark" : "light";
   }, [isDark]);
 
+  useEffect(() => {
+    document.documentElement.dataset.theme = theme;
+    // Tab title and icon follow the theme too.
+    document.title = pickCopy(theme, { js: "Note.js", common: "Notes", pythagoras: "Elements · Notes" });
+    document
+      .querySelector('link[rel="icon"]')
+      ?.setAttribute("href", pickCopy(theme, { js: "/favicon.svg", common: "/themes/favicon-common.svg", pythagoras: "/themes/favicon-pythagoras.svg" }));
+    // Mobile browser chrome follows the window colour.
+    const win = getComputedStyle(document.documentElement).getPropertyValue("--win").trim();
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", win || "#1a1d23");
+  }, [theme, isDark]);
+
+  // An uploaded wallpaper wins; otherwise the theme's own artwork.
+  const wallpaper = authUser?.backgroundImg || themeInfo(theme).wallpaper[isDark ? "dark" : "light"];
+  // Only the JS theme recolours itself from the wallpaper; the other two
+  // have fixed palettes taken from their artwork.
+  const tinted = theme === "js";
+
   // Show loading screen only when we have no user data at all (not yet hydrated or still checking)
   if (!_hasHydrated || (isCheckingAuth && !authUser)) {
     return (
       <div className="flex items-center justify-center h-screen bg-[var(--bg)]">
-        <CodeSpinner label="Hoisting variables…" />
+        <CodeSpinner label={pickCopy(theme, { js: "Hoisting variables…", common: "Opening your notebook…", pythagoras: "Erecting a perpendicular…" })} />
       </div>
     );
   }
 
   // Custom properties are not part of CSSProperties; the cast is the
   // standard way to pass them through React's style prop.
-  const themeStyles = {
-    "--theme-main": mainColor,
-    "--theme-accent": accentColor,
-    "--theme-accent2": isDark ? lightAccent : darkAccent,
-  } as CSSProperties;
+  const themeStyles = (
+    tinted
+      ? {
+          "--theme-main": mainColor,
+          "--theme-accent": accentColor,
+          "--theme-accent2": isDark ? lightAccent : darkAccent,
+        }
+      : {}
+  ) as CSSProperties;
 
   return (
     <div className="relative min-h-screen" style={themeStyles}>
-      {/* Wallpaper: the user's uploaded image sits behind the IDE window */}
+      {/* Wallpaper: the uploaded image or the theme's artwork, behind the window */}
       <div
-        className="fixed inset-0 z-[-1] pointer-events-none bg-cover bg-center bg-no-repeat transition-all duration-700 ease-in-out"
-        style={{
-          backgroundImage: `url('${authUser?.backgroundImg || "/bg.png"}')`,
-        }}
+        className="fixed inset-0 z-[-1] pointer-events-none bg-cover bg-center bg-no-repeat transition-all duration-700 ease-in-out overflow-hidden"
+        style={wallpaper ? { backgroundImage: `url('${wallpaper}')` } : undefined}
       >
+        {!wallpaper && theme === "pythagoras" && (
+          <img src="/themes/byrne-prop47.svg" alt="" className="pyth-plate" />
+        )}
         <div
           className="absolute inset-0 transition-colors duration-700"
           style={{ background: "var(--wall-overlay)" }}

@@ -6,6 +6,8 @@ import api from "../lib/axios";
 import { errorMessage } from "../lib/errors";
 import { useAuthStore } from "../stores/useAuthStore";
 import { useVaultStore } from "../stores/useVaultStore";
+import { useCopy } from "../lib/voice";
+import { Remark } from "./ui/Themed";
 
 interface PinDialogProps {
   onClose: () => void;
@@ -58,6 +60,7 @@ export default function PinDialog({ onClose, onUnlocked }: PinDialogProps) {
   const [otp, setOtp] = useState("");
 
   const isSetup = status === "none";
+  const { isJs, t } = useCopy();
 
   const submitPin = async (e: FormEvent) => {
     e.preventDefault();
@@ -112,64 +115,81 @@ export default function PinDialog({ onClose, onUnlocked }: PinDialogProps) {
     }
   };
 
-  const title = mode === "reset" ? "vault.reset()" : isSetup ? "vault.setup(pin)" : "vault.unlock(pin)";
+  const title =
+    mode === "reset"
+      ? t({ js: "vault.reset()", common: "Reset your PIN" })
+      : isSetup
+        ? t({ js: "vault.setup(pin)", common: "Set up a PIN", pythagoras: "Swear to secrecy" })
+        : t({ js: "vault.unlock(pin)", common: "Unlock encrypted notes", pythagoras: "Break the seal" });
 
   return (
     <Dialog title={title} icon={<KeyRoundIcon className="size-4" />} onClose={onClose} maxWidth="max-w-sm">
       {mode === "pin" ? (
         <form onSubmit={submitPin} className="space-y-3">
           <p className="text-xs tok-com">
-            {isSetup
-              ? "// choose a 6-digit PIN. It encrypts your notes on this device; the server never sees it."
-              : "// enter your notes PIN to decrypt"}
+            <Remark>
+              {isSetup
+                ? "Choose a 6-digit PIN. It encrypts your notes on this device; the server never sees it."
+                : "Enter your 6-digit PIN to decrypt."}
+            </Remark>
           </p>
           <PinInput value={pin} onChange={setPin} label="PIN" autoFocus />
           {isSetup && <PinInput value={confirm} onChange={setConfirm} label="Confirm PIN" />}
           <label className="flex items-center gap-2 text-xs">
             <input type="checkbox" checked={keep} onChange={(e) => setKeep(e.target.checked)} />
-            <span>
-              keepUnlocked<span className="tok-punc">: </span>
-              <span className="tok-kw">true</span> <span className="tok-com">{"// 7 days on this device"}</span>
-            </span>
+            {isJs ? (
+              <span>
+                keepUnlocked<span className="tok-punc">: </span>
+                <span className="tok-kw">true</span> <span className="tok-com">{"// 7 days on this device"}</span>
+              </span>
+            ) : (
+              <span>Keep unlocked for 7 days on this device</span>
+            )}
           </label>
           {error && <p className="text-xs text-[var(--err)]">{error}</p>}
           {isSetup && (
             <p className="text-[11px] tok-com">
-              {"// forget it and notes only you can read are gone for good - nobody can recover them"}
+              <Remark>Forget it, and notes only you can read are gone for good. Nobody can recover them.</Remark>
             </p>
           )}
           <div className="flex items-center justify-between gap-2">
             {!isSetup ? (
               <button type="button" className="ide-btn ide-btn-ghost text-xs" onClick={() => setMode("reset")}>
-                forgot PIN?
+                {t({ js: "forgot PIN?", common: "Forgot PIN?" })}
               </button>
             ) : (
               <span />
             )}
             <button type="submit" disabled={busy} className="ide-btn ide-btn-primary">
-              {busy ? "deriving key…" : isSetup ? "set PIN" : "unlock"}
+              {busy
+                ? t({ js: "deriving key…", common: "Unlocking…" })
+                : isSetup
+                  ? t({ js: "set PIN", common: "Set PIN" })
+                  : t({ js: "unlock", common: "Unlock" })}
             </button>
           </div>
         </form>
       ) : (
         <form onSubmit={submitReset} className="space-y-3">
           <p className="text-xs tok-com">
-            {"// resetting deletes your keys. Notes shared with others come back when an owner/admin opens them; notes only you could read stay encrypted forever."}
+            <Remark>
+              Resetting deletes your keys. Notes shared with others come back when an owner or admin opens them; notes only you could read stay encrypted forever.
+            </Remark>
           </p>
           {!otpSent ? (
             <button type="button" disabled={busy || !email} onClick={sendCode} className="ide-btn ide-btn-primary w-full">
-              email a code to {email}
+              {t({ js: "email a code to", common: "Email a code to" })} {email}
             </button>
           ) : (
             <>
               <PinInput value={otp} onChange={setOtp} label="Code from the email" autoFocus />
               <button type="submit" disabled={busy || otp.length !== 6} className="ide-btn ide-btn-danger w-full">
-                reset PIN
+                {t({ js: "reset PIN", common: "Reset PIN" })}
               </button>
             </>
           )}
           <button type="button" className="ide-btn ide-btn-ghost text-xs" onClick={() => setMode("pin")}>
-            back
+            {t({ js: "back", common: "Back" })}
           </button>
         </form>
       )}

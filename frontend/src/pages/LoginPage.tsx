@@ -2,13 +2,15 @@ import { useAuthStore } from "../stores/useAuthStore";
 import { useState } from "react";
 import { Link } from "react-router";
 import { Mail, Lock, Eye, EyeOff, Loader2 } from "lucide-react";
-import AuthFrame, { CodeField, GoogleGlyph } from "../components/ui/AuthFrame";
+import AuthFrame, { AuthHeading, CodeField, GoogleGlyph } from "../components/ui/AuthFrame";
 import type { LoginPayload } from "../types/user";
 import toast from "react-hot-toast";
 import { useGoogleLogin } from "@react-oauth/google";
+import { useCopy } from "../lib/voice";
 
 const LoginPage = () => {
   const { login, isLoggingIn, googleLogin } = useAuthStore();
+  const { isJs, t } = useCopy();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState<LoginPayload>({
     email: "",
@@ -34,12 +36,28 @@ const LoginPage = () => {
   };
 
   return (
-    <AuthFrame fileName="login.js">
-      <h1 className="text-xl mb-1">
-        <span className="tok-kw">async function</span> <span className="tok-fn">login</span>
-        <span className="tok-punc">() {"{"}</span>
-      </h1>
-      <p className="text-[12.5px] tok-com mb-6">{"// welcome back — sign in to pick up where you left off"}</p>
+    <AuthFrame fileName={t({ js: "login.js", common: "Sign in", pythagoras: "The Academy" })}>
+      <AuthHeading
+        js={
+          <>
+            <h1 className="text-xl mb-1">
+              <span className="tok-kw">async function</span> <span className="tok-fn">login</span>
+              <span className="tok-punc">() {"{"}</span>
+            </h1>
+            <p className="text-[12.5px] tok-com mb-6">{"// welcome back — sign in to pick up where you left off"}</p>
+          </>
+        }
+        title={t({ js: "", common: "Welcome back", pythagoras: "Enter the Academy" })}
+        sub={t<React.ReactNode>({
+          js: "",
+          common: "Sign in to pick up where you left off.",
+          pythagoras: (
+            <>
+              <i>“Let no one ignorant of geometry enter.”</i> Said to be carved over Plato's door. You'll be fine.
+            </>
+          ),
+        })}
+      />
 
       <button
         type="button"
@@ -47,25 +65,29 @@ const LoginPage = () => {
         className="ide-btn w-full justify-center !py-2.5 mb-5"
       >
         <GoogleGlyph />
-        <span>
-          <span className="tok-fn">signInWith</span>
-          <span className="tok-punc">(</span>Google<span className="tok-punc">)</span>
-        </span>
+        {isJs ? (
+          <span>
+            <span className="tok-fn">signInWith</span>
+            <span className="tok-punc">(</span>Google<span className="tok-punc">)</span>
+          </span>
+        ) : (
+          <span>Continue with Google</span>
+        )}
       </button>
 
       <div className="flex items-center gap-3 mb-5 text-[11px] tok-dim">
         <span className="flex-1 border-t ide-divider" />
-        {"// or"}
+        {isJs ? "// or" : "or"}
         <span className="flex-1 border-t ide-divider" />
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
-        <CodeField kw="const" name="email">
+        <CodeField kw="const" name="email" label="Email">
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--fg-dim)]" />
             <input
               type="email"
-              placeholder="'you@example.com'"
+              placeholder={isJs ? "'you@example.com'" : "you@example.com"}
               className="ide-input !pl-9"
               value={formData.email}
               onChange={(e) => setFormData({ ...formData, email: e.target.value })}
@@ -75,12 +97,12 @@ const LoginPage = () => {
           </div>
         </CodeField>
 
-        <CodeField kw="const" name="password">
+        <CodeField kw="const" name="password" label="Password">
           <div className="relative">
             <Lock className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-[var(--fg-dim)]" />
             <input
               type={showPassword ? "text" : "password"}
-              placeholder="'••••••'"
+              placeholder={isJs ? "'••••••'" : "••••••"}
               className="ide-input !pl-9 !pr-10"
               value={formData.password}
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
@@ -106,22 +128,20 @@ const LoginPage = () => {
           {isLoggingIn ? (
             <>
               <Loader2 className="size-4 animate-spin" />
-              await auth.login()…
+              {t({ js: "await auth.login()…", common: "Signing in…", pythagoras: "Entering…" })}
             </>
           ) : (
-            <>
-              <span>return auth.login(email, password);</span>
-            </>
+            t({ js: "return auth.login(email, password);", common: "Sign in", pythagoras: "Enter" })
           )}
         </button>
       </form>
 
-      <p className="text-lg tok-punc mt-5">{"}"}</p>
+      {isJs && <p className="text-lg tok-punc mt-5">{"}"}</p>}
 
       <p className="text-[12.5px] text-center mt-4 tok-dim">
-        {"// no account? "}
+        {t({ js: "// no account? ", common: "No account? ", pythagoras: "Not yet a student? " })}
         <Link to="/signup" className="tok-fn hover:underline">
-          signup()
+          {t({ js: "signup()", common: "Create one", pythagoras: "Join the mathematikoi" })}
         </Link>
       </p>
     </AuthFrame>

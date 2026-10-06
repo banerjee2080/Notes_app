@@ -15,8 +15,8 @@ interface DialogProps {
   footer?: ReactNode;
 }
 
-// The "Uncaught TypeError" style popup from the mockup. Every modal in the
-// app (confirmations, etc.) renders through this.
+// Every modal in the app (confirmations, etc.) renders through this. The
+// callers pick the wording; the JS theme styles them as console errors.
 const Dialog = ({
   onClose,
   title,

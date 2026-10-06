@@ -17,6 +17,8 @@ export const SANITIZE_CONFIG = {
     "href", "target", "rel", "src", "alt", "title",
     "width", "height", "class", "style",
     "colspan", "rowspan", "align",
+    // Equations: <span|div data-type="inline-math|block-math" data-latex="…">
+    "data-type", "data-latex",
   ],
   ALLOWED_URI_REGEXP:
     /^(?:https?:|mailto:|tel:|data:image\/(?:png|jpe?g|gif|webp);base64,)/i,
@@ -41,6 +43,7 @@ export const SANITIZE_CONFIG = {
   // attributes URI-safe keeps the strict scheme check where it belongs.
   ADD_URI_SAFE_ATTR: [
     "colspan", "rowspan", "width", "height", "align", "target", "rel",
+    "data-type", "data-latex",
   ],
 };
 

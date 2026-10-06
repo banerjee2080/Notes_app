@@ -31,6 +31,10 @@ export const isDeleteNoteShortcut = (e: ShortcutKeyEvent): boolean =>
 export const FOCUS_TITLE_SHORTCUT_LABEL = "Ctrl+T / Alt+T";
 export const FOCUS_CONTENT_SHORTCUT_LABEL = "Ctrl+Shift+T / Alt+Shift+T";
 export const CODE_EDITOR_SHORTCUT_LABEL = "Ctrl+Shift+C / Alt+Shift+C";
+// Ctrl+M mutes the tab in Firefox and Ctrl+Shift+M opens Chrome's profile
+// menu, so the Alt versions are the dependable ones here too.
+export const MATH_INLINE_SHORTCUT_LABEL = "Ctrl+M / Alt+M";
+export const MATH_BLOCK_SHORTCUT_LABEL = "Ctrl+Shift+M / Alt+Shift+M";
 
 /** Ctrl/Cmd+letter or Alt+letter, with Shift exactly as asked. */
 const isModLetter = (e: ShortcutKeyEvent, letter: string, shift: boolean): boolean => {
@@ -51,12 +55,22 @@ export const isFocusContentShortcut = (e: ShortcutKeyEvent): boolean =>
 export const isCodeEditorShortcut = (e: ShortcutKeyEvent): boolean =>
   isModLetter(e, "c", true);
 
+/** Ctrl+M / Alt+M — insert an equation inside the current line. */
+export const isInlineMathShortcut = (e: ShortcutKeyEvent): boolean =>
+  isModLetter(e, "m", false);
+
+/** Ctrl+Shift+M / Alt+Shift+M — insert an equation on its own line. */
+export const isBlockMathShortcut = (e: ShortcutKeyEvent): boolean =>
+  isModLetter(e, "m", true);
+
 /** Everything the console's `shortcuts` command lists. */
 export const SHORTCUT_LIST: [keys: string, what: string][] = [
   [NEW_NOTE_SHORTCUT_LABEL, "new note (anywhere)"],
   [FOCUS_TITLE_SHORTCUT_LABEL, "open note: jump to the title"],
   [FOCUS_CONTENT_SHORTCUT_LABEL, "open note: jump to the content"],
   [CODE_EDITOR_SHORTCUT_LABEL, "open note: open the code editor"],
+  [MATH_INLINE_SHORTCUT_LABEL, "open note: equation in the line"],
+  [MATH_BLOCK_SHORTCUT_LABEL, "open note: equation on its own line"],
   [DELETE_NOTE_SHORTCUT_LABEL, "open note: move it to the recycle bin"],
   [CLOSE_SHORTCUT_LABEL, "close the open note"],
   ["Esc", "close the console"],

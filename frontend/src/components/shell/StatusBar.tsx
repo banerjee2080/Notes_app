@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useNavigate } from "react-router";
-import { RefreshCw, SquareTerminal, X } from "lucide-react";
+import { RefreshCw, SquareTerminal, Volume2, VolumeX, X } from "lucide-react";
 import toast from "react-hot-toast";
 import { useSyncStore } from "../../stores/useSyncStore";
 import { useAuthStore } from "../../stores/useAuthStore";
@@ -25,6 +25,12 @@ import { timeAgo } from "../../lib/utils";
 import { SHORTCUT_LIST } from "../../hooks/useKeyShortcut";
 import { errorMessage } from "../../lib/errors";
 import { userIdOf } from "../../types/user";
+import { useVoice } from "../../lib/voice";
+import { useThemeStore } from "../../stores/useThemeStore";
+import { COMMON_TIPS } from "../../lib/commonLore";
+import { PYTH_FACTS } from "../../lib/pythagorasLore";
+import { strike } from "../../lib/monochord";
+import TripleFinder from "../pythagoras/TripleFinder";
 
 const BIN_WORDS = [
   "bin",
@@ -67,23 +73,82 @@ const WELCOME: ConsoleLine[] = [
 ];
 
 // Bottom bar: [Note.Js] >> Ready.   [ES6] rotating fact        Console >_
+// The console only exists in the JS theme; the others show plain status.
 const StatusBar = () => {
   const { isSyncing } = useSyncStore();
   const isOnline = useOnlineStatus();
   const { consoleOpen, setConsoleOpen } = useUiStore();
+  const { theme, voice } = useVoice();
+  const { soundOn, toggleSound } = useThemeStore();
+  const facts = theme === "pythagoras" ? PYTH_FACTS : theme === "common" ? COMMON_TIPS : TICKER_FACTS;
   const [factIdx, setFactIdx] = useState(() =>
-    Math.floor(Math.random() * TICKER_FACTS.length),
+    Math.floor(Math.random() * facts.length),
   );
 
   useEffect(() => {
     const id = setInterval(
-      () => setFactIdx((i) => (i + 1) % TICKER_FACTS.length),
+      () => setFactIdx((i) => (i + 1) % facts.length),
       7000,
     );
     return () => clearInterval(id);
-  }, []);
+  }, [facts]);
 
-  const fact = TICKER_FACTS[factIdx];
+  // Leaving the JS theme takes its console with it.
+  useEffect(() => {
+    if (voice && consoleOpen) setConsoleOpen(false);
+  }, [voice, consoleOpen, setConsoleOpen]);
+
+  const fact = facts[factIdx % facts.length];
+
+  if (voice) {
+    return (
+      <div className="relative shrink-0">
+        <div className="flex items-center justify-between gap-3 h-9 px-3 md:px-4 border-t ide-divider bg-[var(--panel)] text-[12.5px] select-none">
+          <div className="flex items-center gap-2 min-w-0" role="status">
+            {isSyncing ? (
+              <span className="flex items-center gap-1.5 tok-fn">
+                <RefreshCw className="size-3 animate-spin" /> {voice.syncing}
+              </span>
+            ) : (
+              <span className={isOnline ? "tok-ok" : "tok-warn"}>{isOnline ? voice.ready : voice.offline}</span>
+            )}
+          </div>
+
+          <div className="hidden md:flex items-center gap-2 min-w-0 animate-fade-in" key={`${theme}-${factIdx}`}>
+            <span className="js-badge h-5 min-w-5 !px-1.5 text-[10px] items-center justify-center whitespace-nowrap">
+              {fact.tag}
+            </span>
+            <span className="truncate tok-dim">{fact.text}</span>
+          </div>
+
+          <div className="flex items-center gap-3 shrink-0">
+            <span className="flex items-center gap-1.5" title={isOnline ? voice.online[0] : voice.online[1]}>
+              <span className={`size-2 rounded-full ${isOnline ? "bg-[var(--ok)]" : "bg-[var(--err)] animate-pulse"}`} />
+              <span className="hidden sm:inline tok-dim">{isOnline ? voice.online[0] : voice.online[1]}</span>
+            </span>
+            {theme === "pythagoras" && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => {
+                    toggleSound();
+                    if (!soundOn) strike("fifth", { force: true });
+                  }}
+                  className="ide-icon-btn !w-6 !h-6"
+                  title={soundOn ? "Monochord on: actions sound their ratio" : "Monochord off"}
+                  aria-label={soundOn ? "Turn sounds off" : "Turn sounds on"}
+                  aria-pressed={soundOn}
+                >
+                  {soundOn ? <Volume2 className="size-3.5" /> : <VolumeX className="size-3.5" />}
+                </button>
+                <TripleFinder />
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="relative shrink-0">

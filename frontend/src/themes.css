@@ -1,0 +1,238 @@
+/* ------------------------------------------------------------------ *
+ *  Themes. <html data-theme="common|js|pythagoras" data-mode="dark|light">
+ *  index.css holds the JS theme (the original). Each theme here only
+ *  redefines tokens plus a few signature touches; every component reads
+ *  the tokens, so the layout is identical everywhere.
+ *
+ *  Type roles:  --font-ui (chrome)  --font-content (the editor)
+ *               --font-prose (card previews)  --font-mono (code, always)
+ * ------------------------------------------------------------------ */
+
+/* Byrne's three colours, used by the Pythagoras pieces in any theme. */
+:root {
+  --byrne-red: #d1352b;
+  --byrne-yellow: #f0b323;
+  --byrne-blue: #1d4f91;
+}
+:root[data-mode="dark"] { --byrne-blue: #5b93db; --byrne-red: #ef5a4c; }
+
+/* ============================ COMMON ============================== *
+ * Kamisaka Sekka, Momoyogusa (1909). Light = "Pine trees": paper,
+ * sage, indigo, bark. Dark = "Fishing village": indigo night, thatch.
+ * ------------------------------------------------------------------ */
+:root[data-theme="common"] {
+  --font-ui: 'Atkinson Hyperlegible Next Variable', ui-sans-serif, system-ui, sans-serif;
+  --font-content: 'Literata Variable', Georgia, serif;
+  --font-prose: 'Literata Variable', Georgia, serif;
+  --radius: 10px;
+}
+:root[data-theme="common"][data-mode="light"] {
+  --bg: #efe8d6;
+  --win: #fbf8f0;
+  --panel: #f5f0e3;
+  --panel-2: #ebe4d1;
+  --line: #ddd3bc;
+  --line-soft: #e9e1cd;
+  --fg: #27231d;
+  --fg-muted: #5e574a;
+  --fg-dim: #8a8270;
+
+  --js: #4d7d66;
+  --js-ink: #fbf8f0;
+  --js-fg: #3f6e58;
+  --kw: #2f4a8a;      /* indigo */
+  --fn: #3f6e58;      /* pine-needle sage */
+  --str: #7a5527;     /* bark */
+  --num: #b0532f;     /* persimmon */
+  --com: #8a8270;
+  --err: #b23a2e;
+  --ok: #3f6e58;
+  --warn: #9c6a12;
+
+  --wall-overlay: rgba(239, 232, 214, 0.28);
+  --win-alpha: color-mix(in srgb, var(--win) 96%, transparent);
+  --shadow: 0 30px 70px -28px rgba(60, 50, 30, 0.38), 0 0 0 1px rgba(60, 50, 30, 0.06);
+  --selection: rgba(47, 74, 138, 0.18);
+}
+:root[data-theme="common"][data-mode="dark"] {
+  --bg: #111a2d;
+  --win: #172137;
+  --panel: #1b2640;
+  --panel-2: #23304f;
+  --line: #2e3c5c;
+  --line-soft: #24314f;
+  --fg: #ede5d1;
+  --fg-muted: #b5ac97;
+  --fg-dim: #7f7a6c;
+
+  --js: #8fc2a7;
+  --js-ink: #111a2d;
+  --js-fg: #8fc2a7;
+  --kw: #a9bdf0;      /* moonlit indigo */
+  --fn: #8fc2a7;      /* sage */
+  --str: #dcc28b;     /* thatch */
+  --num: #e9a27e;
+  --com: #7f8aa3;
+  --err: #ef8f80;
+  --ok: #8fc2a7;
+  --warn: #e6c27a;
+
+  --wall-overlay: rgba(9, 13, 25, 0.38);
+  --win-alpha: color-mix(in srgb, var(--win) 95%, transparent);
+  --shadow: 0 30px 80px -24px rgba(0, 0, 0, 0.65), 0 0 0 1px rgba(237, 229, 209, 0.05);
+  --selection: rgba(169, 189, 240, 0.24);
+}
+:root[data-theme="common"] .ide-btn,
+:root[data-theme="common"] .ide-input { border-radius: 8px; }
+:root[data-theme="common"] .ide-card { border-radius: 12px; }
+:root[data-theme="common"] .ide-btn { font-size: 13.5px; }
+:root[data-theme="common"] .tree-item.is-active { box-shadow: none; }
+:root[data-theme="common"] .tok-com { font-style: normal; }
+/* Rounded "hanko" seal in place of the JS badge. */
+:root[data-theme="common"] .js-badge { border-radius: 999px; align-items: center; justify-content: center; padding: 0; }
+
+/* ========================== PYTHAGORAS ============================= *
+ * A geometer's drafting table in Oliver Byrne's colours (1847):
+ * vermilion, chrome yellow, ultramarine, ink. Light = vellum and
+ * graphite; dark = a blueprint.
+ * ------------------------------------------------------------------ */
+:root[data-theme="pythagoras"] {
+  --font-ui: 'Barlow Condensed', 'Arial Narrow', ui-sans-serif, sans-serif;
+  --font-content: 'EB Garamond Variable', Garamond, Georgia, serif;
+  --font-prose: 'EB Garamond Variable', Garamond, Georgia, serif;
+  --radius: 2px;
+}
+:root[data-theme="pythagoras"][data-mode="light"] {
+  --bg: #e9e3d2;
+  --win: #f8f4e9;
+  --panel: #f1ecde;
+  --panel-2: #e6dfcb;
+  --line: #c9bfa4;
+  --line-soft: #ddd5bf;
+  --fg: #1d1b18;
+  --fg-muted: #55503f;
+  --fg-dim: #898170;
+
+  --js: var(--byrne-yellow);
+  --js-ink: #1d1b18;
+  --js-fg: #9a6a00;
+  --kw: #1d4f91;
+  --fn: #b8322a;
+  --str: #8a5e00;
+  --num: #b8322a;
+  --com: #7b8589;     /* graphite */
+  --err: #b8322a;
+  --ok: #2f6b3a;
+  --warn: #8a5e00;
+
+  --grid-minor: rgba(29, 79, 145, 0.07);
+  --grid-major: rgba(29, 79, 145, 0.14);
+  --wall-overlay: transparent;
+  --win-alpha: color-mix(in srgb, var(--win) 93%, transparent);
+  --shadow: 0 24px 60px -30px rgba(40, 30, 10, 0.45), 0 0 0 1px rgba(29, 27, 24, 0.08);
+  --selection: rgba(240, 179, 35, 0.38);
+}
+:root[data-theme="pythagoras"][data-mode="dark"] {
+  --bg: #0a2343;
+  --win: #0e2b50;
+  --panel: #11325c;
+  --panel-2: #173d6d;
+  --line: #2c5a8e;
+  --line-soft: #1d4675;
+  --fg: #eaf2fc;
+  --fg-muted: #a9c2de;
+  --fg-dim: #7092b9;
+
+  --js: var(--byrne-yellow);
+  --js-ink: #0a2343;
+  --js-fg: #f2c14e;
+  --kw: #f2c14e;
+  --fn: #ff8270;
+  --str: #9fd3ff;
+  --num: #f2c14e;
+  --com: #7f9dc2;
+  --err: #ff8a7a;
+  --ok: #8fd9a8;
+  --warn: #f2c14e;
+
+  --grid-minor: rgba(200, 225, 255, 0.06);
+  --grid-major: rgba(200, 225, 255, 0.13);
+  --wall-overlay: transparent;
+  --win-alpha: color-mix(in srgb, var(--win) 90%, transparent);
+  --shadow: 0 30px 80px -24px rgba(0, 8, 20, 0.7), 0 0 0 1px rgba(200, 225, 255, 0.08);
+  --selection: rgba(242, 193, 78, 0.3);
+}
+
+/* Drafting paper: a 12px minor grid inside a 60px major grid. */
+:root[data-theme="pythagoras"] {
+  background-color: var(--bg);
+  background-image:
+    linear-gradient(var(--grid-major) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(var(--grid-minor) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+  background-size: 60px 60px, 60px 60px, 12px 12px, 12px 12px;
+  background-position: -1px -1px;
+}
+/* Byrne's Prop. 47 diagram, pinned like a plate on the table. */
+.pyth-plate {
+  position: absolute; right: -4vmin; bottom: -6vmin; width: min(62vmin, 620px);
+  opacity: .5; transform: rotate(-4deg);
+}
+:root[data-mode="dark"] .pyth-plate { filter: invert(1) hue-rotate(180deg) saturate(1.3); opacity: .28; mix-blend-mode: screen; }
+
+/* Title-block lettering: condensed, tracked capitals for chrome labels. */
+:root[data-theme="pythagoras"] body { font-size: 15px; letter-spacing: .01em; }
+:root[data-theme="pythagoras"] .ide-titlebar,
+:root[data-theme="pythagoras"] .tree-item,
+:root[data-theme="pythagoras"] .ide-btn { text-transform: uppercase; letter-spacing: .06em; }
+:root[data-theme="pythagoras"] .ide-btn { font-size: 13px; border-radius: 2px; }
+:root[data-theme="pythagoras"] .ide-input,
+:root[data-theme="pythagoras"] .ide-card,
+:root[data-theme="pythagoras"] .ide-dialog,
+:root[data-theme="pythagoras"] .ide-chip { border-radius: 2px; }
+:root[data-theme="pythagoras"] .ide-input { font-family: var(--font-ui); font-size: 15px; }
+/* A second hairline inside the window, like a drawing sheet's border. */
+:root[data-theme="pythagoras"] .ide-window { outline: 1px solid var(--line); outline-offset: -7px; }
+:root[data-theme="pythagoras"] .ide-window.rounded-none { outline: none; }
+:root[data-theme="pythagoras"] .tree-item.is-active { box-shadow: inset 3px 0 0 var(--byrne-red); }
+:root[data-theme="pythagoras"] .ide-card:hover { box-shadow: 6px 6px 0 -1px color-mix(in srgb, var(--kw) 30%, transparent); }
+:root[data-theme="pythagoras"] .tok-com { font-style: normal; }
+:root[data-theme="pythagoras"] .js-badge { border-radius: 1px; }
+/* The title-bar badge is a right triangle (the ticker tags stay rectangles). */
+:root[data-theme="pythagoras"] .ide-titlebar .js-badge { border-radius: 0; clip-path: polygon(0 100%, 100% 100%, 0 0); align-items: flex-end; justify-content: flex-start; padding: 0 0 1px 2px; }
+
+/* ===================== Shared: per-theme type ====================== */
+:root[data-theme="common"] .collab-editor .ProseMirror,
+:root[data-theme="pythagoras"] .collab-editor .ProseMirror { font-family: var(--font-content); font-size: 17px; line-height: 1.65; }
+:root[data-theme="pythagoras"] .collab-editor .ProseMirror { font-size: 18px; }
+:root[data-theme="common"] .collab-editor .ProseMirror :is(h1, h2, h3)::before,
+:root[data-theme="pythagoras"] .collab-editor .ProseMirror :is(h1, h3)::before { content: none; }
+/* Byrne marks propositions with a red section sign. */
+:root[data-theme="pythagoras"] .collab-editor .ProseMirror h2::before { content: "§ "; color: var(--fn); opacity: 1; }
+:root[data-theme="pythagoras"] .collab-editor .ProseMirror blockquote { border-left-color: var(--fn); }
+:root[data-theme="pythagoras"] .collab-editor .ProseMirror { caret-color: var(--fn); }
+:root[data-theme="common"] .collab-editor .ProseMirror p.is-editor-empty:first-child::before,
+:root[data-theme="pythagoras"] .collab-editor .ProseMirror p.is-editor-empty:first-child::before { font-family: var(--font-content); }
+:root[data-theme="common"] .collab-editor .ProseMirror :is(h1, h2, h3),
+:root[data-theme="pythagoras"] .collab-editor .ProseMirror :is(h1, h2, h3) { font-weight: 600; line-height: 1.25; margin: .6em 0 .3em; }
+:root[data-theme="common"] .collab-editor .ProseMirror h2,
+:root[data-theme="pythagoras"] .collab-editor .ProseMirror h2 { font-size: 1.35em; }
+
+/* =========================== Pythagoras FX ========================= */
+@keyframes pyth-draw { to { stroke-dashoffset: 0; } }
+@keyframes pyth-fade { from { opacity: 0; } to { opacity: 1; } }
+.pyth-sketch path, .pyth-sketch line, .pyth-sketch polyline, .pyth-sketch polygon.stroke {
+  stroke-dasharray: var(--len, 600); stroke-dashoffset: var(--len, 600);
+  animation: pyth-draw var(--dur, 1.2s) cubic-bezier(.6, 0, .3, 1) var(--delay, 0s) forwards;
+}
+
+/* Shared helpers for themed components. */
+.js-badge.pyth-triangle { border-radius: 0; clip-path: polygon(0 100%, 100% 100%, 0 0); align-items: flex-end; justify-content: flex-start; padding: 0 0 1px 2px; }
+.note-title { font-family: var(--font-content); }
+/* Byrne's diagram tucked into the sign-in panel's corner. */
+.auth-plate {
+  position: absolute; right: -36px; bottom: 34px; width: 210px;
+  opacity: .32; transform: rotate(-4deg); pointer-events: none;
+}
+:root[data-mode="dark"] .auth-plate { filter: invert(1) hue-rotate(180deg) saturate(1.3); opacity: .22; mix-blend-mode: screen; }

@@ -3,6 +3,7 @@ import CodeBlock from "@tiptap/extension-code-block";
 import Image from "@tiptap/extension-image";
 import { TableKit } from "@tiptap/extension-table";
 import TextAlign from "@tiptap/extension-text-align";
+import { InlineMath, BlockMath } from "./mathNodes.js";
 
 const LANGUAGE_PREFIX = "language-";
 
@@ -33,6 +34,8 @@ const NoteCodeBlock = CodeBlock.extend({
 export const editorExtensions = [
   StarterKit.configure({ undoRedo: false, codeBlock: false }),
   NoteCodeBlock,
+  InlineMath,
+  BlockMath,
   Image,
   TableKit,
   TextAlign.configure({ types: ["heading", "paragraph"] }),

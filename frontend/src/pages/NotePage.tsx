@@ -30,6 +30,9 @@ import { sanitizeHtml } from "../lib/sanitize";
 import { errorMessage } from "../lib/errors";
 import { userIdOf } from "../types/user";
 import type { Note } from "../types/notes";
+import { useMathHtml } from "../lib/math/katex";
+import { useCopy, useVoice } from "../lib/voice";
+import { Remark } from "../components/ui/Themed";
 
 const CARET_COLORS = ["#f783ac", "#82aaff", "#a8d88a", "#f7a072", "#c792ea", "#ffd166", "#5eead4"];
 // Same user -> same cursor colour on every device.
@@ -285,7 +288,7 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
           sync_status: "pending_update",
         });
         triggerSync(myId);
-        toast.success("Note Deleted");
+        toast.success("Note deleted");
       } else {
         // A collaborator "deleting" a shared note leaves it instead.
         await api.delete(`/notes/${id}/share/${myId}`);
@@ -317,6 +320,11 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
   };
   useKeyShortcut(isFocusTitleShortcut, focusTitle, !loading && !isConfirmModalOpen);
 
+  const { voice } = useVoice();
+  const { isJs, t } = useCopy();
+  // The read-only fallback below shows saved HTML, equations rendered.
+  const fallbackHtml = useMathHtml(useMemo(() => sanitizeHtml(note?.content), [note?.content]));
+
   if (loading || !note) {
     return (
       <div
@@ -326,31 +334,31 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
             : "min-h-screen flex justify-center items-center"
         }
       >
-        <CodeSpinner label="Reading from IndexedDB…" />
+        <CodeSpinner label={t({ js: "Reading from IndexedDB…", common: "Opening the note…", pythagoras: "Unrolling the scroll…" })} />
       </div>
     );
   }
 
   const statusLabel = !seeded
-    ? "connecting…"
+    ? t({ js: "connecting…", common: "Connecting…" })
     : status === "connected"
       ? encrypted
-        ? "● live · e2e"
-        : "● live"
-      : "offline · saved on this device";
+        ? t({ js: "● live · e2e", common: "● Live · encrypted" })
+        : t({ js: "● live", common: "● Live" })
+      : t({ js: "offline · saved on this device", common: "Offline · saved on this device" });
 
   return (
     <div className={containerClasses} onClick={() => isModal && close()}>
       <div className="w-full max-w-3xl" onClick={(e) => e.stopPropagation()}>
         <CodeWindow
-          fileName={toFileName(title)}
+          fileName={isJs ? toFileName(title) : title.trim() || t({ js: "", common: "Untitled note", pythagoras: "Untitled proposition" })}
           status={<span className="text-[11px] tok-com">{statusLabel}</span>}
           onClose={close}
           actions={
             <>
               <Link to="/" className="ide-btn ide-btn-ghost !py-1 !px-2 text-xs">
                 <ArrowLeftIcon className="size-3.5" />
-                <span className="hidden sm:inline">cd ..</span>
+                <span className="hidden sm:inline">{t({ js: "cd ..", common: "Back" })}</span>
               </Link>
               {encrypted ? (
                 <button
@@ -360,7 +368,7 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
                   className="ide-btn ide-btn-ghost !py-1 !px-2 text-xs"
                 >
                   <LockIcon className="size-3.5" />
-                  <span className="hidden sm:inline">lock</span>
+                  <span className="hidden sm:inline">{t({ js: "lock", common: "Lock" })}</span>
                 </button>
               ) : (
                 isManager &&
@@ -372,7 +380,7 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
                     className="ide-btn ide-btn-ghost !py-1 !px-2 text-xs"
                   >
                     <ShieldCheckIcon className="size-3.5" />
-                    <span className="hidden sm:inline">encrypt</span>
+                    <span className="hidden sm:inline">{t({ js: "encrypt", common: "Encrypt", pythagoras: "Seal" })}</span>
                   </button>
                 )
               )}
@@ -383,7 +391,7 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
                 className="ide-btn ide-btn-ghost !py-1 !px-2 text-xs"
               >
                 <UsersIcon className="size-3.5" />
-                <span>share</span>
+                <span>{t({ js: "share", common: "Share" })}</span>
               </button>
               <button
                 type="button"
@@ -392,39 +400,53 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
                 className="ide-btn ide-btn-danger !py-1 !px-2 text-xs"
               >
                 {isOwner ? <Trash2Icon className="size-3.5" /> : <LogOutIcon className="size-3.5" />}
-                <span>
-                  <span className="tok-kw">{isOwner ? "delete" : "leave"}</span> note
-                </span>
+                {isJs ? (
+                  <span>
+                    <span className="tok-kw">{isOwner ? "delete" : "leave"}</span> note
+                  </span>
+                ) : (
+                  <span>
+                    {isOwner ? t({ js: "", common: "Delete", pythagoras: "Erase" }) : t({ js: "", common: "Leave" })}
+                  </span>
+                )}
               </button>
             </>
           }
         >
           <p className="text-[12px] tok-com mb-4">
-            {"// last modified "}
-            {timeAgo(note.updated_at)}
-            {effectiveRole === "viewer" ? " · read-only" : " · changes sync live"}
-            {encrypted && " · end-to-end encrypted"}
+            <Remark>
+              {t({ js: "last modified ", common: "Edited ", pythagoras: "Last revised " })}
+              {timeAgo(note.updated_at)}
+              {effectiveRole === "viewer" ? " · read-only" : " · changes sync live"}
+              {encrypted && " · end-to-end encrypted"}
+            </Remark>
           </p>
           <div className="space-y-5">
           <label className="flex items-center gap-2 border-b ide-divider focus-within:border-[var(--kw)] transition-colors pb-2">
-            <span className="tok-kw text-[15px] shrink-0">const</span>
-            <span className="text-[var(--fg)] text-[15px] shrink-0">title</span>
-            <span className="tok-punc text-[15px] shrink-0">=</span>
+            {isJs && (
+              <>
+                <span className="tok-kw text-[15px] shrink-0">const</span>
+                <span className="text-[var(--fg)] text-[15px] shrink-0">title</span>
+                <span className="tok-punc text-[15px] shrink-0">=</span>
+              </>
+            )}
             <span className="flex items-center min-w-0">
-            <span className="tok-str text-lg shrink-0">"</span>
+            {isJs && <span className="tok-str text-lg shrink-0">"</span>}
             <input
               ref={titleRef}
               type="text"
               value={title}
               readOnly={!canEdit}
-              placeholder="Untitled note"
+              placeholder={t({ js: "Untitled note", common: "Untitled note", pythagoras: "Untitled proposition" })}
               onChange={(e) => changeTitle(e.target.value)}
               aria-label="Note title"
               style={{ fieldSizing: "content" }}
-              className="min-w-[10ch] max-w-full bg-transparent outline-none text-lg md:text-xl font-semibold tok-str placeholder:text-[var(--fg-dim)] placeholder:font-normal"
+              className={`min-w-[10ch] max-w-full bg-transparent outline-none font-semibold placeholder:text-[var(--fg-dim)] placeholder:font-normal ${
+                isJs ? "text-lg md:text-xl tok-str" : "note-title text-2xl md:text-[28px] text-[var(--fg)]"
+              }`}
             ></input>
-            <span className="tok-str text-lg shrink-0">"</span>
-            <span className="tok-punc text-[15px] shrink-0">;</span>
+            {isJs && <span className="tok-str text-lg shrink-0">"</span>}
+            {isJs && <span className="tok-punc text-[15px] shrink-0">;</span>}
             </span>
             <span className="flex-1" />
           </label>
@@ -433,17 +455,23 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
                 <LockIcon className="size-6 mx-auto tok-kw" />
                 {secure.keyState === "need-vault" ? (
                   <>
-                    <p className="text-sm">This note is end-to-end encrypted.</p>
+                    <p className="text-sm">
+                      {t({ js: "This note is end-to-end encrypted.", common: "This note is end-to-end encrypted.", pythagoras: "This proposition is sealed: only its circle can read it." })}
+                    </p>
                     <button type="button" className="ide-btn ide-btn-primary" onClick={() => setPinOpen(true)}>
-                      {vaultStatus === "none" ? "set up a PIN to read it" : "enter PIN to decrypt"}
+                      {vaultStatus === "none"
+                        ? t({ js: "set up a PIN to read it", common: "Set up a PIN to read it" })
+                        : t({ js: "enter PIN to decrypt", common: "Enter your PIN" })}
                     </button>
                   </>
                 ) : secure.keyState === "no-key" ? (
                   <p className="text-sm tok-com">
-                    {"// you don't have this note's key yet. Open it from a share link that includes the key, or ask an owner/admin to open the note - their browser re-shares it with you."}
+                    <Remark>
+                      You don't have this note's key yet. Open it from a share link that includes the key, or ask an owner or admin to open the note; their browser shares it with you.
+                    </Remark>
                   </p>
                 ) : (
-                  <p className="text-sm tok-com">{"// decrypting…"}</p>
+                  <p className="text-sm tok-com">{t({ js: "// decrypting…", common: "Decrypting…" })}</p>
                 )}
               </div>
             ) : session && seeded ? (
@@ -451,7 +479,7 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
                 session={session}
                 user={caretUser}
                 editable={canEdit}
-                placeholder="// start typing… everyone here sees it live"
+                placeholder={voice ? voice.editorPlaceholder : "// start typing… everyone here sees it live"}
                 onHtmlChange={(html) => {
                   lastHtml.current = html;
                   scheduleMirror();
@@ -462,11 +490,17 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
               // show the cached HTML read-only until it is.
               <div className="collab-editor border ide-divider rounded-md bg-[var(--win)]">
                 <p className="text-[12px] tok-com px-5 pt-3">
-                  {"// waiting for the collaboration server — read-only for now"}
+                  <Remark>
+                    {t({
+                      js: "waiting for the collaboration server — read-only for now",
+                      common: "Waiting for the server. Read-only for now.",
+                      pythagoras: "Awaiting the others. Read-only for now.",
+                    })}
+                  </Remark>
                 </p>
                 <div
                   className="ProseMirror"
-                  dangerouslySetInnerHTML={{ __html: sanitizeHtml(note.content) }}
+                  dangerouslySetInnerHTML={{ __html: fallbackHtml }}
                 />
               </div>
             )}
@@ -498,9 +532,9 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
         isOpen={isEncryptConfirmOpen}
         onClose={() => setIsEncryptConfirmOpen(false)}
         onConfirm={encryptNote}
-        title="Encrypt Note"
-        message="The text is encrypted in your browser and the server's readable copy is deleted. Only people on this note who have a PIN can read it - live cursors are turned off and images stay unencrypted. Continue?"
-        confirmText="Encrypt"
+        title={t({ js: "Encrypt Note", common: "Encrypt this note?", pythagoras: "Seal this proposition?" })}
+        message="The text is encrypted in your browser and the server's readable copy is deleted. Only people on this note who have a PIN can read it. Live cursors are turned off and images stay unencrypted. Continue?"
+        confirmText={t({ js: "Encrypt", common: "Encrypt", pythagoras: "Seal it" })}
         isDestructive={false}
       />
 
@@ -508,13 +542,21 @@ const NotePage = ({ isModal }: { isModal?: boolean }) => {
         isOpen={isConfirmModalOpen}
         onClose={() => setIsConfirmModalOpen(false)}
         onConfirm={executeDelete}
-        title={isOwner ? "Delete Note" : "Leave Note"}
+        title={
+          isOwner
+            ? t({ js: "Delete Note", common: "Delete this note?", pythagoras: "Erase this proposition?" })
+            : t({ js: "Leave Note", common: "Leave this note?" })
+        }
         message={
           isOwner
-            ? "This note moves to RecycleBin() and is garbage-collected after 30 days. Collaborators lose it too. Continue?"
+            ? t({
+                js: "This note moves to RecycleBin() and is garbage-collected after 30 days. Collaborators lose it too. Continue?",
+                common: "It moves to the bin and is deleted for good after 30 days. Anyone you shared it with loses it too.",
+                pythagoras: "It moves to Erased and is wiped after 30 days. Anyone you shared it with loses it too.",
+              })
             : "You'll lose access to this shared note. Continue?"
         }
-        confirmText={isOwner ? "Delete" : "Leave"}
+        confirmText={isOwner ? t({ js: "Delete", common: "Delete", pythagoras: "Erase" }) : "Leave"}
         isDestructive={true}
       />
     </div>

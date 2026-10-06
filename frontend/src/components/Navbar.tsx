@@ -1,5 +1,6 @@
 import { Search, CalendarDays, X } from "lucide-react";
 import ConfigPopover from "./shell/ConfigPopover";
+import { useVoice } from "../lib/voice";
 
 interface NavbarProps {
   searchQuery?: string;
@@ -20,6 +21,7 @@ const Navbar = ({
   setDateFilter,
   crumb,
 }: NavbarProps) => {
+  const { voice } = useVoice();
   return (
     <div className="flex items-center gap-2 px-3 md:px-5 py-3 border-b ide-divider shrink-0">
       {setSearchQuery ? (
@@ -30,7 +32,7 @@ const Navbar = ({
               type="text"
               value={searchQuery || ""}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="String.prototype.search(...)"
+              placeholder={voice ? voice.search : "String.prototype.search(...)"}
               aria-label="Search notes"
               className="ide-input !pl-9 !pr-8"
             />
@@ -49,12 +51,16 @@ const Navbar = ({
           {setDateFilter && (
             <label
               className="flex items-center gap-1 ide-input !w-auto !py-0 !pr-1 h-[38px] shrink-0"
-              title="Filter by month. (Yes, in JS months are 0-indexed. Not here though.)"
+              title={voice ? "Filter by month" : "Filter by month. (Yes, in JS months are 0-indexed. Not here though.)"}
             >
               <CalendarDays className="size-4 text-[var(--fg-dim)] mr-1" />
-              <span className="tok-kw hidden sm:inline">new</span>
-              <span className="tok-fn hidden sm:inline">&nbsp;Date</span>
-              <span className="tok-punc hidden sm:inline">(</span>
+              {!voice && (
+                <>
+                  <span className="tok-kw hidden sm:inline">new</span>
+                  <span className="tok-fn hidden sm:inline">&nbsp;Date</span>
+                  <span className="tok-punc hidden sm:inline">(</span>
+                </>
+              )}
               <input
                 type="month"
                 value={dateFilter || ""}
@@ -62,7 +68,7 @@ const Navbar = ({
                 aria-label="Filter by month"
                 className="bg-transparent outline-none text-[13px] text-[var(--str)] w-[130px]"
               />
-              <span className="tok-punc hidden sm:inline">)</span>
+              {!voice && <span className="tok-punc hidden sm:inline">)</span>}
               {dateFilter && (
                 <button
                   type="button"
@@ -78,7 +84,7 @@ const Navbar = ({
         </div>
       ) : (
         <div className="flex-1 min-w-0 text-[13px] truncate">
-          <span className="tok-dim">~/root/</span>
+          {!voice && <span className="tok-dim">~/root/</span>}
           <span className="text-[var(--fg)]">{crumb}</span>
         </div>
       )}
