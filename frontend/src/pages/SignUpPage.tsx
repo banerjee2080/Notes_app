@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import type { ReactNode } from "react";
 import { useAuthStore } from "../stores/useAuthStore";
 import toast from "react-hot-toast";
@@ -46,6 +46,11 @@ const SignUpPage = () => {
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [resendCount, setResendCount] = useState(0);
+  // The OTP is single-use: once verified, keep the server's receipt so a failed
+  // signup can be retried without re-sending the (now spent) code.
+  const [verificationToken, setVerificationToken] = useState<string | null>(null);
+  // Blocks a second verify/signup round-trip while one is in flight.
+  const isSubmittingRef = useRef(false);
   const { isSigningUp, signup, googleLogin } = useAuthStore();
 
   useEffect(() => {
@@ -118,6 +123,8 @@ const SignUpPage = () => {
     setIsSendingOtp(true);
     try {
       await api.post("/otp", { email: formData.email });
+      setOtp("");
+      setVerificationToken(null);
 
       const nextCount = resendCount + 1;
       const waitTimeInSeconds = 60 + nextCount * 120;
@@ -145,33 +152,56 @@ const SignUpPage = () => {
 
   const verifyOtp = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (isSubmittingRef.current) return;
+    isSubmittingRef.current = true;
     setIsVerifyingOtp(true);
     try {
-      const res = await api.post<{ verificationToken?: string }>(
-        "/otp/verify",
-        {
-          email: formData.email,
-          otp,
-          purpose: "signup",
-        },
-      );
+      let token = verificationToken;
+      if (!token) {
+        try {
+          const res = await api.post<{ verificationToken?: string }>(
+            "/otp/verify",
+            {
+              email: formData.email,
+              otp,
+              purpose: "signup",
+            },
+          );
+          token = res.data?.verificationToken ?? null;
+        } catch (error) {
+          if (errorBody(error)?.code === "OTP_EXPIRED") setOtp("");
+          toast.error(errorMessage(error, "Invalid OTP"));
+          return;
+        }
 
-      if (!res.data?.verificationToken) {
-        toast.error("Verification failed. Please try again.");
-        return;
+        if (!token) {
+          toast.error("Verification failed. Please try again.");
+          return;
+        }
+        setVerificationToken(token);
+        toast.success("OTP verified successfully");
       }
 
-      toast.success("OTP verified successfully");
-
-      await signup({
+      const result = await signup({
         fullName: formData.fullName,
         email: formData.email,
         password: formData.password,
-        verificationToken: res.data.verificationToken,
+        verificationToken: token,
       });
-    } catch (error) {
-      toast.error(errorMessage(error, "Invalid OTP"));
+
+      if (!result.ok) {
+        if (result.code === "OTP_VERIFICATION_REQUIRED") {
+          // The receipt is spent or expired: a fresh code is needed.
+          setVerificationToken(null);
+          setOtp("");
+        } else if (result.code === "EMAIL_EXISTS") {
+          setVerificationToken(null);
+          setOtp("");
+          setTakeOtp(false);
+        }
+      }
     } finally {
+      isSubmittingRef.current = false;
       setIsVerifyingOtp(false);
     }
   };
@@ -319,7 +349,11 @@ const SignUpPage = () => {
         <form onSubmit={verifyOtp} className="space-y-5">
           <button
             type="button"
-            onClick={() => setTakeOtp(false)}
+            onClick={() => {
+              setTakeOtp(false);
+              setOtp("");
+              setVerificationToken(null);
+            }}
             className="ide-btn ide-btn-ghost !px-2 !py-1 text-xs -ml-2"
           >
             <ArrowLeft className="size-3.5" />
@@ -367,7 +401,11 @@ const SignUpPage = () => {
           <button
             type="submit"
             className="ide-btn ide-btn-solid w-full justify-center !py-2.5"
-            disabled={isVerifyingOtp || isSigningUp || otp.length < 6}
+            disabled={
+              isVerifyingOtp ||
+              isSigningUp ||
+              (!verificationToken && otp.length < 6)
+            }
           >
             {isVerifyingOtp || isSigningUp ? (
               <>
@@ -376,6 +414,8 @@ const SignUpPage = () => {
                   ? t({ js: "creating account…", common: "Creating account…" })
                   : t({ js: "verifying…", common: "Verifying…" })}
               </>
+            ) : verificationToken ? (
+              t({ js: "signup();", common: "Create account" })
             ) : (
               t({ js: "verify(otp);", common: "Verify", pythagoras: "Swear it" })
             )}

@@ -16,6 +16,9 @@ const SESSION_TTL_MS = 5 * 24 * 60 * 60 * 1000; // 5 days
 
 export type ThemeMode = "dark" | "light";
 
+/** How a signup attempt ended; `code` is the server's error code, if any. */
+export type SignupResult = { ok: true } | { ok: false; code?: string };
+
 /** Shown when logout finds notes the server has never received. */
 export interface LogoutWarning {
   count: number;
@@ -44,7 +47,7 @@ export interface AuthState {
   confirmLogoutDiscard: () => Promise<void>;
   _finishLogout: (options: { discardUnsynced: boolean }) => Promise<boolean>;
   login: (formData: LoginPayload) => Promise<void>;
-  signup: (formData: SignupPayload) => Promise<void>;
+  signup: (formData: SignupPayload) => Promise<SignupResult>;
   updateProfile: (data: { profilePic: string }) => Promise<void>;
   setTheme: (image: { backgroundImg: string }) => Promise<void>;
   googleLogin: (accessToken: string) => Promise<AuthUser | null>;
@@ -221,16 +224,18 @@ export const useAuthStore = create<AuthState>()(
 
           triggerSync(res.data._id);
           toast.success("Signed up successfully.");
+          return { ok: true };
         } catch (error) {
           console.log("Error in signup: ", error);
           const code = errorBody(error)?.code;
           if (code === "OTP_VERIFICATION_REQUIRED") {
             toast.error(
-              "Email verification expired. Please verify your email again.",
+              "Email verification expired. Please request a new code.",
             );
           } else {
             toast.error(errorMessage(error));
           }
+          return { ok: false, code };
         } finally {
           set({ isSigningUp: false });
         }

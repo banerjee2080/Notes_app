@@ -87,6 +87,18 @@ export const signup = async (req, res) => {
         .json({ message: "Password must atleast be 6 characters long" });
     }
 
+    // Check the address before spending the single-use verification token,
+    // so a duplicate account doesn't burn the user's verification.
+    const user = await User.findOne({
+      email: { $in: [email, req.body.email] },
+    });
+    if (user) {
+      return res.status(409).json({
+        message: "An account with this email already exists. Please sign in.",
+        code: "EMAIL_EXISTS",
+      });
+    }
+
     // ---- email ownership gate ----
     const tokenCheck = await consumeVerificationToken(
       verificationToken,
@@ -104,11 +116,6 @@ export const signup = async (req, res) => {
         .json({ message, code: "OTP_VERIFICATION_REQUIRED" });
     }
     // ---- end gate ----
-
-    const user = await User.findOne({
-      email: { $in: [email, req.body.email] },
-    });
-    if (user) return res.status(400).json({ message: "Email already exists" });
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -134,6 +141,13 @@ export const signup = async (req, res) => {
       accent_colour2: newUser.accent_colour2,
     });
   } catch (error) {
+    // Two signups for the same address racing past the check above.
+    if (error?.code === 11000) {
+      return res.status(409).json({
+        message: "An account with this email already exists. Please sign in.",
+        code: "EMAIL_EXISTS",
+      });
+    }
     console.log("Error in signup: ", error);
     return res.status(500).json({ message: "Internal Server Error" });
   }

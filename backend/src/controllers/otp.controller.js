@@ -11,6 +11,7 @@ import {
   consumeIpQuota,
   issueVerificationToken,
 } from "../lib/otpSecurity.js";
+import User from "../models/user.model.js";
 
 dotenv.config();
 
@@ -26,6 +27,15 @@ export const sendOtp = async (req, res) => {
     }
     if (!ALLOWED_PURPOSES.includes(purpose)) {
       return res.status(400).json({ message: "Invalid request" });
+    }
+
+    // Don't email a sign-up code to an address that already has an account;
+    // the signup that follows would only fail with "email already exists".
+    if (purpose === "signup" && (await User.exists({ email }))) {
+      return res.status(409).json({
+        message: "An account with this email already exists. Please sign in.",
+        code: "EMAIL_EXISTS",
+      });
     }
 
     const ip = req.ip || "unknown";
@@ -112,10 +122,15 @@ export const verifyOtp = async (req, res) => {
       if (result.reason === "too_many_attempts") {
         return res.status(429).json({
           message: "Too many incorrect attempts. Please request a new code.",
+          code: "OTP_EXPIRED",
         });
       }
       if (result.reason === "expired") {
-        return res.status(400).json({ message: "OTP expired or not found" });
+        return res.status(400).json({
+          message:
+            "This code has expired or was already used. Please request a new code.",
+          code: "OTP_EXPIRED",
+        });
       }
       return res.status(400).json({
         message: "Invalid OTP",
