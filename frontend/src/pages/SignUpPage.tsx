@@ -66,49 +66,51 @@ const SignUpPage = () => {
     },
   });
 
-  const validateForm = () => {
-    if (!formData.fullName.trim()) return toast.error("Full name is required");
-    if (!formData.email.trim()) return toast.error("Email is required");
-    if (!/\S+@\S+\.\S+/.test(formData.email))
-      return toast.error("Invalid email format");
-    if (!formData.password) return toast.error("Password is required");
+  /** Returns an error message for the first invalid field, or null when the form is valid. */
+  const validateForm = (): string | null => {
+    if (!formData.fullName.trim()) return "Full name is required";
+    if (!formData.email.trim()) return "Email is required";
+    if (!/\S+@\S+\.\S+/.test(formData.email)) return "Invalid email format";
+    if (!formData.password) return "Password is required";
     if (formData.password.length < 6)
-      return toast.error("Password must be at least 6 characters");
+      return "Password must be at least 6 characters";
     if (formData.password !== formData.confirmPassword)
-      return toast.error("Passwords do not match");
+      return "Passwords do not match";
 
-    return true;
+    return null;
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const success = validateForm();
-    if (success) {
-      setIsSendingOtp(true);
-      try {
-        await api.post("/otp", {
-          email: formData.email,
-        });
-        setTakeOtp(true);
-        setResendTimer(60);
-        setResendCount(0);
-        toast.success("OTP sent to your email");
-      } catch (error) {
-        if (errorStatus(error) === 429) {
-          const secs = errorBody(error)?.retryAfterSeconds || 3600;
-          setResendTimer(secs);
-          toast.error(
-            errorMessage(
-              error,
-              `Too many requests. Try again in ${Math.ceil(secs / 60)} minute(s).`,
-            ),
-          );
-        } else {
-          toast.error(errorMessage(error, "Failed to send OTP"));
-        }
-      } finally {
-        setIsSendingOtp(false);
+    const validationError = validateForm();
+    if (validationError) {
+      toast.error(validationError);
+      return;
+    }
+    setIsSendingOtp(true);
+    try {
+      await api.post("/otp", {
+        email: formData.email,
+      });
+      setTakeOtp(true);
+      setResendTimer(60);
+      setResendCount(0);
+      toast.success("OTP sent to your email");
+    } catch (error) {
+      if (errorStatus(error) === 429) {
+        const secs = errorBody(error)?.retryAfterSeconds || 3600;
+        setResendTimer(secs);
+        toast.error(
+          errorMessage(
+            error,
+            `Too many requests. Try again in ${Math.ceil(secs / 60)} minute(s).`,
+          ),
+        );
+      } else {
+        toast.error(errorMessage(error, "Failed to send OTP"));
       }
+    } finally {
+      setIsSendingOtp(false);
     }
   };
 
