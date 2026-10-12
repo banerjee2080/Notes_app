@@ -11,6 +11,7 @@ import {
   consumeIpQuota,
   issueVerificationToken,
 } from "../lib/otpSecurity.js";
+import User from "../models/user.model.js";
 
 dotenv.config();
 
@@ -26,6 +27,19 @@ export const sendOtp = async (req, res) => {
     }
     if (!ALLOWED_PURPOSES.includes(purpose)) {
       return res.status(400).json({ message: "Invalid request" });
+    }
+
+    // Don't send (or charge quota for) a sign-up code to an address that is already registered.
+    if (purpose === "signup") {
+      const existingUser = await User.exists({
+        email: { $in: [email, req.body.email] },
+      });
+      if (existingUser) {
+        return res.status(409).json({
+          message: "An account with this email already exists. Please sign in.",
+          code: "USER_EXISTS",
+        });
+      }
     }
 
     const ip = req.ip || "unknown";

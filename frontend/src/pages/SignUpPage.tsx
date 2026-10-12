@@ -46,6 +46,8 @@ const SignUpPage = () => {
   const [isVerifyingOtp, setIsVerifyingOtp] = useState(false);
   const [resendTimer, setResendTimer] = useState(0);
   const [resendCount, setResendCount] = useState(0);
+  /** The email the current, still-valid code was sent to. */
+  const [otpSentTo, setOtpSentTo] = useState<string | null>(null);
   const { isSigningUp, signup, googleLogin } = useAuthStore();
 
   useEffect(() => {
@@ -87,18 +89,29 @@ const SignUpPage = () => {
       toast.error(validationError);
       return;
     }
+    // A code for this email is still pending: go back to it instead of sending another.
+    if (otpSentTo === formData.email && resendTimer > 0) {
+      setTakeOtp(true);
+      return;
+    }
     setIsSendingOtp(true);
     try {
       await api.post("/otp", {
         email: formData.email,
       });
+      setOtpSentTo(formData.email);
       setTakeOtp(true);
       setResendTimer(60);
       setResendCount(0);
       toast.success("OTP sent to your email");
     } catch (error) {
-      if (errorStatus(error) === 429) {
+      if (errorStatus(error) === 409) {
+        toast.error(
+          errorMessage(error, "An account with this email already exists. Please sign in."),
+        );
+      } else if (errorStatus(error) === 429) {
         const secs = errorBody(error)?.retryAfterSeconds || 3600;
+        setOtpSentTo(null);
         setResendTimer(secs);
         toast.error(
           errorMessage(
